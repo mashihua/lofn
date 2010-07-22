@@ -1,0 +1,75 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" 
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" /><title></title>
+	<style type="text/css">
+		pre {
+			font-family: Consolas,Courier New,NSimSun,SimSun,monospace;
+			font-size:12px;
+		}
+		h1 {
+			font-family: Arial,NSimSun,sans-serif;
+		}
+		#input{
+			width:99%;
+			display:block;
+			height:16em;
+		}
+	</style>
+</head>
+<body>
+	<textarea id="input"></textarea>
+	<button id="go">Start script</button>
+	<pre id="output"></pre>
+
+	<script type="text/javascript">
+//<![CDATA[
+		var _output = document.getElementById('output');
+		function trace(x) {
+			var s = '';
+			for (var i = 0; i < arguments.length; i++) s += arguments[i];
+			_output.appendChild(document.createTextNode(s));
+			return arguments[arguments.length - 1];
+		};
+		function tracel() {
+			var v = trace.apply(this, arguments);
+			trace('\n');
+			return v;
+		};
+		function clrscr() {
+			_output.innerHTML = '';
+		}
+//]]></script>
+
+	<script src="primitives.js" type="text/javascript"></script>
+	<script src="token.js" type="text/javascript"></script>
+	<script src="parse.js" type="text/javascript"></script>
+	<script src="vm.js" type="text/javascript"></script>
+	<script src="stl.js" type="text/javascript"></script>
+	<script type="text/javascript">
+		document.getElementById('go').onclick = function () {
+			clrscr();
+			ScriptScopes = parse(lex(document.getElementById('input').value))
+			console.log(ScriptScopes);
+			for (var i = 0; i < ScriptScopes.length; i++) {
+				tracel(i, ': ------------------');
+				ScriptScopes[i].ready();
+				createFromTree(ScriptScopes[i], i===0 ? globalEnvPlc : null);
+				tracel(ScriptScopes[i].transformed);
+			};
+			tracel(' -----================----- ')
+			// start VM
+			//try {
+			var inital = ScriptScopes[0];
+			inital.wash(globalEnv, gEnvRec);
+			inital.func(globalEnv, [], null, []);
+			//} catch (e) {
+			//	tracel('! A error occurs around line ' + _script_line + ' about: ' + e);
+			//}
+			tracel('\n -----======DONE======----- ')
+		}
+	</script>
+
+</body>
+</html>
