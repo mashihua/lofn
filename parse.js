@@ -199,16 +199,24 @@ var parse = function (tokens) {
 	};
 	var SQSTART = 91, SQEND = 93, RDSTART = 40, RDEND = 41, CRSTART = 123, CREND = 125;
 
+	// Identifier: like the javascript
 	var variable = function () {
 		var t = advance(ID);
 		return new Node(NodeType.VARIABLE,
 		{ name: t.value });
 	};
+
+	// literals: number, string
+	// number: stricter than javascript, 0.0E(-)0
+	// strings: single and double quote. Single quotes only support escaping '' into '
+	// Double quotes support \\ \n \" \t \uxxxx
 	var literal = function () {
 		var t = advance();
 		return new Node(NodeType.LITERAL,
 		{ value: t.value });
 	};
+
+	// constants
 	var consts = {
 		'true': true,
 		'false': false,
@@ -219,23 +227,34 @@ var parse = function (tokens) {
 		var t = advance(CONSTANT);
 		return new Node(nt.LITERAL, { value: consts[t.value] });
 	};
+
+	// this pointer
 	var thisp = function () {
 		var t = advance(ME);
 		return new Node(nt.THIS);
 	};
+
+	// callee
 	var calleep = function () {
 		var t = advance(CALLEE);
 		return new Node(nt.CALLEE);
 	};
+
+	// 'my' construct: "my" Identifier
 	var thisprp = function () {
 		var t = advance(MY);
 		var n = variable();
 		return new Node(nt.MEMBER, { left: new Node(nt.THIS), right: n });
 	};
+
+	// 'arguments' pointer
 	var argsp = function () {
 		var t = advance(ARGUMENTS);
 		return new Node(nt.ARGUMENTS);
 	};
+
+	// Function body: 
+	//		"{" statements "}"
 	var functionBody = function (p) {
 		advance(STARTBRACE, 123);
 		var n = newScope();
@@ -245,6 +264,10 @@ var parse = function (tokens) {
 		advance(ENDBRACE, 125);
 		return new Node(nt.FUNCTION, { rc: n });
 	};
+	// Function body using
+	//		COLON
+	//			statements
+	//		"end"
 	var colonBody = function (p) {
 		advance(COLON);
 		var n = newScope();
@@ -254,9 +277,12 @@ var parse = function (tokens) {
 		advance(END);
 		return new Node(nt.FUNCTION, { rc: n });
 	};
+
+	// Function literal
+	// "function" [Parameters] FunctionBody
 	var functionLiteral = function () {
 		advance(FUNCTION);
-		if (token.type === STARTBRACE && token.value === 40) {
+		if (token.type === STARTBRACE && token.value === RDSTART) {
 			var p = parameters();
 		};
 		var f;
@@ -266,10 +292,17 @@ var parse = function (tokens) {
 			f = functionBody(p);
 		return f;
 	};
+
+	// Parameters ->
+	// "(" Parameter { "," Parameter } ")"
+	// Parameter ->
+	// [StringLiteral] Identifier
+
+	// Only parameters explicitly defined names can be a named parameter
 	var parameters = function () {
 		var arr = [], ams = [];
 		advance(STARTBRACE, 40);
-		if (!(token.type === ENDBRACE && token.value === 41)) {
+		if (!(token.type === ENDBRACE && token.value === RDEND)) {
 			if (token.type === STRING) {
 				ams[0] = token.value;
 				advance();
@@ -294,6 +327,9 @@ var parse = function (tokens) {
 		ensure(!HAS_DUPL(ams), 'Named parameter list contains duplicate');
 		return new Node(nt.PARAMETERS, { names: arr, anames: ams });
 	};
+
+	// Array literal
+	// "[" CI { "," CI } "]"
 	var arrayLiteral = function () {
 		advance(STARTBRACE, SQSTART);
 		var n = new Node(nt.ARRAY);
@@ -301,6 +337,8 @@ var parse = function (tokens) {
 		advance(ENDBRACE, SQEND);
 		return n;
 	};
+
+	// Lambda Expression content
 	var lambdaCont = function (p) {
 		var right;
 		advance(OPERATOR, ':>');
@@ -323,12 +361,15 @@ var parse = function (tokens) {
 		ensure(token, 'Unable to get operand: missing token');
 		switch (token.type) {
 			case ID:
+				// x :> BODY
+				// lambda
 				if (token.isLambdaArg) {
 					var v = variable();
 					return lambdaCont(new Node(nt.PARAMETERS, {
 						names: [v.name],
 						anames: []
 					}));
+					// or variable
 				} else return variable();
 			case NUMBER:
 			case STRING:
@@ -345,20 +386,27 @@ var parse = function (tokens) {
 				return argsp();
 			case STARTBRACE:
 				if (token.value === SQSTART) {
+					// array
 					return arrayLiteral();
-				} else if (token.value === 40 && token.isLambdaArg) {
+				} else if (token.value === RDSTART && token.isLambdaArg) {
+					// (...) :> BODY
+					// lambda
 					return lambdaCont(parameters());
-				} else if (token.value === 40) {
+				} else if (token.value === RDSTART) {
+					// braced expression (expr)
 					advance();
 					var n = expression(true);
 					n.bp = 0;
 					n.grouped = true;
 					advance(ENDBRACE, 41);
 					return n;
-				} else {
+				} else if (token.value === CRSTART) {
+					// Raw function body
+					// with no arguments
 					return functionBody(undefined, true);
 				}
 			case FUNCTION:
+				// function literal started with "function"
 				return functionLiteral();
 			default:
 				throw new Error('Unexpected token' + token);
@@ -366,23 +414,26 @@ var parse = function (tokens) {
 	};
 	var memberitem = function (left) {
 		var right;
-		if (token.type === STARTBRACE && token.value === SQSTART) {  // .[ format
+		if (token.type === STARTBRACE && token.value === SQSTART) {  // .[ Expressuib ]  format
 			advance();
 			right = expression();
 			advance(ENDBRACE, SQEND);
 			return new Node(nt.MEMBERREFLECT, { left: left, right: right });
-		} else {
+		} else { // . Identifier  format
 			right = variable();
 			return new Node(nt.MEMBER, { left: left, right: right });
 		}
 	}
 	var member = function () {
 		var node = primary();
+		// a.b.[e1].c[e2]			...
 		while (token && (token.type === DOT || token.type === STARTBRACE && token.value === SQSTART)) {
 			var t = advance();
 			if (t.type === DOT) {
 				node = memberitem(node);
 			} else {
+				// ITEM
+			// x[e] === x.item(e)
 				node = new Node(nt.ITEM, { left: node, item: expression() });
 				advance(ENDBRACE, SQEND);
 			}
@@ -399,7 +450,7 @@ var parse = function (tokens) {
 				case STARTBRACE:
 					if (token.value === RDSTART && token.isLambdaArg) { // lambda looks like an invocation
 						break out;
-					} else if (token.value === RDSTART && !token.isLambdaArg) { // invocation
+					} else if (token.value === RDSTART && !token.isLambdaArg) { // invocation f(a,b,c...)
 						advance();
 						m = new Node(nt.CALL, {
 							func: m
@@ -407,7 +458,8 @@ var parse = function (tokens) {
 						if (token.type === ENDBRACE && token.value === RDEND) { m.args = []; advance(); continue; };
 						arglist(m);
 						advance(ENDBRACE, RDEND);
-					} else if (token.value === SQSTART) {
+					} else if (token.value === SQSTART) { // ITEM operator
+					// a[e] === a.item(e)
 						advance();
 						m = new Node(nt.ITEM, {
 							left: m,
@@ -415,6 +467,9 @@ var parse = function (tokens) {
 						});
 						advance(ENDBRACE, SQEND);
 					} else if (token.value === CRSTART) {
+						// something { body } invocation
+						// creates advanced functions directly
+						// like::	 chained { actions }
 						m = new Node(nt.CALL, {
 							func: m,
 							args: [functionBody()],
@@ -425,6 +480,8 @@ var parse = function (tokens) {
 					}
 					continue;
 				case FUNCTION:
+					// like:
+					// constructor function(){ ...... }
 					m = new Node(nt.CALL, {
 						func: m,
 						args: [functionLiteral()],
@@ -446,15 +503,23 @@ var parse = function (tokens) {
 		do {
 			if (token && token.type === ID) { // meet an identifier
 				if (next && next.type === COLON) {
+					// named argument
+					// name : value
 					name = token.value, sname = true, nameused = true;
 					advance();
 					advance();
 				} else if (next && (next.type === ID || next.type === NUMBER || next.type === STRING || next.type === FUNCTION ||
 					next.type === STARTBRACE && next.value === CRSTART || next.type === STARTBRACE && next.value === RDSTART && next.isLambdaArg)) {
+					// special colonless named arguments
+					// like:
+					//		do {oprtations}
+					// should I delete this ?
 					name = token.value, sname = true, nameused = true;
 					advance();
 				}
 			} else if (token && token.type === STRING) {
+				// Strings as named arguments
+				// no confuse
 				if (next && next.type === COLON) {
 					name = token.value, sname = true, nameused = true;
 					advance();
@@ -462,7 +527,9 @@ var parse = function (tokens) {
 				};
 			};
 
-
+			// callItem is the "most strict" expression.
+			// without omissioned calls and implicit calls.
+			// so you cannot write `f(1, 2, a:3)` like `f 1, 2, a:3`.
 			pivot = callItem();
 			args.push(pivot);
 			if (sname) {
@@ -498,6 +565,7 @@ var parse = function (tokens) {
 	};
 
 	var unary = function () {
+		// unary expression
 		if (token.type == OPERATOR && (token.value === '-' || token.value === 'not')) {
 			var t = advance(OPERATOR);
 			var n = callExpression();
@@ -525,6 +593,10 @@ var parse = function (tokens) {
 	};
 
 	var operatorPiece = function (start, progress) {
+		// operators.
+		// the "->" operator gets a "Rule" object
+		// the "is","is in","as",">>","<<" operators are costumizable.
+		// Should I remove "/@"?
 		var uber = { right: start, bp: 65536 };
 		while (token && token.type === OPERATOR && ensure(bp[token.value] > -65536, "Invalid Operator: " + token)) { // if is a valid operator, then...
 
@@ -545,6 +617,13 @@ var parse = function (tokens) {
 	};
 
 	var outmostexp = function () {
+		// outmost expression.
+		// following specifics are supported:
+		// - Omissioned calls
+		// - "then" syntax for chained calls.
+		// - Implicit calls: the `newline` will be `newline()`
+		//    - You can use `(newline)` to prevent implicit calls.
+		//    - Should I remove this?
 		var pivot = unary(), right, c;
 		if (token && token.type === OPERATOR && token.value === '=') { //赋值
 			advance();
@@ -555,7 +634,7 @@ var parse = function (tokens) {
 			c = operatorPiece(pivot, unary);
 		} else {
 			// processing omissioned calls
-			if (pivot.type === nt.CALL)
+			if (pivot.type === nt.CALL || pivot.grouped)
 				c = pivot
 			else
 				c = new Node(nt.CALL, {
@@ -594,6 +673,8 @@ var parse = function (tokens) {
 		}
 	};
 	var expression = function (inside) {
+		// "normal" expression.
+		// Like outmost, but without implicit calls.
 		var pivot = unary(), right, c;
 		if (token && token.type === OPERATOR && token.value === '=') { //赋值
 			advance();
@@ -605,7 +686,6 @@ var parse = function (tokens) {
 		} else if (!token || token && (token.type === SEMICOLON || token.type === END || token.type === ENDBRACE)) {
 			return pivot;
 		} else {
-			//c = new Node(nt.CALL, { func: pivot, args: [], omission: true });
 			c = pivot
 			while (true) {
 				if (!token) return c;
@@ -668,6 +748,16 @@ var parse = function (tokens) {
 	}
 
 	var statement = function () {
+		// Statements
+		/*
+			if condition:
+				statements
+				statements
+			else if cond2:
+				statement
+			else, ontstatement
+			end
+		*/
 		if (token)
 			switch (token.type) {
 			case RETURN:
