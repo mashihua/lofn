@@ -60,7 +60,7 @@ var nameTypes = {
 	'end': END,
 	'else': ELSE,
 	'otherwise': OTHERWISE,
-	'then': THEN,
+//	'then': THEN,
 	'var': VAR,
 	'me': ME,
 	'this': ME,
@@ -114,6 +114,7 @@ var
 	semi = CharacterGroup(';'),
 	colon = CharacterGroup(':'),
 	sharp = CharacterGroup('#'),
+	theng = CharacterGroup('|'),
 	slash = CharacterGroup('/');
 
 var Token = function (type, value, p, pp) {
@@ -219,6 +220,9 @@ var lex = function (source) {
 			token(COLON, 0);
 		} else if (sharp(current)) {
 			token(SHARP, '#');
+		} else if (theng(current)) {
+			removeImplicitSemicolons();
+			token(THEN, 'then');
 		} else if (operatorStart(current)) { //operator
 			scan(operatorCont, function (i, j, s) {
 				token(OPERATOR, s);

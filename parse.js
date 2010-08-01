@@ -433,7 +433,7 @@ var parse = function (tokens) {
 				node = memberitem(node);
 			} else {
 				// ITEM
-			// x[e] === x.item(e)
+				// x[e] === x.item(e)
 				node = new Node(nt.ITEM, { left: node, item: expression() });
 				advance(ENDBRACE, SQEND);
 			}
@@ -459,7 +459,7 @@ var parse = function (tokens) {
 						arglist(m);
 						advance(ENDBRACE, RDEND);
 					} else if (token.value === SQSTART) { // ITEM operator
-					// a[e] === a.item(e)
+						// a[e] === a.item(e)
 						advance();
 						m = new Node(nt.ITEM, {
 							left: m,
@@ -542,7 +542,7 @@ var parse = function (tokens) {
 			advance();
 		} while (true);
 		ensure(!HAS_DUPL(names), 'Named argument list contains duplicate');
-		nc.args = args, nc.names = names, nc.nameused = nameused;
+		nc.args = (nc.args || []).concat(args), nc.names = (nc.names || []).concat(names), nc.nameused = nc.nameused || nameused;
 	};
 
 	var itemlist = function (nc) {
@@ -616,14 +616,11 @@ var parse = function (tokens) {
 		return uber.right;
 	};
 
-	var outmostexp = function () {
-		// outmost expression.
+	var expression = function () {
+		// expression.
 		// following specifics are supported:
 		// - Omissioned calls
 		// - "then" syntax for chained calls.
-		// - Implicit calls: the `newline` will be `newline()`
-		//    - You can use `(newline)` to prevent implicit calls.
-		//    - Should I remove this?
 		var pivot = unary(), right, c;
 		if (token && token.type === OPERATOR && token.value === '=') { //赋值
 			advance();
@@ -634,15 +631,9 @@ var parse = function (tokens) {
 			c = operatorPiece(pivot, unary);
 		} else {
 			// processing omissioned calls
-			if (pivot.type === nt.CALL || pivot.grouped)
-				c = pivot
-			else
-				c = new Node(nt.CALL, {
-					func: pivot,
-					args: [],
-					omission: true
-				});
+			c = pivot
 		}
+		var method;
 
 		while (true) {
 			if (!token) return c;
@@ -653,52 +644,11 @@ var parse = function (tokens) {
 					return c;
 				case THEN:
 					advance();
-					if (token && token.type === DOT) advance(DOT);
-					ensure(token && token.type === ID, 'Missing identifier for Chain invocation');
-					var method = variable();
-					c = new Node(nt.CALL, {
-						func: new Node(nt.MEMBER, {
-							left: c,
-							right: method,
-							omission: true
-						}),
-						args: []
-					});
-					break;
-				default:
-					if (c.type !== nt.CALL || !c.omission)
-						c = new Node(nt.CALL, { func: c, args: [] })
-					arglist(c);
-			}
-		}
-	};
-	var expression = function (inside) {
-		// "normal" expression.
-		// Like outmost, but without implicit calls.
-		var pivot = unary(), right, c;
-		if (token && token.type === OPERATOR && token.value === '=') { //赋值
-			advance();
-			return new Node(nt['='], { left: pivot, right: expression(true) });
-		}
-
-		if (token && token.type === OPERATOR && bp[token.value]) {
-			return operatorPiece(pivot, unary);
-		} else if (!token || token && (token.type === SEMICOLON || token.type === END || token.type === ENDBRACE)) {
-			return pivot;
-		} else {
-			c = pivot
-			while (true) {
-				if (!token) return c;
-				switch (token.type) {
-					case END:
-					case SEMICOLON:
-					case ENDBRACE:
-						return c;
-					case THEN:
-						advance();
-						if (token && token.type === DOT) advance(DOT);
+					if (token && token.type === DOT) {
+						// |.name chaining
+						advance(DOT);
 						ensure(token && token.type === ID, 'Missing identifier for Chain invocation');
-						var method = variable();
+						method = variable();
 						c = new Node(nt.CALL, {
 							func: new Node(nt.MEMBER, {
 								left: c,
@@ -707,16 +657,32 @@ var parse = function (tokens) {
 							args: [],
 							omission: true
 						});
-						break;
-					default:
-						if (c.type !== nt.CALL || !c.omission)
-							c = new Node(nt.CALL, { func: c, args: [], omission: true })
-						arglist(c);
-				};
-			};
-		};
-	};
+					} else {
+						// tube
+						if (token && token.type === STARTBRACE && token.value === RDSTART) {
+						// |(expression) tube
 
+							advance();
+							method = expression();
+							advance(ENDBRACE, RDEND);
+						} else {
+							method = variable();
+						}
+						c = new Node(nt.CALL, {
+							func: method,
+							args: [c],
+							names: [null],
+							omission: true
+						});
+					}
+					break;
+				default:
+					if (c.type !== nt.CALL || !c.omission)
+						c = new Node(nt.CALL, { func: c, args: [] })
+					arglist(c);
+			}
+		}
+	};
 	var callItem = function () {
 		var pivot = unary();
 
@@ -750,13 +716,13 @@ var parse = function (tokens) {
 	var statement = function () {
 		// Statements
 		/*
-			if condition:
-				statements
-				statements
-			else if cond2:
-				statement
-			else, ontstatement
-			end
+		if condition:
+		statements
+		statements
+		else if cond2:
+		statement
+		else, ontstatement
+		end
 		*/
 		if (token)
 			switch (token.type) {
@@ -803,7 +769,7 @@ var parse = function (tokens) {
 				if (token.value === 125)
 					return;
 			default:
-				return outmostexp();
+				return expression();
 		};
 	};
 	var vardecls = function () {

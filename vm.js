@@ -345,7 +345,7 @@ var LofnFunctionCSTR = function () {
 	return '[Lofn function]';
 }
 var CREATEFUNCTION = function (env, cache, RCid) {
-	var RC = ScriptScopes[RCid];
+	var RC = ScriptScopes[RCid], cc = RC.hasNested ? [] : null;
 	if (cache[RCid])
 		return cache[RCid]
 	else {
@@ -354,10 +354,10 @@ var CREATEFUNCTION = function (env, cache, RCid) {
 			RC.wash(e);
 			if (ck !== NUSED) {
 				RC.place(e, arguments);
-				return RC.func(e, [], this, arguments, f);
+				return RC.func(e, cc, this, arguments, f);
 			} else {
 				RC.place(e, a, u, n);
-				return RC.func(e, [], t, a, f);
+				return RC.func(e, cc, t, a, f);
 			}
 		};
 		f.external = false;
