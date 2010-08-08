@@ -287,9 +287,6 @@ var transform = function (node) {
 var createFromTree = function (tree, genv) {
 	loc = tree.locals(YES, genv);
 	var s = "var lvs = env[''], __temp;\n" + transform(tree.code);
-	if (tree.hasNested) {
-		s = 'cache.ctor = new Function;cache.ctor.prototype = env;\n' + s;
-	}
 	var f = new Function('env,cache,thisptr,args,__callee', s);
 	tree.func = f;
 	tree.transformed = s;
@@ -345,19 +342,19 @@ var LofnFunctionCSTR = function () {
 	return '[Lofn function]';
 }
 var CREATEFUNCTION = function (env, cache, RCid) {
-	var RC = ScriptScopes[RCid], cc = RC.hasNested ? [] : null;
+	var RC = ScriptScopes[RCid], cc = RC.hasNested ? function () { return [] } : function () { return null };
 	if (cache[RCid])
 		return cache[RCid]
 	else {
 		var f = function (ck, t, a, u, n) {
-			var e = new cache.ctor //derive(env);
+			var e = derive(env);
 			RC.wash(e);
 			if (ck !== NUSED) {
 				RC.place(e, arguments);
-				return RC.func(e, cc, this, arguments, f);
+				return RC.func(e, cc(), this, arguments, f);
 			} else {
 				RC.place(e, a, u, n);
-				return RC.func(e, cc, t, a, f);
+				return RC.func(e, cc(), t, a, f);
 			}
 		};
 		f.external = false;
