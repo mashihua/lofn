@@ -95,12 +95,23 @@ var parse = function (tokens) {
 		this.type = NodeType.SCOPE;
 		this.nest = [];
 		this.locals = new Nai;
+		this.id = id;
 	};
+	ScopedScript.prototype.newVar = function(name){
+		return this.locals[name] = this.variables[name]=this.id;
+	}
 	ScopedScript.prototype.resolveVar = function(name){
 		if(this.variables[name]>=0)
 			return this.variables[name];
 		else
-			return this.locals[name] = this.variables[name]=this.id+1;
+			return this.newVar(name)
+	}
+	ScopedScript.prototype.ready = function(){
+		if(this.parameters){
+			for(var i = 0;i<this.parameters.names.length;i++){
+				this.newVar(this.parameters.names[i])
+			}
+		}
 	}
 
 	var scopes = [], token = tokens[0], next, i = 0, len = tokens.length, workingScopes = [], workingScope, nt = NodeType, curline;
@@ -115,13 +126,12 @@ var parse = function (tokens) {
 	};
 	var newScope = function () {
 		var n = scopes.length;
-		var s = new ScopedScript(n, workingScope);
+		var s = new ScopedScript(n+1, workingScope);
 		if (workingScope) {
 			workingScope.hasNested = true;
 			workingScope.nest.push(s);
 		}
 		s.upper = workingScopes[workingScopes.length - 1];
-		s.id = n;
 		scopes[n] = s;
 		workingScopes.push(s);
 		workingScope = s;
@@ -202,8 +212,9 @@ var parse = function (tokens) {
 	var functionBody = function (p) {
 		advance(STARTBRACE, 123);
 		var n = newScope();
-		workingScope.code = statements();
 		workingScope.parameters = p || new Node(nt.PARAMETERS, { names: [], anames: [] });
+		workingScope.ready();
+		workingScope.code = statements();
 		endScope();
 		advance(ENDBRACE, 125);
 		return new Node(nt.FUNCTION, { rc: n });
@@ -215,8 +226,9 @@ var parse = function (tokens) {
 	var colonBody = function (p) {
 		advance(COLON);
 		var n = newScope();
-		workingScope.code = statements(END);
 		workingScope.parameters = p || new Node(nt.PARAMETERS, { names: [], anames: [] });
+		workingScope.ready();
+		workingScope.code = statements(END);
 		endScope();
 		advance(END);
 		return new Node(nt.FUNCTION, { rc: n });

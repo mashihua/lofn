@@ -52,7 +52,12 @@
 			clrscr();
 			ScriptScopes = parse(lex(document.getElementById('input').value))
 			console.log(ScriptScopes);
-			createFromTree(ScriptScopes[0], globalEnvPlc);
+			for (var i = 0; i < ScriptScopes.length; i++) {
+				tracel(i, ': ------------------');
+				//ScriptScopes[i].ready();
+				createFromTree(ScriptScopes[i], i===0 ? globalEnvPlc : null);
+				tracel(ScriptScopes[i].transformed);
+			};
 			tracel(' -----================----- ')
 			// start VM
 			//try {
