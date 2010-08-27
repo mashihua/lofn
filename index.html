@@ -52,18 +52,13 @@
 			clrscr();
 			ScriptScopes = parse(lex(document.getElementById('input').value))
 			console.log(ScriptScopes);
-			for (var i = 0; i < ScriptScopes.length; i++) {
-				tracel(i, ': ------------------');
-				ScriptScopes[i].ready();
-				createFromTree(ScriptScopes[i], i===0 ? globalEnvPlc : null);
-				tracel(ScriptScopes[i].transformed);
-			};
+			createFromTree(ScriptScopes[0], globalEnvPlc);
 			tracel(' -----================----- ')
 			// start VM
 			//try {
-			var inital = ScriptScopes[0];
-			inital.wash(globalEnv, gEnvRec);
-			inital.func(globalEnv, [], null, []);
+			//var inital = ScriptScopes[0];
+			//inital.wash(globalEnv, gEnvRec);
+			//inital.func(globalEnv, [], null, []);
 			//} catch (e) {
 			//	tracel('! A error occurs around line ' + _script_line + ' about: ' + e);
 			//}

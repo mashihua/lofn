@@ -87,76 +87,20 @@ var parse = function (tokens) {
 		p.line = curline;
 		return p
 	};
-	var ScopedScript = function () {
+	var ScopedScript = function (id, env) {
 		this.code = new Node(NodeType.SCRIPT);
-		this.variables = [];
+		this.variables = env ? derive(env.variables) : new Nai;
 		this.labels = {};
 		this.upper = null;
 		this.type = NodeType.SCOPE;
 		this.nest = [];
+		this.locals = new Nai;
 	};
-	ScopedScript.prototype.wash = function (e, g) {
-		var r = g || new Nai;
-		e[''] = r;
-		for (var i = 0; i < this.variables.length; i++) {
-			e[this.variables[i]] = r;
-		}
-		if (this.parameters) for (var i = 0; i < this.parameters.names.length; i++) {
-			e[this.parameters.names[i]] = r
-		};
-	};
-	ScopedScript.prototype.locals = function (y, orig) {
-		var r = orig || {}
-		for (var i = 0; i < this.variables.length; i++) {
-			r[this.variables[i]] = y;
-		}
-		if (this.parameters) for (var i = 0; i < this.parameters.names.length; i++) {
-			r[this.parameters.names[i]] = y
-		};
-		return r;
-	};
-	ScopedScript.prototype.ready = function () {
-		if (!this.parameters) return;
-		this.NAMEHAS = [];
-		this.NAMEPOS = [];
-		for (var i = 0; i < this.parameters.names.length; i++) if (this.parameters.anames[i]) {
-			this.NAMEHAS[this.parameters.anames[i]] = 1
-			this.NAMEPOS[this.parameters.anames[i]] = i;
-		};
-		if (this.parameters.names.length === 0) {
-			this.place = function (e, a, u, n) { a.names = n };
-		}
-		if (!this.hasNested) {
-			this.wash = function (e, g) {
-				var r = g || new Nai;
-				e[''] = r;
-			}
-		}
-	}
-	ScopedScript.prototype.place = function (e, a, u, n) {
-		a = a || [];
-		var r = e[''];
-		var NAMEHAS = this.NAMEHAS, NAMEPOS = this.NAMEPOS, i;
-		if (!u) { // no named parameters used?
-			for (i = 0; i < Math.min(a.length, this.parameters.names.length); i++) {
-				r[this.parameters.names[i]] = a[i];
-			}
-			// a.names = [];
-		} else {
-			var filled = [], resolved = [];
-			for (i = 0; i < n.length; i++) if (n[i] != null && NAMEHAS[n[i]] === 1) {
-				filled[NAMEPOS[n[i]]] = true; //obtained
-				resolved[NAMEPOS[n[i]]] = r[this.parameters.names[NAMEPOS[n[i]]]] = a[i]; //bind name
-			}
-			// Then, unnamed arguments:
-			var p = 0;
-			for (i = 0; i < n.length; i++) if (n[i] == null || NAMEHAS[n[i]] !== 1) {
-				while (filled[p] === true) p++;
-				r[this.parameters.names[p]] = resolved[p] = a[i];
-				p++;
-			};
-			a.names = n;
-		}
+	ScopedScript.prototype.resolveVar = function(name){
+		if(this.variables[name]>=0)
+			return this.variables[name];
+		else
+			return this.locals[name] = this.variables[name]=this.id+1;
 	}
 
 	var scopes = [], token = tokens[0], next, i = 0, len = tokens.length, workingScopes = [], workingScope, nt = NodeType, curline;
@@ -171,7 +115,7 @@ var parse = function (tokens) {
 	};
 	var newScope = function () {
 		var n = scopes.length;
-		var s = new ScopedScript();
+		var s = new ScopedScript(n, workingScope);
 		if (workingScope) {
 			workingScope.hasNested = true;
 			workingScope.nest.push(s);
@@ -203,7 +147,7 @@ var parse = function (tokens) {
 	var variable = function () {
 		var t = advance(ID);
 		return new Node(NodeType.VARIABLE,
-		{ name: t.value });
+		{ name: t.value, depth:workingScope.resolveVar(t.value) });
 	};
 
 	// literals: number, string

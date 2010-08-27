@@ -1,13 +1,4 @@
-﻿var derive = Object.create ? Object.create : function () {
-	var F = new Function;
-	return function (obj) {
-		if (F.prototype !== obj)
-			F.prototype = obj;
-		return new F;
-	}
-} ()
-
-var _script_line = 0;
+﻿var _script_line = 0;
 var __temp;
 
 var vmSchemata = [];
@@ -21,6 +12,10 @@ var GET = function (n) {
 }
 var SET = function (n, val) {
 	return '((__temp=env[' + n + '])?__temp[' + n + ']=' + val + ':(env[' + n + ']=lvs,lvs[' + n + ']=' + val + '))'
+}
+
+var GETV = function(node){
+	return '_$'+node.depth+'$'+node.name;
 }
 schemata(nt.SCRIPT, function (n) {
 	var a = [];
@@ -73,11 +68,7 @@ schemata(nt.ITEM, function () {
 	return 'MINVOKE(' + transform(this.left) + ',"item",false,null,' + transform(this.item) + ')';
 });
 schemata(nt.VARIABLE, function (n, l) {
-	var nm = this.name;
-	if (l[nm] === YES)
-		return 'lvs[' + strize(nm) + ']';
-	else
-		return GET(strize(nm));
+	return GETV(n);
 });
 schemata(nt.THIS, function () {
 	return 'thisptr';
@@ -285,7 +276,7 @@ var transform = function (node) {
 	}
 }
 var createFromTree = function (tree, genv) {
-	loc = tree.locals(YES, genv);
+	loc = tree.locals;
 	var s = "var lvs = env[''], __temp;\n" + transform(tree.code);
 	var f = new Function('env,cache,thisptr,args,__callee', s);
 	tree.func = f;

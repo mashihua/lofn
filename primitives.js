@@ -5,6 +5,15 @@ Nai.prototype = {
 	valueOf: undefined,
 	hasOwnProperty: undefined
 }
+
+var derive = function(){
+	var F = function(){};
+	return function(obj){
+		F.prototype = obj;
+		return new F;
+	}
+}();
+
 var YES = {};
 var NUSED = {};
 var SLICE = function () {
@@ -22,3 +31,5 @@ var NARG = function () {
 }
 
 var noth = void 0;
+
+var Lofn = {};
