@@ -94,25 +94,39 @@ var parse = function (tokens) {
 		this.upper = null;
 		this.type = NodeType.SCOPE;
 		this.nest = [];
-		this.locals = new Nai;
+		this.locals = [];
 		this.id = id;
+		this.parent = env;
+		this.usedVariables = new Nai;
 	};
 	ScopedScript.prototype.newVar = function(name){
-		return this.locals[name] = this.variables[name]=this.id;
-	}
+		this.locals.push(name);
+		return this.variables[name]=this.id;
+	};
 	ScopedScript.prototype.resolveVar = function(name){
 		if(this.variables[name]>=0)
 			return this.variables[name];
 		else
 			return this.newVar(name)
+	};
+	ScopedScript.prototype.useVar = function(name){
+		this.usedVariables[name] = true;
 	}
+	ScopedScript.prototype.listVar = function(){
+		for(var each in this.usedVariables){
+			if(this.usedVariables[each]===true && !(this.variables[each]>0))
+				this.newVar(each);
+		};
+		for(var i =0;i<this.nest.length;i++)
+			this.nest[i].listVar();
+	};
 	ScopedScript.prototype.ready = function(){
 		if(this.parameters){
 			for(var i = 0;i<this.parameters.names.length;i++){
 				this.newVar(this.parameters.names[i])
 			}
 		}
-	}
+	};
 
 	var scopes = [], token = tokens[0], next, i = 0, len = tokens.length, workingScopes = [], workingScope, nt = NodeType, curline;
 	if (token) curline = token.line;
@@ -156,8 +170,14 @@ var parse = function (tokens) {
 	// Identifier: like the javascript
 	var variable = function () {
 		var t = advance(ID);
+		workingScope.useVar(t.value);
 		return new Node(NodeType.VARIABLE,
-		{ name: t.value, depth:workingScope.resolveVar(t.value) });
+		{ name: t.value });
+	};
+	var name = function () {
+		var t = advance(ID);
+		return new Node(NodeType.VARIABLE,
+		{ name: t.value });
 	};
 
 	// literals: number, string
@@ -197,7 +217,7 @@ var parse = function (tokens) {
 	// 'my' construct: "my" Identifier
 	var thisprp = function () {
 		var t = advance(MY);
-		var n = variable();
+		var n = name();
 		return new Node(nt.MEMBER, { left: new Node(nt.THIS), right: n });
 	};
 
@@ -211,13 +231,13 @@ var parse = function (tokens) {
 	//		"{" statements "}"
 	var functionBody = function (p) {
 		advance(STARTBRACE, 123);
-		var n = newScope();
+		var n = newScope(), s = workingScope;
 		workingScope.parameters = p || new Node(nt.PARAMETERS, { names: [], anames: [] });
 		workingScope.ready();
 		workingScope.code = statements();
 		endScope();
 		advance(ENDBRACE, 125);
-		return new Node(nt.FUNCTION, { rc: n });
+		return new Node(nt.FUNCTION, { tree:s });
 	};
 	// Function body using
 	//		COLON
@@ -225,13 +245,13 @@ var parse = function (tokens) {
 	//		"end"
 	var colonBody = function (p) {
 		advance(COLON);
-		var n = newScope();
+		var n = newScope(), s = workingScope;
 		workingScope.parameters = p || new Node(nt.PARAMETERS, { names: [], anames: [] });
 		workingScope.ready();
 		workingScope.code = statements(END);
 		endScope();
 		advance(END);
-		return new Node(nt.FUNCTION, { rc: n });
+		return new Node(nt.FUNCTION, { tree:s });
 	};
 
 	// Function literal
@@ -262,20 +282,20 @@ var parse = function (tokens) {
 			if (token.type === STRING) {
 				ams[0] = token.value;
 				advance();
-				arr[0] = variable().name;
+				arr[0] = name().name;
 			} else {
 				ams[0] = null;
-				arr[0] = variable().name;
+				arr[0] = name().name;
 			}
 			while (token.type === COMMA) {
 				advance(COMMA);
 				if (token.type === STRING) {
 					ams.push(token.value);
 					advance();
-					arr[arr.length] = variable().name;
+					arr[arr.length] = name().name;
 				} else {
 					ams[ams.length] = null;
-					arr[arr.length] = variable().name;
+					arr[arr.length] = name().name;
 				}
 			};
 		};
@@ -299,17 +319,17 @@ var parse = function (tokens) {
 		var right;
 		advance(OPERATOR, ':>');
 		if (token.type === STARTBRACE && token.value === 123) { // statement lambda
-			right = functionBody();
-			scopes[right.rc].parameters = p;
+			right = functionBody(p);
 			return right;
 		} else {
-			var r = newScope();
+			var r = newScope(), s = workingScope;
 			right = expression();
-			workingScope.code = new Node(nt.RETURN, { expression: right });
 			workingScope.parameters = p;
+			workingScope.ready();
+			workingScope.code = new Node(nt.RETURN, { expression: right });
 			endScope();
 			return new Node(nt.FUNCTION, {
-				rc: r
+				tree:s
 			});
 		}
 	}
@@ -320,7 +340,7 @@ var parse = function (tokens) {
 				// x :> BODY
 				// lambda
 				if (token.isLambdaArg) {
-					var v = variable();
+					var v = name();
 					return lambdaCont(new Node(nt.PARAMETERS, {
 						names: [v.name],
 						anames: []
@@ -376,7 +396,7 @@ var parse = function (tokens) {
 			advance(ENDBRACE, SQEND);
 			return new Node(nt.MEMBERREFLECT, { left: left, right: right });
 		} else { // . Identifier  format
-			right = variable();
+			right = name();
 			return new Node(nt.MEMBER, { left: left, right: right });
 		}
 	}
@@ -604,7 +624,7 @@ var parse = function (tokens) {
 						// |.name chaining
 						advance(DOT);
 						ensure(token && token.type === ID, 'Missing identifier for Chain invocation');
-						method = variable();
+						method = name();
 						c = new Node(nt.CALL, {
 							func: new Node(nt.MEMBER, {
 								left: c,
@@ -641,24 +661,6 @@ var parse = function (tokens) {
 	};
 	var callItem = function () {
 		var pivot = unary();
-
-		if (token && token.type === OPERATOR && token.value === ':>' && pivot.type === nt.PARAMETERS) { //lambda表达式
-			advance(OPERATOR, ':>');
-			if (token.type === STARTBRACE && token.value === 123) { // statement lambda
-				right = functionBody();
-				scopes[right.rc].parameters = pivot;
-				pivot = right;
-			} else {
-				var r = newScope();
-				right = callItem();
-				workingScope.code = new Node(nt.RETURN, { expression: right });
-				workingScope.parameters = pivot;
-				endScope();
-				return new Node(nt.FUNCTION, {
-					rc: r
-				});
-			}
-		};
 		if (token && token.type === OPERATOR)
 			pivot = operatorPiece(pivot, unary);
 		return pivot;
@@ -731,7 +733,7 @@ var parse = function (tokens) {
 	var vardecls = function () {
 		if (next.type === OPERATOR && next.value === "=") { // assigned variable
 			var v = variable();
-			workingScope.variables.push(v.name);
+			workingScope.newVar(v.name);
 			advance();
 			return new Node(nt['='], {
 				left: new Node(nt.VARIABLE, { name: v.name }),
@@ -750,7 +752,7 @@ var parse = function (tokens) {
 	};
 	var vardecl = function () {
 		var v = variable();
-		workingScope.variables.push(v.name);
+		workingScope.newVar(v.name);
 		return new Node(nt.VARDECL, {
 			name: v.name
 		});
@@ -901,7 +903,7 @@ var parse = function (tokens) {
 	var labelstmt = function () {
 		advance(LABEL);
 		ensure(token && token.type === ID);
-		var name = variable().name;
+		var name = name().name;
 		ensure(!workingScope.labels[name] && workingScope.labels[name] !== 0, 'Unable to re-label a statement');
 		var node = new Node(nt.LABEL, {
 			name: name

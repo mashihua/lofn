@@ -33,3 +33,22 @@ var NARG = function () {
 var noth = void 0;
 
 var Lofn = {};
+var SLICE = Array.prototype.slice;
+
+var DINVOKE = function (pivot, shift, nameused, names) {
+	return INVOKEP(pivot, shift, SLICE(arguments, 4), nameused, names);
+}
+var MINVOKE = function (p, s) {
+	return p[s].apply(p,SLICE.call(arguments,2))
+}
+var IINVOKE = function (p, s) {
+	return p.item(s).apply(p,SLICE.call(arguments,2))
+}
+
+var NAMEMETA = new Nai;
+var T_NAMES = function(){
+	var o = derive(NAMEMETA);
+	for(var i=arguments.length-2;i>=0;i-=2)
+		o[arguments[i]]=arguments[i+1]
+	return o;
+}

@@ -1,42 +1,47 @@
 ﻿// Lofn standard linrary
+var Rule = function (l, r) {
+	this.left = l,
+	this.right = r;
+}
+Rule.prototype.reverse = function () {
+	return new Rule(this.right, this.left);
+}
+Rule.prototype.toString = function () {
+	return this.left + ' -> ' + this.right;
+}
+Rule.prototype.each = function (f) {
+	if (typeof this.left === 'number' && typeof this.right === 'number') {
+		if (this.left <= this.right) {
+			for (var i = this.left; i <= this.right; i++) {
+				DINVOKE(f, this, false, null, i);
+			}
+		} else {
+			for (var i = this.left; i >= this.right; i--) {
+				DINVOKE(f, this, false, null, i);
+			}
+		}
+	}
+}
+
 Array.prototype.each = function (f) {
 	for (var i = 0; i < this.length; i++) if (i in this) {
 		DINVOKE(f, this, false, null, this[i], i);
 	};
 	return this;
 };
-var gEnvRec = new Nai;
-var globalEnv = new Nai
-var globalEnvPlc = new Nai;
-globalEnv[''] = gEnvRec;
+var global = new Nai;
 var reg = function(n,x){
-	globalEnv[n] = gEnvRec;
-	globalEnvPlc[n] = YES;
-	gEnvRec[n] = x
+	global[n] = x
 }
 
-reg('trace',trace)
-reg('tracel',tracel);
-reg('object', lofnize(function (t, a) {
-	var obj = {};
-	for (var i = 0; i < a.length; i++)
-		if (a.names[i])
-			obj[a.names[i]] = a[i];
-	return obj;
-}));
-reg('try',lofnize(function (t, a) {
-	try {
-		DINVOKE(a.resolved[0], null, false,null);
-	} catch (e) {
-		if (a.resolved[1] instanceof Function) {
-			DINVOKE(a.resolved[1], null, false,null,e);
-		}
-	} finally {
-		if (a.resolved[2] instanceof Function) {
-			DINVOKE(a.resolved[2], null, false,null);
-		}
-	}
-}, ['try', 'catch', 'finally']));
+0, function(){
+	var output = G_TRACE('output');
+	reg('trace',output.trace);
+	reg('tracel',output.tracel);
+	reg('cout', {
+		shiftIn:function(item){output.trace(item);return this}
+	});
+}();
 
 // special hack
 Date['new'] = function(){return new Date()};
@@ -47,15 +52,15 @@ reg('derive',derive);
 reg('now',function(){return new Date()});
 reg('Date',Date);
 reg('itself',function(x){return x});
-reg('cout', {
-	shiftIn:function(item){trace(item);return this}
-});
 reg('endl', '\n');
 
-/*Array.prototype.map = (Array.prototype.map ? function (h) {
-	return function (f) {
-		return h.call(this, function (item) {
-			return DINVOKE(f, this, [item])
-		})
-	};
-} (Array.prototype.map) : function () { });*/
+reg('Function', Function);
+reg('object', function(){
+	return arguments[arguments.length-1]
+});
+reg('operators', {
+	add: function(a,b){return a+b},
+	minus:function(a,b){return a-b},
+	times:function(a,b){return a*b},
+	divide:function(a,b){return a/b}
+});
