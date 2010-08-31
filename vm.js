@@ -352,7 +352,19 @@ var CREATERULE = function (l, r) {
 return function(tree){
 	tree[0].listVar();
 	createFromTree(tree[0]);
-	return tree[0].transformed;
+	var body = tree[0].transformed;
+	var f = function(initals){
+		var _args = [],_vals=[];
+		for(var each in initals) {
+			if(OWNS(initals, each)){
+				_args.push(C_NAME(0, each));
+				_vals.push(initals[each]);
+			}
+		}
+		return Function.apply(null,_args.concat(body)).apply(null,_vals)
+	};
+	f.__bodyCode = body;
+	return f;
 }
 
 }();

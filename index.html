@@ -67,12 +67,12 @@ var clrscr = function(){
 			clrscr();
 			ScriptScopes = parse(lex(document.getElementById('input').value));
 			var tracel = G_TRACE('info').tracel;
-			var code = VM(ScriptScopes);
-			tracel('Generated code:\n'+(' |\t'+code).replace(/\n/g,'\n |\t'));
+			var script = VM(ScriptScopes);
+			tracel('Generated code:\n'+(' |\t'+script.__bodyCode).replace(/\n/g,'\n |\t'));
 
 			// start VM
 			//try {
-			(new Function('_$$_global', code))(global);
+			script(global);
 			//} catch (e) {
 			//	tracel('! A error occurs around line ' + _script_line + ' about: ' + e);
 			//}

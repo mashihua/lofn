@@ -13,6 +13,12 @@ var derive = function(){
 		return new F;
 	}
 }();
+var OWNS = function(){
+	var hop = {}.hasOwnProperty;
+	return function(o,p){
+		return hop.call(o,p)
+	}
+}();
 
 var YES = {};
 var NUSED = {};
