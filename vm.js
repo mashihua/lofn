@@ -302,10 +302,11 @@ var createFromTree = function (tree, genv) {
 		return;
 	env = tree;
 	var s = transform(tree.code);
-	var variables = tree.locals;
-	for(var i=0;i<variables.length;i++)
-		variables[i] = C_NAME(tree.id, variables[i]);
-	s = 'var ___$TMP;\n//----\n'+(variables.length ? 'var '+variables.join(', ')+';\n':'')+s;	
+	var locals = tree.locals, vars=[];
+	for(var i=0;i<locals.length;i++)
+		if(!(tree.varIsArg[locals[i]]))
+			vars.push(C_NAME(tree.id, locals[i]));
+	s = 'var ___$TMP;\n//----\n'+(vars.length ? 'var '+vars.join(', ')+';\n':'')+s;	
 
 	tree.transformed = s;
 	return s;
@@ -314,32 +315,6 @@ var createFromTree = function (tree, genv) {
 
 // Language level "stl"
 
-Function.prototype.external = true;
-
-Object.prototype.item = function (i) {
-	return this[i];
-};
-Object.prototype.itemset = function (i, v) {
-	return this[i] = v;
-};
-Object.prototype.compareTo = function (b) {
-	return a == b ? 0 : a > b ? 1 : -1;
-};
-Object.prototype.be = function (b) {
-	return this === b
-};
-Object.prototype.contains = function (b) {
-	return b in this;
-};
-Function.prototype.be = function (b) {
-	return b instanceof this;
-};
-
-Function.prototype['new'] = function () {
-	var obj = derive(this.prototype);
-	this.apply(obj, arguments);
-	return obj;
-};
 
 
 
@@ -349,18 +324,19 @@ var CREATERULE = function (l, r) {
 
 //============
 
-return function(tree){
+return function(tree, initals){
+	var _args = [],_vals=[];
+	for(var each in initals) {
+		if(OWNS(initals, each)){
+			_args.push(C_NAME(0, each));
+			tree[0].newVar(each, true);
+			_vals.push(initals[each]);
+		}
+	}
 	tree[0].listVar();
 	createFromTree(tree[0]);
 	var body = tree[0].transformed;
-	var f = function(initals){
-		var _args = [],_vals=[];
-		for(var each in initals) {
-			if(OWNS(initals, each)){
-				_args.push(C_NAME(0, each));
-				_vals.push(initals[each]);
-			}
-		}
+	var f = function(){
 		return Function.apply(null,_args.concat(body)).apply(null,_vals)
 	};
 	f.__bodyCode = body;

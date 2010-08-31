@@ -90,6 +90,7 @@ var parse = function (tokens) {
 	var ScopedScript = function (id, env) {
 		this.code = new Node(NodeType.SCRIPT);
 		this.variables = env ? derive(env.variables) : new Nai;
+		this.varIsArg = new Nai;
 		this.labels = {};
 		this.upper = null;
 		this.type = NodeType.SCOPE;
@@ -99,8 +100,9 @@ var parse = function (tokens) {
 		this.parent = env;
 		this.usedVariables = new Nai;
 	};
-	ScopedScript.prototype.newVar = function(name){
+	ScopedScript.prototype.newVar = function(name, isarg){
 		this.locals.push(name);
+		this.varIsArg[name] = isarg===true;
 		return this.variables[name]=this.id;
 	};
 	ScopedScript.prototype.resolveVar = function(name){
@@ -123,7 +125,7 @@ var parse = function (tokens) {
 	ScopedScript.prototype.ready = function(){
 		if(this.parameters){
 			for(var i = 0;i<this.parameters.names.length;i++){
-				this.newVar(this.parameters.names[i])
+				this.newVar(this.parameters.names[i], true)
 			}
 		}
 	};

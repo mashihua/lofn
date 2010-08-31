@@ -52,9 +52,40 @@ var IINVOKE = function (p, s) {
 }
 
 var NAMEMETA = new Nai;
+var NamedArguments = function(){}
+NamedArguments.prototype = NAMEMETA;
 var T_NAMES = function(){
-	var o = derive(NAMEMETA);
+	var o = new NamedArguments;
 	for(var i=arguments.length-2;i>=0;i-=2)
 		o[arguments[i]]=arguments[i+1]
 	return o;
+}
+
+
+Object.prototype.item = function (i) {
+	return this[i];
+};
+Object.prototype.itemset = function (i, v) {
+	return this[i] = v;
+};
+Object.prototype.compareTo = function (b) {
+	return a == b ? 0 : a > b ? 1 : -1;
+};
+Object.prototype.be = function (b) {
+	return this === b
+};
+Object.prototype.contains = function (b) {
+	return b in this;
+};
+Function.prototype.be = function (b) {
+	return b instanceof this;
+};
+
+Function.prototype['new'] = function () {
+	var obj = derive(this.prototype);
+	this.apply(obj, arguments);
+	return obj;
+};
+Function.prototype.be = function(that){
+	return that instanceof this;
 }
