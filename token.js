@@ -37,7 +37,8 @@ var
 	THEN = 31,
 	VAR = 32,
 	SHARP = 35,
-	FALLTHROUGH = 33;
+	FALLTHROUGH = 33,
+	OBJECT = 34
 
 
 var nameTypes = {
@@ -60,7 +61,7 @@ var nameTypes = {
 	'end': END,
 	'else': ELSE,
 	'otherwise': OTHERWISE,
-//	'then': THEN,
+	'then': THEN,
 	'var': VAR,
 	'me': ME,
 	'this': ME,
@@ -71,7 +72,8 @@ var nameTypes = {
 	'undefined': CONSTANT,
 	'fallthrough': FALLTHROUGH,
 	'arguments': ARGUMENTS,
-	'callee':CALLEE
+	'callee':CALLEE,
+	'object':OBJECT
 };
 var nameType = function (name) {
 	if (typeof nameTypes[name] === 'number')
@@ -93,7 +95,7 @@ var CharacterGroup = function (accepts) {
 var 
 	letter = CharacterGroup('abcdefghijklmnopqrstuvwxyz_$QWERTYUIOPASDFGHJKLZXCVBNM'),
 	number = CharacterGroup('1234567890'),
-	operatorStart = CharacterGroup('+-*/<>=!:'),
+	operatorStart = CharacterGroup('+-*/<>=!:%'),
 	operatorCont = CharacterGroup('=<>~@'),
 	lineBreak = CharacterGroup('\n'),
 	singleQuote = CharacterGroup('\''),

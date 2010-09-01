@@ -65,17 +65,20 @@ var clrscr = function(){
 	<script type="text/javascript">
 		document.getElementById('go').onclick = function () {
 			clrscr();
-			ScriptScopes = parse(lex(document.getElementById('input').value));
 			var tracel = G_TRACE('info').tracel;
-			var script = VM(ScriptScopes, global);
-			tracel('Generated code:\n'+(' |\t'+script.__bodyCode).replace(/\n/g,'\n |\t'));
-			
 			// start VM
-			//try {
-			script();
-			//} catch (e) {
-			//	tracel('! A error occurs around line ' + _script_line + ' about: ' + e);
-			//}
+//			try {
+				ScriptScopes = parse(lex(document.getElementById('input').value));
+				var script = VM(ScriptScopes, global);
+				tracel('Generated code:\n'+(' |\t'+script.__bodyCode).replace(/\n/g,'\n |\t'));
+				script();
+				tracel('--- DOME  ---');
+//			} catch (e) {
+//				tracel('\n--- ERROR ---\n! An error occurs \n  ' + e+'\n-------------');
+//				throw e;
+//			} finally {
+//				tracel('--- DONE  ---');
+//			}
 		}
 	</script>
 

@@ -24,6 +24,10 @@ var TO_ENCCD = function(name){
 var C_NAME = function(id, name){
 	return '_$$_'+TO_ENCCD(name);
 }
+var C_LABELNAME = function(name){
+	return '_$L_'+TO_ENCCD(name);
+}
+var T_THIS = '(this === M_TOP ? null : this)'
 var GETV = function(node, env){
 	var depth = env.useVar(node.name)
 	return C_NAME(depth, node.name);
@@ -31,12 +35,6 @@ var GETV = function(node, env){
 var SETV = function(node, val, env){
 	var depth = env.useVar(node.name)
 	return '('+C_NAME(depth, node.name)+'='+val+')';
-}
-var T_NAMES = function(){
-	var o = new Nai,argn = arguments.length;
-	for(var i=0;i<argn;i+=2)
-		o[arguments[i]]=arguments[i+1];
-	return o;
 }
 schemata(nt.SCRIPT, function (n) {
 	var a = [];
@@ -49,13 +47,13 @@ schemata(nt.SCRIPT, function (n) {
 schemata(nt['='], function (n, env) {
 	switch (this.left.type) {
 		case nt.ITEM:
-			return 'MINVOKE(' + transform(this.left.left) + ',"itemset",' + transform(this.left.item) + ',' + transform(this.right) + ')';
+			return '(' + transform(this.left.left) + '.itemset(' + transform(this.left.item) + ',' + transform(this.right) + '))';
 		case nt.MEMBER:
-			return '((' + transform(this.left.left) + ')[' + strize(this.left.right.name) + ']=(' + transform(this.right) + '))';
+			return '((' + transform(this.left.left) + ')[' + strize(this.left.right.name) + ']=' + transform(this.right) + ')';
 		case nt.MEMBERREFLECT:
-			return '((' + transform(this.left.left) + ')[' + transform(this.right) + ']=(' + transform(this.right) + '))';
+			return '((' + transform(this.left.left) + ')[' + transform(this.left.right) + ']=' + transform(this.right) + ')';
 		case nt.VARIABLE:
-			return SETV(this.left, '(' + transform(this.right) + ')', env);
+			return SETV(this.left, transform(this.right), env);
 		default:
 			throw new Error('Invalid assignment left value: only VARIABLE, MEMBER, MEMBERREFLECT or ITEM avaliable');
 	}
@@ -82,13 +80,13 @@ schemata(nt.MEMBERREFLECT, function () {
 	return '(' + transform(this.left) + ')[' + transform(this.right) + ']';
 });
 schemata(nt.ITEM, function () {
-	return 'MINVOKE(' + transform(this.left) + ',"item",' + transform(this.item) + ')';
+	return '(' + transform(this.left) + '.item(' + transform(this.item) + '))';
 });
 schemata(nt.VARIABLE, function (n, env) {
 	return GETV(n, env);
 });
-schemata(nt.THIS, function () {
-	return 'this';
+schemata(nt.THIS, function (n,e) {
+	return e.rebindThis ? '_$T_' : T_THIS;
 });
 schemata(nt.ARGUMENTS, function () {
 	return 'arguments';
@@ -110,7 +108,7 @@ schemata(nt.CALL, function () {
 	var comp;
 	switch (this.func.type) {
 		case nt.MEMBER:
-			comp = 'MINVOKE(' + transform(this.func.left) + ',' + strize(this.func.right.name)+',';
+			comp = transform(this.func) + '(';
 			break;
 		case nt.MEMBERREFLECT:
 			comp = 'MINVOKE(' + transform(this.func.left) + ',' + transform(this.func.right)+',';
@@ -119,20 +117,40 @@ schemata(nt.CALL, function () {
 			comp = 'IINVOKE(' + transform(this.func.left) + ',' + transform(this.func.item)+',';
 			break;
 		default:
-			comp = '(' + transform(this.func) + ')(';
+			comp = transform(this.func) + '(';
 	};
 	var args = [], names = [];
 	for (var i = 0; i < this.args.length; i++) {
 		if (this.names[i]){
-			names.push(strize(this.names[i]), transform(this.args[i]));
+			names.push(strize(this.names[i]),transform(this.args[i]));
 		}else
 			args.push(transform(this.args[i]));
 	}
+	if(this.pipeline){
+		var arg0 = args[0];
+		args[0] = '___$PIPE';
+		comp = '___$PIPE='+arg0+','+comp;
+	};
 	comp += args.join(',');
 	if (this.nameused)
 		comp += (args.length ? ',' : '') + 'T_NAMES(' + names.join(',') + ')';
 	comp += ')'
-	return comp;
+	return '('+comp+')';
+});
+schemata(nt.OBJECT, function () {
+	var comp = '{';
+	var inits = [], x = 0;
+	for (var i = 0; i < this.args.length; i++) {
+		if (this.names[i]) {
+			inits.push(strize(this.names[i])+':'+transform(this.args[i]));
+		} else {
+			inits.push(strize(''+x)+':'+transform(this.args[i]));
+			x++;
+		}
+	}
+	comp += inits.join(',');
+	comp += '}'
+	return '('+comp+')';
 });
 schemata(nt.ARRAY, function () {
 	var comp = '(';
@@ -152,12 +170,17 @@ schemata(nt.LITERAL, function () {
 
 var binoper = function (operator, tfoper) {
 	schemata(nt[operator], function () {
-		return '(' + transform(this.left) + ')' + tfoper + '(' + transform(this.right) + ')';
+		return '(' + transform(this.left) + tfoper + transform(this.right) + ')';
 	});
 };
 var methodoper = function (operator, method) {
 	schemata(nt[operator], function () {
-		return 'MINVOKE(' + transform(this.right) + ',' + strize(method) + ',' + transform(this.left) + ')';
+		return '(___$PIPE = ' + transform(this.left) + ',' + transform(this.right) + '.' + method + '(___$PIPE))';
+	});
+};
+var lmethodoper = function (operator, method) {
+	schemata(nt[operator], function () {
+		return '(' + transform(this.left) + '.' + method + '(' + transform(this.right) + '))';
 	});
 };
 
@@ -165,6 +188,7 @@ binoper('+', '+');
 binoper('-', '-');
 binoper('*', '*');
 binoper('/', '/');
+binoper('%', '%');
 binoper('<', '<');
 binoper('>', '>');
 binoper('<=', '<=');
@@ -173,27 +197,15 @@ binoper('==', '===');
 binoper('=~', '==');
 binoper('!=', '!==');
 binoper('!~', '!=');
+binoper('and', '&&');
+binoper('or', '||');
 methodoper('in', 'contains');
 methodoper('is', 'be');
 methodoper('as', 'convertFrom');
 methodoper('>>', 'acceptShiftIn');
-schemata(nt['<=>'], function () {
-	return 'MINVOKE(' + transform(this.left) + ',"compareTo",' + transform(this.right) + ')';
-});
-schemata(nt['<<'], function () {
-	return 'MINVOKE(' + transform(this.left) + ',"shiftIn",' + transform(this.right) + ')';
-});
-schemata(nt['/@'], function () {
-	return 'MINVOKE(' + transform(this.left) + ',"map",' + transform(this.right) + ')';
-});
-
-var __gTEMP;
-schemata(nt['and'], function () {
-	return '(__gTEMP = (' + transform(this.left) + '), !__gTEMP ? __gTEMP : ' + transform(this.right) + ')';
-});
-schemata(nt['or'], function () {
-	return '(__gTEMP = (' + transform(this.left) + '), __gTEMP ? __gTEMP : ' + transform(this.right) + ')';
-});
+lmethodoper('<=>', 'compareTo');
+lmethodoper('<<', 'shiftIn');
+lmethodoper('/@', 'map');
 
 schemata(nt['->'], function () {
 	return 'CREATERULE(' + transform(this.left) + ',' + transform(this.right) + ')';
@@ -211,7 +223,7 @@ schemata(nt.FUNCTION, function () {
 	var pars = f.parameters.names.slice(0);
 	for(var i=0;i<pars.length;i++)
 		pars[i]=C_NAME(f.id, pars[i])
-	s = 'function('+pars.join(',')+'){'+s+'}';
+	s = 'function('+pars.join(',')+'){\n'+s+'\n}';
 	
 	env = _e;
 	return '('+s+')';
@@ -288,6 +300,12 @@ schemata(nt.FOR, function () {
 	s += '){\n' + transform(this.body) + '\n}';
 	return s;
 });
+schemata(nt.BREAK, function(){
+	return 'break '+(this.destination ? C_LABELNAME(this.destination) : '');
+});
+schemata(nt.LABEL, function(){
+	return C_LABELNAME(this.name) + ':{'+transform(this.body)+'}';
+});
 
 var env;
 var transform = function (node) {
@@ -306,21 +324,12 @@ var createFromTree = function (tree, genv) {
 	for(var i=0;i<locals.length;i++)
 		if(!(tree.varIsArg[locals[i]]))
 			vars.push(C_NAME(tree.id, locals[i]));
-	s = 'var ___$TMP;\n//----\n'+(vars.length ? 'var '+vars.join(', ')+';\n':'')+s;	
+	s = 'var ___$TMP,___$PIPE;'+(tree.hasRebindThisNested ? 'var _$T_ = '+THIS+';' : '')+(vars.length ? 'var '+vars.join(', ')+';\n':'')+s;	
 
 	tree.transformed = s;
 	return s;
 };
 
-
-// Language level "stl"
-
-
-
-
-var CREATERULE = function (l, r) {
-	return new Rule(l, r);
-}
 
 //============
 

@@ -37,6 +37,7 @@ var NARG = function () {
 }
 
 var noth = void 0;
+var M_TOP = this;
 
 var Lofn = {};
 var SLICE = Array.prototype.slice;
@@ -51,18 +52,34 @@ var IINVOKE = function (p, s) {
 	return p.item(s).apply(p,SLICE.call(arguments,2))
 }
 
-var NAMEMETA = new Nai;
-var NamedArguments = function(){}
-NamedArguments.prototype = NAMEMETA;
+var NamedArguments = function(){this._ = new Nai}
+NamedArguments.prototype = {};
+NamedArguments.prototype.item = function(p){return this._[p]}
+NamedArguments.prototype.itemset = function(p, v){return this._[p] = v}
+NamedArguments.prototype.each = function(f){
+	var _ = this._;
+	for(var each in _)
+		if(OWNS(_,each))
+			f.call(_[each],_[each],each);
+}
 var T_NAMES = function(){
 	var o = new NamedArguments;
 	for(var i=arguments.length-2;i>=0;i-=2)
-		o[arguments[i]]=arguments[i+1]
+		o._[arguments[i]]=arguments[i+1]
 	return o;
 }
 
 
 Object.prototype.item = function (i) {
+	if('length' in this
+			&&	(typeof this[length] === 'number')
+			&& (this[length]-1) in this
+			&& (typeof i === 'number')
+			&& i<0 
+			) {
+		// arraioid and negative indexing
+		return this[this.length + (i|0)]
+	}
 	return this[i];
 };
 Object.prototype.itemset = function (i, v) {
@@ -77,6 +94,18 @@ Object.prototype.be = function (b) {
 Object.prototype.contains = function (b) {
 	return b in this;
 };
+Object.prototype.each = function(f){
+	if('length' in this && (typeof this[length] === 'number') && (this[length]-1) in this){
+		// array like
+		for(var i = 0,l = this.length;i<l;i++)
+			if(i in this)
+				f.call(this[i],this[i],i)
+	} else {
+		for(var each in this)
+			if(OWNS(this,each))
+				f.call(this[each],this[each],each);
+	}
+}
 Function.prototype.be = function (b) {
 	return b instanceof this;
 };
@@ -88,4 +117,36 @@ Function.prototype['new'] = function () {
 };
 Function.prototype.be = function(that){
 	return that instanceof this;
+}
+String.be = function(s){
+	return (typeof(s) === 'string') || s instanceof This
+}
+
+
+// Rule
+var CREATERULE = function (l, r) {
+	return new Rule(l, r);
+}
+var Rule = function (l, r) {
+	this.left = l,
+	this.right = r;
+}
+Rule.prototype.reverse = function () {
+	return new Rule(this.right, this.left);
+}
+Rule.prototype.toString = function () {
+	return this.left + ' -> ' + this.right;
+}
+Rule.prototype.each = function (f) {
+	if (typeof this.left === 'number' && typeof this.right === 'number') {
+		if (this.left <= this.right) {
+			for (var i = this.left; i <= this.right; i++) {
+				DINVOKE(f, this, false, null, i);
+			}
+		} else {
+			for (var i = this.left; i >= this.right; i--) {
+				DINVOKE(f, this, false, null, i);
+			}
+		}
+	}
 }

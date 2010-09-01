@@ -34,7 +34,7 @@ var typename;
 var NodeType = function () {
 
 	var types = typename = [
-		'UNKNOWN', 'VARIABLE', 'THIS', 'LITERAL', 'ARRAY', 'ARGUMENTS', 'CALLEE',
+		'UNKNOWN', 'VARIABLE', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT', 'ARGUMENTS', 'CALLEE',
 
 		'MEMBER', 'ITEM', 'MEMBERREFLECT',
 
@@ -42,7 +42,7 @@ var NodeType = function () {
 
 		'NEGATIVE', 'NOT',
 
-		'*', '/',
+		'*', '/','%',
 
 		'+', '-',
 		'<<', '>>',
@@ -140,11 +140,13 @@ var parse = function (tokens) {
 		if (token) curline = token.line;
 		return t;
 	};
-	var newScope = function () {
+	var newScope = function (isLE) {
 		var n = scopes.length;
 		var s = new ScopedScript(n+1, workingScope);
+		s.rebindThis = isLE;
 		if (workingScope) {
 			workingScope.hasNested = true;
+			workingScope.hasRebindThisNested = isLE && !workingScope.rebindThis;
 			workingScope.nest.push(s);
 		}
 		s.upper = workingScopes[workingScopes.length - 1];
@@ -158,7 +160,6 @@ var parse = function (tokens) {
 		var s = workingScopes.pop();
 		workingScope = workingScopes[workingScopes.length - 1];
 	}
-
 	var advance = function (type, test) {
 		var nt, value, t, node;
 		if (type !== undefined && token.type !== type)
@@ -168,6 +169,13 @@ var parse = function (tokens) {
 		return moveNext();
 	};
 	var SQSTART = 91, SQEND = 93, RDSTART = 40, RDEND = 41, CRSTART = 123, CREND = 125;
+
+	var tokenIs = function(t, v){
+		return token && token.type === t && (v ? token.value === v : true);
+	}
+	var nextIs = function(t, v){
+		return next && next.type === t && (v ? next.value === v : true);
+	}
 
 	// Identifier: like the javascript
 	var variable = function () {
@@ -216,6 +224,22 @@ var parse = function (tokens) {
 		return new Node(nt.CALLEE);
 	};
 
+	// object
+	var objinit = function () {
+		var arr = [], ams = [];
+		advance(OBJECT);
+		advance(STARTBRACE, CRSTART);
+		var node = new Node(nt.OBJECT);
+		if(tokenIs(ENDBRACE,CREND)){
+			node.args = [];
+			advance();
+			return node
+		};
+		arglist(node);
+		advance(ENDBRACE, CREND);
+		return node;
+	};
+
 	// 'my' construct: "my" Identifier
 	var thisprp = function () {
 		var t = advance(MY);
@@ -260,11 +284,11 @@ var parse = function (tokens) {
 	// "function" [Parameters] FunctionBody
 	var functionLiteral = function () {
 		advance(FUNCTION);
-		if (token.type === STARTBRACE && token.value === RDSTART) {
+		if (tokenIs(STARTBRACE, RDSTART)) {
 			var p = parameters();
 		};
 		var f;
-		if (token.type === COLON)
+		if (tokenIs(COLON))
 			f = colonBody(p)
 		else
 			f = functionBody(p);
@@ -280,8 +304,8 @@ var parse = function (tokens) {
 	var parameters = function () {
 		var arr = [], ams = [];
 		advance(STARTBRACE, 40);
-		if (!(token.type === ENDBRACE && token.value === RDEND)) {
-			if (token.type === STRING) {
+		if (!tokenIs(ENDBRACE,RDEND)) {
+			if (tokenIs(STRING)) {
 				ams[0] = token.value;
 				advance();
 				arr[0] = name().name;
@@ -289,9 +313,9 @@ var parse = function (tokens) {
 				ams[0] = null;
 				arr[0] = name().name;
 			}
-			while (token.type === COMMA) {
+			while (tokenIs(COMMA)) {
 				advance(COMMA);
-				if (token.type === STRING) {
+				if (tokenIs(STRING)) {
 					ams.push(token.value);
 					advance();
 					arr[arr.length] = name().name;
@@ -320,11 +344,11 @@ var parse = function (tokens) {
 	var lambdaCont = function (p) {
 		var right;
 		advance(OPERATOR, ':>');
-		if (token.type === STARTBRACE && token.value === 123) { // statement lambda
+		if (tokenIs(STARTBRACE,CRSTART)) { // statement lambda
 			right = functionBody(p);
 			return right;
 		} else {
-			var r = newScope(), s = workingScope;
+			var r = newScope(true), s = workingScope;
 			right = expression();
 			workingScope.parameters = p;
 			workingScope.ready();
@@ -362,6 +386,8 @@ var parse = function (tokens) {
 				return thisprp();
 			case ARGUMENTS:
 				return argsp();
+			case OBJECT:
+				return objinit();
 			case STARTBRACE:
 				if (token.value === SQSTART) {
 					// array
@@ -392,11 +418,14 @@ var parse = function (tokens) {
 	};
 	var memberitem = function (left) {
 		var right;
-		if (token.type === STARTBRACE && token.value === SQSTART) {  // .[ Expressuib ]  format
+		if (tokenIs(STARTBRACE,SQSTART)) {  // .[ Expressuib ]  format
 			advance();
 			right = expression();
 			advance(ENDBRACE, SQEND);
 			return new Node(nt.MEMBERREFLECT, { left: left, right: right });
+		} else if(tokenIs(STRING)){
+			right = literal();
+			return new Node(nt.MEMBERREFLECT, {left:left, right:right});
 		} else { // . Identifier  format
 			right = name();
 			return new Node(nt.MEMBER, { left: left, right: right });
@@ -405,7 +434,7 @@ var parse = function (tokens) {
 	var member = function () {
 		var node = primary();
 		// a.b.[e1].c[e2]			...
-		while (token && (token.type === DOT || token.type === STARTBRACE && token.value === SQSTART)) {
+		while (tokenIs(DOT)||tokenIs(STARTBRACE, SQSTART)) {
 			var t = advance();
 			if (t.type === DOT) {
 				node = memberitem(node);
@@ -420,10 +449,12 @@ var parse = function (tokens) {
 	};
 	var callExpression = function () {
 		var m = member();
-		out: while (token && (
-			token.type === STARTBRACE && (token.value === 40 || token.value === SQSTART)
-			|| token.type === DOT
-			|| token.type === FUNCTION)) {
+		out: while (
+					 tokenIs(STARTBRACE, RDSTART)
+					 || tokenIs(STARTBRACE, SQSTART)
+					 || tokenIs(FUNCTION)
+					 || tokenIs(DOT)
+					 ) {
 			switch (token.type) {
 				case STARTBRACE:
 					if (token.value === RDSTART && token.isLambdaArg) { // lambda looks like an invocation
@@ -479,32 +510,13 @@ var parse = function (tokens) {
 	var arglist = function (nc) {
 		var args = [], names = [], pivot, name, sname, nameused;
 		do {
-			if (token && token.type === ID) { // meet an identifier
-				if (next && next.type === COLON) {
-					// named argument
-					// name : value
-					name = token.value, sname = true, nameused = true;
-					advance();
-					advance();
-				} else if (next && (next.type === ID || next.type === NUMBER || next.type === STRING || next.type === FUNCTION ||
-					next.type === STARTBRACE && next.value === CRSTART || next.type === STARTBRACE && next.value === RDSTART && next.isLambdaArg)) {
-					// special colonless named arguments
-					// like:
-					//		do {oprtations}
-					// should I delete this ?
-					name = token.value, sname = true, nameused = true;
-					advance();
-				}
-			} else if (token && token.type === STRING) {
-				// Strings as named arguments
-				// no confuse
-				if (next && next.type === COLON) {
-					name = token.value, sname = true, nameused = true;
-					advance();
-					advance();
-				};
-			};
-
+			if ((tokenIs(ID) || tokenIs(STRING)) && nextIs(COLON)) {
+				// named argument
+				// name : value
+				name = token.value, sname = true, nameused = true;
+				advance();
+				advance();
+			}
 			// callItem is the "most strict" expression.
 			// without omissioned calls and implicit calls.
 			// so you cannot write `f(1, 2, a:3)` like `f 1, 2, a:3`.
@@ -520,12 +532,14 @@ var parse = function (tokens) {
 			advance();
 		} while (true);
 		ensure(!HAS_DUPL(names), 'Named argument list contains duplicate');
-		nc.args = (nc.args || []).concat(args), nc.names = (nc.names || []).concat(names), nc.nameused = nc.nameused || nameused;
+		nc.args = (nc.args || []).concat(args);
+	   	nc.names = (nc.names || []).concat(names);
+		nc.nameused = nc.nameused || nameused;
 	};
 
 	var itemlist = function (nc) {
 		var args = [], names = [], pivot, name, sname, nameused;
-		if (token.type !== ENDBRACE || token.value !== SQEND)
+		if (!tokenIs(ENDBRACE, SQEND))
 			do {
 				pivot = callItem();
 				args.push(pivot);
@@ -544,11 +558,11 @@ var parse = function (tokens) {
 
 	var unary = function () {
 		// unary expression
-		if (token.type == OPERATOR && (token.value === '-' || token.value === 'not')) {
+		if (tokenIs(OPERATOR) && (token.value === '-' || token.value === 'not')) {
 			var t = advance(OPERATOR);
 			var n = callExpression();
 			return new Node(t.value === '-' ? nt.NEGATIVE : nt.NOT, { operand: n });
-		} else if (token && token.type === SHARP) {
+		} else if (tokenIs(SHARP)) {
 			// slot operator
 			advance();
 			return new Node(nt.MEMBERREFLECT, { left: new Node(nt.ARGUMENTS), right: callExpression() });
@@ -558,7 +572,7 @@ var parse = function (tokens) {
 	};
 
 	var bp = {
-		'*': 10, '/': 10,
+		'*': 10, '/': 10,'%':10,
 		'+': 20, '-': 20,
 		'<<': 25, '>>': 25,
 		'<': 30, '>': 30, '<=': 30, '>=': 30, '<=>': 30, 'is': 30, 'in': 30,
@@ -576,7 +590,7 @@ var parse = function (tokens) {
 		// the "is","is in","as",">>","<<" operators are costumizable.
 		// Should I remove "/@"?
 		var uber = { right: start, bp: 65536 };
-		while (token && token.type === OPERATOR && ensure(bp[token.value] > -65536, "Invalid Operator: " + token)) { // if is a valid operator, then...
+		while (tokenIs(OPERATOR) && ensure(bp[token.value] > -65536, "Invalid Operator: " + token)) { // if is a valid operator, then...
 
 			var t = advance(OPERATOR);
 			var right = progress();
@@ -594,24 +608,50 @@ var parse = function (tokens) {
 		return uber.right;
 	};
 
+	var omissionCall = function(node){
+		while(true){
+			if(!token) return node;
+			switch (token.type) {
+				case END:
+				case SEMICOLON:
+				case ENDBRACE:
+				case THEN:
+					return node;
+				default:
+					var n_ = node;
+					node = new Node(nt.CALL, {func:n_});
+					arglist(node);
+					if(node.args.length === 1 && node.names[0] == null){
+						return new Node(nt.CALL, {
+							func: n_,
+							args: [omissionCall(node.args[0])],
+							names: [null]
+						})
+					} else {
+						return node;
+					}
+			}
+		}
+	}
+
 	var expression = function () {
 		// expression.
 		// following specifics are supported:
 		// - Omissioned calls
 		// - "then" syntax for chained calls.
 		var pivot = unary(), right, c;
-		if (token && token.type === OPERATOR && token.value === '=') { //赋值
+		if (tokenIs(OPERATOR,'=')) { //赋值
 			advance();
 			return new Node(nt['='], { left: pivot, right: expression(true) });
 		}
 
-		if (token && token.type === OPERATOR && bp[token.value]) {
+		if (tokenIs(OPERATOR) && bp[token.value]) {
 			c = operatorPiece(pivot, unary);
 		} else {
 			// processing omissioned calls
 			c = pivot
 		}
-		var method;
+		var method, isOmission = true;
 
 		while (true) {
 			if (!token) return c;
@@ -622,7 +662,7 @@ var parse = function (tokens) {
 					return c;
 				case THEN:
 					advance();
-					if (token && token.type === DOT) {
+					if (tokenIs(DOT)) {
 						// |.name chaining
 						advance(DOT);
 						ensure(token && token.type === ID, 'Missing identifier for Chain invocation');
@@ -633,37 +673,35 @@ var parse = function (tokens) {
 								right: method
 							}),
 							args: [],
-							omission: true
+							pipelike: true
 						});
 					} else {
-						// tube
-						if (token && token.type === STARTBRACE && token.value === RDSTART) {
-						// |(expression) tube
-
-							advance();
-							method = expression();
-							advance(ENDBRACE, RDEND);
-						} else {
-							method = variable();
-						}
+						// pipeline
+						method = member();
 						c = new Node(nt.CALL, {
 							func: method,
 							args: [c],
 							names: [null],
-							omission: true
+							pipelike: true,
+						  	pipeline:true
 						});
 					}
 					break;
 				default:
-					if (c.type !== nt.CALL || !c.omission)
-						c = new Node(nt.CALL, { func: c, args: [] })
-					arglist(c);
+					if (c.type === nt.CALL && c.pipelike) {
+						arglist(c);
+					} else if(isOmission) {
+						c = omissionCall(c);
+						isOmission = false;
+					} else {
+						throw new Error('Invalid Omission Call');
+					}
 			}
 		}
 	};
 	var callItem = function () {
 		var pivot = unary();
-		if (token && token.type === OPERATOR)
+		if (tokenIs(OPERATOR))
 			pivot = operatorPiece(pivot, unary);
 		return pivot;
 	};
@@ -733,7 +771,7 @@ var parse = function (tokens) {
 		};
 	};
 	var vardecls = function () {
-		if (next.type === OPERATOR && next.value === "=") { // assigned variable
+		if (nextIs(OPERATOR,'=')) { // assigned variable
 			var v = variable();
 			workingScope.newVar(v.name);
 			advance();
@@ -763,11 +801,11 @@ var parse = function (tokens) {
 	var contBlock = function (fin) {
 		switch (token.type) {
 			case COLON:
-				if ((next && next.type === SEMICOLON) || token.sbreak) {
+				if (nextIs(SEMICOLON) || token.sbreak) {
 					advance();
 					var s = statements(fin);
-					ensure(token && (token.type === fin || token.type === END), 'Unterminated statement block');
-					if (token.type === END) advance();
+					ensure(tokenIs(fin) || tokenIs(END), 'Unterminated statement block');
+					if (tokenIs(END)) advance();
 					return s;
 				} else {
 					throw new Error('A multi-line control body must follow a semicolon or line break after the colon.' + 'around ' + token);
@@ -790,7 +828,7 @@ var parse = function (tokens) {
 		n.condition = callItem();
 		n.thenPart = contBlock(ELSE);
 		expectSemicolons(ELSE);
-		if (token && token.type === ELSE) {
+		if (tokenIs(ELSE)) {
 			advance(ELSE);
 			if (token.type === IF) n.elsePart = ifstmt();
 			else n.elsePart = contBlock(END);
@@ -817,7 +855,7 @@ var parse = function (tokens) {
 		return n;
 	};
 	var stripSemicolons = function () {
-		while (token && token.type === SEMICOLON) advance();
+		while (tokenIs(SEMICOLON)) advance();
 	};
 	var expectSemicolons = function (T) {
 		var k = i, t = tokens[i];
@@ -839,7 +877,7 @@ var parse = function (tokens) {
 		var n = new Node(t ? nt.CASE : nt.PIECEWISE);
 		n.conditions = [], n.bodies = [];
 		advance();
-		if (!t && token.type === FALLTHROUGH) { // is it fallthrough?
+		if (!t && tokenIs(FALLTHROUGH)) { // is it fallthrough?
 			n.fallThrough = true;
 			advance();
 		};
@@ -849,8 +887,8 @@ var parse = function (tokens) {
 		advance(COLON);
 		stripSemicolons();
 		ensure(token, 'Unterminated piecewise/case block');
-		while (token.type === WHEN || token.type === OTHERWISE) {
-			if (token.type === WHEN) {
+		while (tokenIs(WHEN) || tokenIs(OTHERWISE)) {
+			if (tokenIs(WHEN)) {
 				advance(WHEN);
 				var condition = callItem();
 				advance(COLON);
@@ -904,25 +942,25 @@ var parse = function (tokens) {
 	};
 	var labelstmt = function () {
 		advance(LABEL);
-		ensure(token && token.type === ID);
-		var name = name().name;
-		ensure(!workingScope.labels[name] && workingScope.labels[name] !== 0, 'Unable to re-label a statement');
+		ensure(tokenIs(ID));
+		var label = name().name;
+		ensure(! workingScope.labels[label] && workingScope.labels[label] !== 0, 'Unable to re-label a statement');
 		var node = new Node(nt.LABEL, {
-			name: name
+			name: label
 		});
-		workingScope.labels[name] = node;
+		workingScope.labels[label] = node;
 		node.body = contBlock();
-		workingScope.labels[name] = 0;
+		workingScope.labels[label] = 0;
 		return node;
 	};
 	var brkstmt = function () {
 		advance(BREAK);
-		if (token.type === ID) {
+		if (tokenIs(ID)) {
 			var name = token.value;
 			advance();
 			if (workingScope.labels[name] && workingScope.labels[name].type === nt.LABEL) {
 				ensure(stover(), 'Something more after BREAK statement');
-				return new Node(nt.BREAK, { destination: workingScope.labels[name] });
+				return new Node(nt.BREAK, { destination: name });
 			} else {
 				throw new Error('BREAK statement used a unfound label');
 			}
@@ -935,7 +973,7 @@ var parse = function (tokens) {
 		var script = new Node(nt.SCRIPT);
 		stripSemicolons();
 		var a = [statement()];
-		while (token && token.type === SEMICOLON) {
+		while (tokenIs(SEMICOLON)) {
 			curline = token.line;
 			stripSemicolons();
 			if (token && (token.type === fin || token.type === END || token.type === fin2)) break;
