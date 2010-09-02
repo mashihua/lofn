@@ -12,7 +12,7 @@ var standardTransform = function(){
 		thisBind:function(env){return !env.thisOccurs || env.rebindThis ? '' : 'var _$T_ = (this === M_TOP ? null : this)'},
 		joinStatements:function(statements){
 			return statements.join(';\n')+';\n';
-		},
+		}
 	}
 }();
 
@@ -331,7 +331,7 @@ var createFromTree = function (tree, hook) {
 	for(var i=0;i<locals.length;i++)
 		if(!(tree.varIsArg[locals[i]]))
 			vars.push(C_NAME(tree.id, locals[i]));
-	s = JOIN_STMTS(['var ___$TMP,___$PIPE',THIS_BIND(tree),(vars.length ? 'var '+vars.join(', '):'')])+hook+s;	
+	s = JOIN_STMTS(['var ___$TMP,___$PIPE',THIS_BIND(tree),(vars.length ? 'var '+vars.join(', '):'')])+(hook || '')+s;	
 
 	tree.transformed = s;
 	return s;

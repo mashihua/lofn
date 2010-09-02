@@ -101,6 +101,7 @@ var parse = function (tokens) {
 		this.usedVariables = new Nai;
 	};
 	ScopedScript.prototype.newVar = function(name, isarg){
+		if(this.variables[name] >= 0) return;
 		this.locals.push(name);
 		this.varIsArg[name] = isarg===true;
 		return this.variables[name]=this.id;
@@ -130,10 +131,14 @@ var parse = function (tokens) {
 		}
 	};
 
+
+
 	var scopes = [], token = tokens[0], next, i = 0, len = tokens.length, workingScopes = [], workingScope, nt = NodeType, curline;
 	if (token) curline = token.line;
+	function acquire(){};
 	var moveNext = function () {
 		var t = token;
+		acquire();
 		i += 1;
 		token = tokens[i];
 		next = tokens[i + 1];
@@ -175,6 +180,9 @@ var parse = function (tokens) {
 	}
 	var nextIs = function(t, v){
 		return next && next.type === t && (v ? next.value === v : true);
+	}
+	var shiftIs = function(n, t, v){
+		return tokens[i+n] && tokens[i+n].type === t && (v ? tokens[i+n].value === v : true);
 	}
 
 	// Identifier: like the javascript
@@ -298,36 +306,22 @@ var parse = function (tokens) {
 	// Parameters ->
 	// "(" Parameter { "," Parameter } ")"
 	// Parameter ->
-	// [StringLiteral] Identifier
+	// Identifier
 
 	// Only parameters explicitly defined names can be a named parameter
 	var parameters = function () {
-		var arr = [], ams = [];
+		var arr = [];
 		advance(STARTBRACE, 40);
 		if (!tokenIs(ENDBRACE,RDEND)) {
-			if (tokenIs(STRING)) {
-				ams[0] = token.value;
-				advance();
 				arr[0] = name().name;
-			} else {
-				ams[0] = null;
-				arr[0] = name().name;
-			}
 			while (tokenIs(COMMA)) {
 				advance(COMMA);
-				if (tokenIs(STRING)) {
-					ams.push(token.value);
-					advance();
-					arr[arr.length] = name().name;
-				} else {
-					ams[ams.length] = null;
-					arr[arr.length] = name().name;
-				}
+				arr[arr.length] = name().name;
 			};
 		};
 		advance(ENDBRACE, RDEND);
-		ensure(!HAS_DUPL(ams), 'Named parameter list contains duplicate');
-		return new Node(nt.PARAMETERS, { names: arr, anames: ams });
+		ensure(!HAS_DUPL(arr), 'Parameter list contains duplicate');
+		return new Node(nt.PARAMETERS, { names: arr });
 	};
 
 	// Array literal
@@ -359,13 +353,19 @@ var parse = function (tokens) {
 			});
 		}
 	}
+	var isLambdaPar = function(){
+		if(nextIs(ID) && (shiftIs(2,ENDBRACE,RDEND) && shiftIs(3,OPERATOR,':>') || shiftIs(2,COMMA))){
+			return true;
+		}
+		return false;
+	}
 	var primary = function () {
 		ensure(token, 'Unable to get operand: missing token');
 		switch (token.type) {
 			case ID:
 				// x :> BODY
 				// lambda
-				if (token.isLambdaArg) {
+				if (nextIs(OPERATOR, ':>')) {
 					var v = name();
 					return lambdaCont(new Node(nt.PARAMETERS, {
 						names: [v.name],
@@ -392,9 +392,7 @@ var parse = function (tokens) {
 				if (token.value === SQSTART) {
 					// array
 					return arrayLiteral();
-				} else if (token.value === RDSTART && token.isLambdaArg) {
-					// (...) :> BODY
-					// lambda
+				} else if (token.value === RDSTART && isLambdaPar()) {
 					return lambdaCont(parameters());
 				} else if (token.value === RDSTART) {
 					// braced expression (expr)
@@ -801,18 +799,12 @@ var parse = function (tokens) {
 	var contBlock = function (fin) {
 		switch (token.type) {
 			case COLON:
-				if (nextIs(SEMICOLON) || token.sbreak) {
-					advance();
-					var s = statements(fin);
-					ensure(tokenIs(fin) || tokenIs(END), 'Unterminated statement block');
-					if (tokenIs(END)) advance();
-					return s;
-				} else {
-					throw new Error('A multi-line control body must follow a semicolon or line break after the colon.' + 'around ' + token);
-				}
+				advance();
+				var s = statements(fin);
+				ensure(tokenIs(fin) || tokenIs(END), 'Unterminated statement block');
+				if (tokenIs(END)) advance();
+				return s;
 			case COMMA:
-				if (token.sbreak)
-					throw new Error('A single-line control body must follow DO tightly.' + 'around ' + token);
 				advance();
 				var s = statement();
 				//while (token && token.type === SEMICOLON) advance();
@@ -827,7 +819,6 @@ var parse = function (tokens) {
 		var n = new Node(nt.IF);
 		n.condition = callItem();
 		n.thenPart = contBlock(ELSE);
-		expectSemicolons(ELSE);
 		if (tokenIs(ELSE)) {
 			advance(ELSE);
 			if (token.type === IF) n.elsePart = ifstmt();
@@ -856,22 +847,6 @@ var parse = function (tokens) {
 	};
 	var stripSemicolons = function () {
 		while (tokenIs(SEMICOLON)) advance();
-	};
-	var expectSemicolons = function (T) {
-		var k = i, t = tokens[i];
-		while (true) {
-			if (t && t.type === SEMICOLON) {
-				k = k + 1;
-				t = tokens[k];
-			} else if (t && t.type === T) {
-				i = k;
-				token = tokens[i];
-				next = tokens[i + 1];
-				return;
-			} else {
-				return;
-			}
-		}
 	};
 	var piecewise = function (t) {
 		var n = new Node(t ? nt.CASE : nt.PIECEWISE);

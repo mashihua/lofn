@@ -32,6 +32,7 @@ reg('endl', '\n');
 
 reg('Function', Function);
 reg('String', String);
+reg('Regex', RegExp);
 reg('operator', {
 	add: function(a,b){return a+b},
 	minus:function(a,b){return a-b},

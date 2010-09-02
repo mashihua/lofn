@@ -149,11 +149,11 @@ Rule.prototype.each = function (f) {
 	if (typeof this.left === 'number' && typeof this.right === 'number') {
 		if (this.left <= this.right) {
 			for (var i = this.left; i <= this.right; i++) {
-				DINVOKE(f, this, false, null, i);
+				f.call(this, i);
 			}
 		} else {
 			for (var i = this.left; i >= this.right; i--) {
-				DINVOKE(f, this, false, null, i);
+				f.call(this, i);
 			}
 		}
 	}

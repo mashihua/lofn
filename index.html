@@ -67,9 +67,16 @@ var clrscr = function(){
 			clrscr();
 			var tracel = G_TRACE('info').tracel;
 			// start VM
-//			try {
-				ScriptScopes = parse(lex(document.getElementById('input').value));
+			//	try {
+				var start = new Date();
+				var tokens = lex(document.getElementById('input').value);
+				tracel('| Lex time: ',new Date()-start);
+				start = new Date();
+				var ScriptScopes = parse(tokens);
+				tracel('| Parse time: ',new Date()-start);
+				start = new Date();
 				var script = VM(ScriptScopes, global,standardTransform);
+				tracel('| Generation time: ',new Date()-start);
 				tracel('Generated code:\n'+(' |\t'+script.__bodyCode).replace(/\n/g,'\n |\t'));
 				script();
 				tracel('--- DONE  ---');

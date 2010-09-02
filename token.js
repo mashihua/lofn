@@ -84,17 +84,15 @@ var nameType = function (name) {
 
 
 var CharacterGroup = function (accepts) {
-	var ACCEPT = [], YES = {};
+	var gen = [];
 	for (var i = 0; i < accepts.length; i++)
-		ACCEPT[accepts.charCodeAt(i)] = YES;
-	return function (n) {
-		return ACCEPT[n] === YES
-	}
+		gen.push('n === '+accepts.charCodeAt(i));
+	return new Function('n', 'return '+gen.join(' || ')+';');
 };
 
 var 
-	letter = CharacterGroup('abcdefghijklmnopqrstuvwxyz_$QWERTYUIOPASDFGHJKLZXCVBNM'),
-	number = CharacterGroup('1234567890'),
+	letter = function(n){return (65<=n && n<=90)||(97<=n && n<=122)||n===95||n===36},
+	number = function(n){return n>=48 && n<=57},
 	operatorStart = CharacterGroup('+-*/<>=!:%'),
 	operatorCont = CharacterGroup('=<>~@'),
 	lineBreak = CharacterGroup('\n'),
@@ -119,16 +117,10 @@ var
 	theng = CharacterGroup('|'),
 	slash = CharacterGroup('/');
 
-var Token = function (type, value, p, pp) {
+var Token = function (type, value, line) {
 	this.type = type;
 	this.value = value;
-	this.position = p;
-	this.piece = pp;
-};
-Token.prototype.toString = function () {
-	return '[' + (this.type + ' ') + this.value
-	+ (this.isLambdaArg ? '*' : '')
-	+ ']' + (this.position ? '(at ' + this.position + ':' + this.piece + ')' : '');
+	this.line = line;
 };
 var ensure = function (cond, message) {
 	if (!cond)
@@ -155,25 +147,18 @@ var LofnUnescape = function (str) {
 
 var lex = function (source) {
 	var len = source.length, i = 0, j, current = 0, conti = true, line = 1;
-	var tokens = [];
+	var tokens = [],tokl = 0;
 	var token = function (t, v) {
 		var k;
 		if (t === THEN) removeImplicitSemicolons();
-		k = new Token(t, v, i, source.slice(Math.max(0, i - 10), i + 10))
-		k.line = line;
-		tokens.push(k);
+		k = new Token(t, v, line)
+		tokens[tokl] = k;
+		tokl++;
 		conti = (t === OPERATOR || t === COMMA || t === STARTBRACE || t === SEMICOLON || t === COLON);
 	};
-	var braces = [];
 	var startBrace = function () {
-		braces.push(tokens.length - 1);
-		conti = true;
 	};
 	var endBrace = function () {
-		var p = braces.pop();
-		tokens[tokens.length - 1].match = p;
-		tokens[p].match = tokens.length - 1;
-		tokens[p].depth = tokens[tokens.length - 1].depth = braces.length;
 	};
 
 	var next = function (p) {
@@ -191,8 +176,8 @@ var lex = function (source) {
 	};
 
 	var removeImplicitSemicolons = function () {
-		while (tokens.length && tokens[tokens.length - 1].type === SEMICOLON && tokens[tokens.length - 1].value === 0) {
-			tokens.pop();
+		while (tokens.length && tokens[tokl - 1].type === SEMICOLON && tokens[tokl - 1].value === 0) {
+			tokl-=1;
 		};
 	};
 
@@ -201,14 +186,15 @@ var lex = function (source) {
 		if (backSlash(current)) {
 			conti = true;
 		} else if (letter(current)) { // name
-			scan(function (c) { return letter(c) || number(c) },
-			function (i, j, s) {
-				if (s === 'in' && tokens[tokens.length - 1].type === OPERATOR && tokens[tokens.length - 1].value === 'is') { // special processing for "in"
-					tokens[tokens.length - 1].value = 'in';
-					return;
-				}
-				token(nameType(s), s)
-			});
+			var j = i;
+			do{ j++, current = source.charCodeAt(j) }while(isFinite(current)&&(letter(current)||number(current)));
+			if (j===i+2 && tokens[tokl - 1].type === OPERATOR && tokens[tokl - 1].value === 'is' && source.slice(i,j)==='in') // special processing for "in"
+				tokens[tokl - 1].value = 'in';
+			else {
+				var s = source.slice(i,j);
+				token(nameType(s), s);
+			}
+			i=j;
 			continue;
 		} else if (slash(current) && slash(next())) { //comment
 			move();
@@ -228,13 +214,6 @@ var lex = function (source) {
 		} else if (operatorStart(current)) { //operator
 			scan(operatorCont, function (i, j, s) {
 				token(OPERATOR, s);
-				if (s === ':>') {
-					if (tokens[tokens.length - 2].type === ID)
-						tokens[tokens.length - 2].isLambdaArg = true;
-					else if (tokens[tokens.length - 2].type === ENDBRACE && tokens[tokens.length - 2].value === 41)
-						tokens[tokens[tokens.length - 2].match].isLambdaArg = true;
-
-				}
 			});
 			continue;
 		} else if (singleQuote(current)) { //single quote
@@ -297,19 +276,16 @@ var lex = function (source) {
 			token(SEMICOLON, 1);
 		} else if (braceStart(current)) {
 			token(STARTBRACE, current);
-			startBrace();
 		} else if (braceEnd(current)) {
 			removeImplicitSemicolons();
 			token(ENDBRACE, current);
-			endBrace();
 		} else if (lineBreak(current)) {
 			line++;
-			if (conti) {
-				tokens[tokens.length - 1].sbreak = true;
-			} else
+			if (!conti) 
 				token(SEMICOLON, 0);
 		};
 		i++;
 	}
+	tokens.length = tokl;
 	return tokens
 }
