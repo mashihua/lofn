@@ -4,77 +4,54 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-
-	<title>infinte/Lofn @ GitHub</title>
-	
+	<title>Lofn @ GitHub</title>
 	<style type="text/css">
-		body {
-  		margin-top: 1.0em;
-  		background-color: #5e5437;
-		  font-family: "Helvetica,Arial,FreeSans";
-  		color: #ffffff;
-    }
-    #container {
-      margin: 0 auto;
-      width: 700px;
-    }
-		h1 { font-size: 3.8em; color: #a1abc8; margin-bottom: 3px; }
-		h1 .small { font-size: 0.4em; }
-		h1 a { text-decoration: none }
-		h2 { font-size: 1.5em; color: #a1abc8; }
-    h3 { text-align: center; color: #a1abc8; }
-    a { color: #a1abc8; }
-    .description { font-size: 1.2em; margin-bottom: 30px; margin-top: 30px; font-style: italic;}
-    .download { float: right; }
-		pre { background: #000; color: #fff; padding: 15px;}
-    hr { border: 0; width: 80%; border-bottom: 1px solid #aaa}
-    .footer { text-align:center; padding-top:30px; font-style: italic; }
+		@import url(rc/style.css);
 	</style>
 	
 </head>
 
 <body>
-  <a href="http://github.com/infinte/Lofn"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" /></a>
-
-  <div id="container">
-
-    <div class="download">
-      <a href="http://github.com/infinte/Lofn/zipball/master">
-        <img border="0" width="90" src="http://github.com/images/modules/download/zip.png"></a>
-      <a href="http://github.com/infinte/Lofn/tarball/master">
-        <img border="0" width="90" src="http://github.com/images/modules/download/tar.png"></a>
-    </div>
-
-    <h1><a href="http://github.com/infinte/Lofn">Lofn</a>
-      <span class="small">by <a href="http://github.com/infinte">infinte</a></span></h1>
-
-    <div class="description">
-      Lofn: language on javascript
-    </div>
-
-    <h2>Authors</h2>
-<p>infinte (infinte.cdda@hotmail.com)<br/><br/>      </p>
-<h2>Contact</h2>
-<p>Belleve Invis (infinte.cdda@hotmail.com)<br/>      </p>
-
-
-    <h2>Download</h2>
-    <p>
-      You can download this project in either
-      <a href="http://github.com/infinte/Lofn/zipball/master">zip</a> or
-      <a href="http://github.com/infinte/Lofn/tarball/master">tar</a> formats.
-    </p>
-    <p>You can also clone the project with <a href="http://git-scm.com">Git</a>
-      by running:
-      <pre>$ git clone git://github.com/infinte/Lofn</pre>
-    </p>
-
-    <div class="footer">
-      get the source code on GitHub : <a href="http://github.com/infinte/Lofn">infinte/Lofn</a>
-    </div>
-
-  </div>
-
-  
+	<div id="head">
+		<h1>Lofn</h1>
+		<h3>The language over</h3>
+		<address>by <a href="http://github.com/infinte">infinte</a></address>
+	</div>
+	<div id="trylofn" class="section">
+		<h2>Try lofn</h2>
+		<textarea id="input" name="input" rows="7" cols="30">cout &lt;&lt; "Hello world!"</textarea>
+		<button id="run">Start script</button>
+		<pre id="output">(output will be displayed here)</pre>
+	</div>
+	<div id="introduction" class="section">
+		<h2>What lofn is</h2>
+		<p>The lofn is a <em>new language</em> implements with Javascript. Lofn codes can be runned as managed script on a web page, or used in code generation.</p>
+		<p>Writing with Lofn will be enjoyable. For example, following JavaScript code:</p>
+<pre class="javascript">list.reduce(function(a,b){ return a + b })</pre>
+		<p>will be:</p>
+<pre class="lofn">list.reduce (a,b) :&gt; a + b</pre>
+		<p>Isn't it fun?</p>
+	</div>
+	<div id="api" class="section">
+		<h2>The API</h2>
+		<p>The lofn-web API is very easy-to-use. You can easily start a lofn script from a string:</p>
+<pre class="js">var script = new Lofn.Script("alert example");
+script.setGlobalVariable('alert', alert);
+script.setGlobalVariable('example', 1);
+script.start() // will alert '1'
+</pre>
+	</div>
+	<div id="safety" class="section">
+		<h2>Safety</h2>
+		<p>Lofn managed source is very safe, that means only the outer-valuew you exposed to Lofn will be accessable for the Lofn code.</p>
+	</div>
+	<div id="informations" class="section">
+		<h2>Get information</h2>
+		<ul class="links">
+			<li><a href="http://github.com/infinte/Lofn">Lofn homepage</a></li>
+			<li><a href="http://coro.in">My blog</a></li>
+			<li><a href="docs.html">Documents</a></li>
+		</ul>
+	</div>
 </body>
 </html>

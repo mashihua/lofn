@@ -1,0 +1,49 @@
+body {
+	width: 560px;
+	padding-left: 200px;
+	margin: 0 auto;
+	position:relative;
+	line-height: 1.5;
+	font-family: Helvetica, Arial, sans-serif;
+}
+h1,h2,h3,h4,h5,h6{
+	margin: 1.2em 0 0.4em
+}
+p {
+	margin-bottom: 1.5em
+}
+pre, code, textarea, samp, kbd {
+	font-family: Consolas, Inconsolata, Monaco, "Bitstream Vera Sans Mono", Courier New, monospace;
+}
+pre, textarea {
+	font-size: medium;
+}
+.section pre {
+	border-left: 1px solid #ddd;
+	padding-left:1.64em;
+}
+#head {
+	margin-left:-200px;
+	_position: relative;
+}
+#head h1{margin:0.5em 0 0;font-size:2em;float:left;}
+#head h3{font-size:1.2em;line-height:1;font-weight:normal;margin:1.66666em 0 0 1.5em;float:left;_display:inline}
+#head address{clear:both}
+.section h2, .section h3{
+	_position: relative;
+}
+.section h2{
+	font-size:2.2em;
+	font-weight:normal;
+	color:#a00;
+	margin: 0.6em 0 0.3em -40px;
+}
+.section h3{
+	margin-left: -20px;
+}
+#input{
+	padding:4px;
+	width:550px;
+	border:1px solid #bbb;
+	resize:vertical;
+}
