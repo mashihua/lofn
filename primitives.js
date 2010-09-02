@@ -19,6 +19,14 @@ var OWNS = function(){
 		return hop.call(o,p)
 	}
 }();
+var COPYSTRING = function(s,n){
+	if(n <= 0) return '';
+	if(n <= 1) return s;
+	var t = COPYSTRING(s,n >>> 2);
+	t = t + t;
+	if(n % 2) t += s;
+	return t;
+}
 
 var YES = {};
 var NUSED = {};

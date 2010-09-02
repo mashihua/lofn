@@ -69,10 +69,10 @@ var clrscr = function(){
 			// start VM
 //			try {
 				ScriptScopes = parse(lex(document.getElementById('input').value));
-				var script = VM(ScriptScopes, global);
+				var script = VM(ScriptScopes, global,standardTransform);
 				tracel('Generated code:\n'+(' |\t'+script.__bodyCode).replace(/\n/g,'\n |\t'));
 				script();
-				tracel('--- DOME  ---');
+				tracel('--- DONE  ---');
 //			} catch (e) {
 //				tracel('\n--- ERROR ---\n! An error occurs \n  ' + e+'\n-------------');
 //				throw e;

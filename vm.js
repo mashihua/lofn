@@ -1,33 +1,41 @@
-﻿var VM = function(){
-
-var _script_line = 0;
-var __temp;
-
-var vmSchemata = [];
-var nt = NodeType;
-var schemata = function (tf, trans) {
-	vmSchemata[tf] = trans;
-};
-// marco
-var GET = function (n) {
-	return '((__temp=env[' + n + '])?__temp[' + n + ']:noth)'
-}
-var SET = function (n, val) {
-	return '((__temp=env[' + n + '])?__temp[' + n + ']=' + val + ':(env[' + n + ']=lvs,lvs[' + n + ']=' + val + '))'
-}
-
-var TO_ENCCD = function(name){
+﻿var TO_ENCCD = function(name){
 	return name.replace(/[^a-zA-Z0-9_]/g,function(m){
-		return '$'+m.charCodeAt(0).toString(36)
+		return '$'+m.charCodeAt(0).toString(36)+'$'
 	});
 };
-var C_NAME = function(id, name){
-	return '_$$_'+TO_ENCCD(name);
+var standardTransform = function(){
+	var _indent = 0, c;
+	return c = {
+		varName:function(id, name){return '_$$_'+TO_ENCCD(name)},
+		label:function(name){return '_$L_'+TO_ENCCD(name)},
+		thisName:function(env){return '_$T_'},
+		thisBind:function(env){return !env.thisOccurs || env.rebindThis ? '' : 'var _$T_ = (this === M_TOP ? null : this)'},
+		joinStatements:function(statements){
+			return statements.join(';\n')+';\n';
+		},
+	}
+}();
+
+var VM = function(){
+
+var config,vmSchemata = [],nt = NodeType,schemata = function (tf, trans) {vmSchemata[tf] = trans;};
+
+var C_NAME 
+var C_LABELNAME
+var T_THIS
+var BEFORE_BLOCK
+var AFTER_BLOCK
+var JOIN_STMTS
+var THIS_BIND
+
+var CTRLCHR = function (c) {
+	var n = c.charCodeAt(0);
+	return '\\x' + (n > 15 ? n.toString(16) : '0' + n.toString(16));
 }
-var C_LABELNAME = function(name){
-	return '_$L_'+TO_ENCCD(name);
-}
-var T_THIS = '(this === M_TOP ? null : this)'
+var strize = function (s) {
+	return '"' + (s || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\x00-\x1f\x7f]/g, CTRLCHR) + '"';
+};
+
 var GETV = function(node, env){
 	var depth = env.useVar(node.name)
 	return C_NAME(depth, node.name);
@@ -42,7 +50,8 @@ schemata(nt.SCRIPT, function (n) {
 		if (n.content[i]) {
 			a[i] = transform(n.content[i]);
 		}
-	return a.join(';\n');
+	var joined = JOIN_STMTS(a)
+	return joined;
 });
 schemata(nt['='], function (n, env) {
 	switch (this.left.type) {
@@ -86,7 +95,10 @@ schemata(nt.VARIABLE, function (n, env) {
 	return GETV(n, env);
 });
 schemata(nt.THIS, function (n,e) {
-	return e.rebindThis ? '_$T_' : T_THIS;
+	var n = e;
+	while(n.rebindThis) n = n.upper;
+	n.thisOccurs = true;
+	return T_THIS(e);
 });
 schemata(nt.ARGUMENTS, function () {
 	return 'arguments';
@@ -97,13 +109,6 @@ schemata(nt.CALLEE, function () {
 schemata(nt.PARAMETERS, function () {
 	throw new Error('Unexpected parameter group');
 });
-var CTRLCHR = function (c) {
-	var n = c.charCodeAt(0);
-	return '\\x' + (n > 15 ? n.toString(16) : '0' + n.toString(16));
-}
-var strize = function (s) {
-	return '"' + (s || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\x00-\x1f\x7f]/g, CTRLCHR) + '"';
-};
 schemata(nt.CALL, function () {
 	var comp;
 	switch (this.func.type) {
@@ -236,10 +241,12 @@ schemata(nt.THROW, function () {
 	return 'throw ' + transform(this.expression);
 });
 schemata(nt.IF, function () {
-	var s = 'if (' + transform(this.condition) + ')';
-	s += '{\n' + transform(this.thenPart) + '\n}';
+	var s = 'if (' + transform(this.condition) + '){\n';
+	s += transform(this.thenPart);
 	if (this.elsePart) {
-		s += 'else {\n' + transform(this.elsePart) + '\n}';
+		s += ('} else {') + transform(this.elsePart) + ('}');
+	} else {
+		s += ('}')
 	}
 	return s;
 });
@@ -315,7 +322,7 @@ var transform = function (node) {
 		return '{!UNKNOWN}';
 	}
 }
-var createFromTree = function (tree, genv) {
+var createFromTree = function (tree, hook) {
 	if(tree.transformed)
 		return;
 	env = tree;
@@ -324,7 +331,7 @@ var createFromTree = function (tree, genv) {
 	for(var i=0;i<locals.length;i++)
 		if(!(tree.varIsArg[locals[i]]))
 			vars.push(C_NAME(tree.id, locals[i]));
-	s = 'var ___$TMP,___$PIPE;'+(tree.hasRebindThisNested ? 'var _$T_ = '+THIS+';' : '')+(vars.length ? 'var '+vars.join(', ')+';\n':'')+s;	
+	s = JOIN_STMTS(['var ___$TMP,___$PIPE',THIS_BIND(tree),(vars.length ? 'var '+vars.join(', '):'')])+hook+s;	
 
 	tree.transformed = s;
 	return s;
@@ -333,20 +340,27 @@ var createFromTree = function (tree, genv) {
 
 //============
 
-return function(tree, initals){
-	var _args = [],_vals=[];
+return function(tree, initals, vmConfig){
+	config = vmConfig;
+	C_NAME = config.varName;
+	C_LABELNAME = config.label;
+	T_THIS = config.thisName;
+	JOIN_STMTS = config.joinStatements;
+	THIS_BIND = config.thisBind;
+
+	var inits = [], enter = tree[0];
+	enter.thisOccurs = true;
+	enter.newVar('__global__', true);
 	for(var each in initals) {
 		if(OWNS(initals, each)){
-			_args.push(C_NAME(0, each));
-			tree[0].newVar(each, true);
-			_vals.push(initals[each]);
+			enter.newVar(each,true);
+			inits.push('var '+C_NAME(0, each)+' =('+C_NAME(0, '__global__')+'['+strize(each)+']);');
 		}
 	}
-	tree[0].listVar();
-	createFromTree(tree[0]);
-	var body = tree[0].transformed;
+	enter.listVar();
+	var body = createFromTree(enter,'var '+C_NAME(0,'__global__')+'='+T_THIS()+';\n'+inits.join('\n')+'\n');
 	var f = function(){
-		return Function.apply(null,_args.concat(body)).apply(null,_vals)
+		return Function(body).apply(initals, arguments)
 	};
 	f.__bodyCode = body;
 	return f;
