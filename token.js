@@ -91,8 +91,16 @@ var CharacterGroup = function (accepts) {
 };
 
 var 
-	letter = function(n){return (65<=n && n<=90)||(97<=n && n<=122)||n===95||n===36},
-	number = function(n){return n>=48 && n<=57},
+	letter = function (n) { return (65 <= n && n <= 90) || (97 <= n && n <= 122) || n === 95 || n === 36 },
+	number = function (n) { return n >= 48 && n <= 57 },
+	idcont = function (n) { return n >= 48 && n <= 57 || (65 <= n && n <= 90) || (97 <= n && n <= 122) || n === 95 || n === 36 },
+	idcont_t = function () {
+		var CONT_T = [];
+		for (var k = 0; k < 65536; k++)
+			if (idcont(k))
+				CONT_T[k] = true;
+		return CONT_T;
+	} ();
 	operatorStart = CharacterGroup('+-*/<>=!:%'),
 	operatorCont = CharacterGroup('=<>~@'),
 	lineBreak = CharacterGroup('\n'),
@@ -122,6 +130,7 @@ var Token = function (type, value, line) {
 	this.value = value;
 	this.line = line;
 };
+Token.prototype.toString = function () { return this.value };
 var ensure = function (cond, message) {
 	if (!cond)
 		throw new Error(message);
@@ -144,29 +153,30 @@ var condF = function (match, $1) {
 var LofnUnescape = function (str) {
 	return str.replace(/\\(\\|n|"|t|v|u[a-fA-F0-9]{4})/g, condF);
 };
+var lx_conti = [];
+lx_conti[OPERATOR] = lx_conti[COMMA] = lx_conti[STARTBRACE] = lx_conti[SEMICOLON] = lx_conti[COLON] = true;
 
 var lex = function (source) {
 	var len = source.length, i = 0, j, current = 0, conti = true, line = 1;
-	var tokens = [],tokl = 0;
+	var tokens = new Array(source.length), tokl = 0;
 	var token = function (t, v) {
 		var k;
 		if (t === THEN) removeImplicitSemicolons();
 		k = new Token(t, v, line)
-		tokens[tokl] = k;
-		tokl++;
-		conti = (t === OPERATOR || t === COMMA || t === STARTBRACE || t === SEMICOLON || t === COLON);
+		tokens[tokl++] = k;
+		conti = lx_conti[t];
 	};
 	var startBrace = function () {
 	};
 	var endBrace = function () {
 	};
 
-	var next = function (p) {
+	function next(p) {
 		return source.charCodeAt((p || i) + 1);
 	};
-	var move = function () { i++; current = source.charCodeAt(i) };
+	function move() { i++; current = source.charCodeAt(i) };
 
-	var scan = function (how, what) {
+	function scan(how, what) {
 		j = i;
 		do {
 			j += 1, current = source.charCodeAt(j)
@@ -176,115 +186,148 @@ var lex = function (source) {
 	};
 
 	var removeImplicitSemicolons = function () {
-		while (tokens.length && tokens[tokl - 1].type === SEMICOLON && tokens[tokl - 1].value === 0) {
-			tokl-=1;
+		while (tokl && tokens[tokl - 1].type === SEMICOLON && !tokens[tokl - 1].value) {
+			tokl -= 1;
 		};
 	};
 
-	while (i < len) {
-		current = source.charCodeAt(i);
-		if (backSlash(current)) {
-			conti = true;
-		} else if (letter(current)) { // name
-			var j = i;
-			do{ j++, current = source.charCodeAt(j) }while(isFinite(current)&&(letter(current)||number(current)));
-			if (j===i+2 && tokens[tokl - 1].type === OPERATOR && tokens[tokl - 1].value === 'is' && source.slice(i,j)==='in') // special processing for "in"
-				tokens[tokl - 1].value = 'in';
-			else {
-				var s = source.slice(i,j);
-				token(nameType(s), s);
-			}
-			i=j;
-			continue;
-		} else if (slash(current) && slash(next())) { //comment
+	var JUMP = [];
+	var setjump = function (match, action, unicode) {
+		for (var i = 0; i < (unicode ? 65536 : 256); i++)
+			if (match(i))
+				JUMP[i] = action;
+	};
+
+	// jumps
+	setjump(backSlash, function () { conti = true });
+
+	var f_letter = function () {
+		var j = i;
+		do {
+			j++;
+			current = source.charCodeAt(j)
+		} while (idcont_t[current]);
+		if (j === i + 2 && tokens[tokl - 1].type === OPERATOR && tokens[tokl - 1].value === 'is' && source.slice(i, j) === 'in') // special processing for "in"
+			tokens[tokl - 1].value = 'in';
+		else {
+			var s = source.slice(i, j);
+			token(nameType(s), s);
+		}
+		i = j;
+		return 1;
+	};
+	setjump(letter, f_letter);
+	setjump(dot, function () {
+		removeImplicitSemicolons();
+		token(DOT, 0);
+	});
+	var f_oper = function () {
+		scan(operatorCont, function (i, j, s) {
+			token(OPERATOR, s);
+		});
+		return 1;
+	}
+	setjump(operatorStart, f_oper);
+	setjump(slash, function () {
+		if (slash(next())) {
 			move();
 			scan(function (c) { return !lineBreak(c) }, function () { });
-			continue;
-		} else if (dot(current)) {
-			removeImplicitSemicolons();
-			token(DOT, 0);
-		} else if (colon(current) && !operatorCont(next())) {
-			removeImplicitSemicolons();
-			token(COLON, 0);
-		} else if (sharp(current)) {
-			token(SHARP, '#');
-		} else if (theng(current)) {
-			removeImplicitSemicolons();
-			token(THEN, 'then');
-		} else if (operatorStart(current)) { //operator
-			scan(operatorCont, function (i, j, s) {
-				token(OPERATOR, s);
-			});
-			continue;
-		} else if (singleQuote(current)) { //single quote
-			j = i;
-			do {
-				j += 1, current = source.charCodeAt(j)
-			} while (ensure(j < len, 'Unfinished string') &&
+			return 1
+		} else {
+			return f_oper()
+		}
+	});
+	setjump(colon, function () {
+		if (!operatorCont(next()))
+			token(COLON, 0)
+		else
+			return f_oper()
+	});
+	setjump(singleQuote, function () { //single quote
+		j = i;
+		do {
+			j += 1, current = source.charCodeAt(j)
+		} while (ensure(j < len, 'Unfinished string') &&
 			(!singleQuote(current) || (singleQuote(current) && singleQuote(next(j)) && j++)));
-			token(STRING, source.slice(i + 1, j).replace(/''/g, '\''));
-			i = j + 1;
-			continue;
-		} else if (doubleQuote(current)) { //double quote
-			j = i;
-			do {
-				j += 1, current = source.charCodeAt(j)
-			} while (ensure(j < len, 'Unfinished string') &&
+		token(STRING, source.slice(i + 1, j).replace(/''/g, '\''));
+		i = j + 1;
+		return 1;
+	});
+	setjump(doubleQuote, function () {
+		j = i;
+		do {
+			j += 1, current = source.charCodeAt(j)
+		} while (ensure(j < len, 'Unfinished string') &&
 			(!doubleQuoteSpecial(current) || (backSlash(current) && ensure(j++ < len))));
-			token(STRING, LofnUnescape(source.slice(i + 1, j)));
-			i = j + 1;
-			continue;
-		} else if (backQuote(current)) {
-			move();
-			scan(function (c) { return letter(c) || number(c) },
+		token(STRING, LofnUnescape(source.slice(i + 1, j)));
+		i = j + 1;
+		return 1
+	});
+	setjump(backQuote, function () {
+		move();
+		scan(function (c) { return letter(c) || number(c) },
 			function (i, j, s) {
 				token(STRING, s)
 			});
-			continue;
-		} else if (number(current)) { //number
-			if (zero(current) && x(next())) { //hexical?
-				i += 2;
-				scan(hex, function (i, j, s) { token(NUMBER, parseInt(s, 16)) });
-			} else {
-				var digits;
-				scan(number, function (i, j, s) { digits = s });
-				if (dot(current) && number(next())) {
-					i++;
-					scan(number, function (i, j, s) { digits += '.' + s });
-					if (e(current) && number(next())) {
-						move();
-						digits += 'e'
-						if (posneg(current)) {
-							digits += String.fromCharCode(current);
-						};
-						move();
-						scan(number, function (i, j, s) { digits += s });
-						token(NUMBER, parseFloat(digits));
-					} else {
-						token(NUMBER, parseFloat(digits));
-					}
+		return 1
+	});
+	setjump(number, function () {
+		if (zero(current) && x(next())) { //hexical?
+			i += 2;
+			scan(hex, function (i, j, s) { token(NUMBER, parseInt(s, 16)) });
+		} else {
+			var digits;
+			scan(number, function (i, j, s) { digits = s });
+			if (dot(current) && number(next())) {
+				i++;
+				scan(number, function (i, j, s) { digits += '.' + s });
+				if (e(current) && number(next())) {
+					move();
+					digits += 'e'
+					if (posneg(current)) {
+						digits += String.fromCharCode(current);
+					};
+					move();
+					scan(number, function (i, j, s) { digits += s });
+					token(NUMBER, parseFloat(digits));
 				} else {
-					token(NUMBER, parseInt(digits, 10));
+					token(NUMBER, parseFloat(digits));
 				}
-			};
-			continue;
-		} else if (comma(current)) {
-			removeImplicitSemicolons();
-			token(COMMA, 0);
-		} else if (semi(current)) {
-			removeImplicitSemicolons();
-			token(SEMICOLON, 1);
-		} else if (braceStart(current)) {
-			token(STARTBRACE, current);
-		} else if (braceEnd(current)) {
-			removeImplicitSemicolons();
-			token(ENDBRACE, current);
-		} else if (lineBreak(current)) {
-			line++;
-			if (!conti) 
-				token(SEMICOLON, 0);
+			} else {
+				token(NUMBER, parseInt(digits, 10));
+			}
 		};
-		i++;
+		return 1;
+	});
+	setjump(braceStart, function () { token(STARTBRACE, current) });
+	setjump(braceEnd, function () {
+		removeImplicitSemicolons();
+		token(ENDBRACE, current);
+	});
+	setjump(semi, function () {
+		removeImplicitSemicolons();
+		token(SEMICOLON, 1);
+	});
+	setjump(comma, function () {
+		removeImplicitSemicolons();
+		token(COMMA, 0);
+	});
+	setjump(theng, function () {
+		removeImplicitSemicolons();
+		token(THEN, 0);
+	});
+	setjump(lineBreak, function () {
+		line++;
+		if (!conti)
+			token(SEMICOLON, 0);
+	});
+
+	while (i < len) {
+		current = source.charCodeAt(i);
+		if (JUMP[current]) {
+			if (!JUMP[current]()) i++
+		} else
+			i++;
 	}
 	tokens.length = tokl;
 	return tokens

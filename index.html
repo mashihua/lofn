@@ -77,8 +77,8 @@ var clrscr = function(){
 				start = new Date();
 				var script = VM(ScriptScopes, global,standardTransform);
 				tracel('| Generation time: ',new Date()-start);
-				tracel('Generated code:\n'+(' |\t'+script.__bodyCode).replace(/\n/g,'\n |\t'));
-				script();
+//				tracel('Generated code:\n'+(' |\t'+script.__bodyCode).replace(/\n/g,'\n |\t'));
+//				script();
 				tracel('--- DONE  ---');
 //			} catch (e) {
 //				tracel('\n--- ERROR ---\n! An error occurs \n  ' + e+'\n-------------');

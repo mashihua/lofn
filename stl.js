@@ -42,6 +42,7 @@ reg('operator', {
 	shr:function(a,n){return a >> n},
 	shrf:function(a,n){return a >>> n}
 });
+reg('strcpy', COPYSTRING);
 reg('NamedArguments', NamedArguments);
 reg('tee', function(x,f){
 	f(x);
