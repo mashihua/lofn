@@ -6,86 +6,93 @@
 	<style type="text/css">
 		pre {
 			font-family: Consolas,Courier New,NSimSun,SimSun,monospace;
-			font-size:12px;
+			font-size: 12px;
 		}
-		#info{
-			color:#009;
+		#info {
+			color: #009;
 		}
-		#output{
-			font-weight:bolder;
-			font-size:14px
+		#output {
+			font-weight: bolder;
+			font-size: 14px;
 		}
 		h1 {
 			font-family: Arial,NSimSun,sans-serif;
 		}
-		#input{
-			width:99%;
-			display:block;
-			height:16em;
+		#input {
+			width: 99%;
+			display: block;
+			height: 16em;
 		}
 	</style>
 </head>
 <body>
 	<textarea id="input"></textarea>
-	<button id="go">Start script</button>
+	<button id="go">
+		Start script</button>
 	<pre id="output"></pre>
 	<pre id="info"></pre>
 
 	<script type="text/javascript">
 			//<![CDATA[
-		var G_TRACE = function(element){
-		var _output = document.getElementById(element);
-		function trace(x) {
-			var s = '';
-			for (var i = 0; i < arguments.length; i++) s += arguments[i];
-			_output.appendChild(document.createTextNode(s));
-			return arguments[arguments.length - 1];
-		};
-		function tracel() {
-			var v = trace.apply(this, arguments);
-			trace('\n');
-			return v;
-		};
-		return {
-			trace:trace,
-			tracel:tracel,
-			clrscr:clrscr
+		var G_TRACE = function (element) {
+			var _output = document.getElementById(element);
+			function trace(x) {
+				var s = '';
+				for (var i = 0; i < arguments.length; i++) s += arguments[i];
+				_output.appendChild(document.createTextNode(s));
+				return arguments[arguments.length - 1];
+			};
+			function tracel() {
+				var v = trace.apply(this, arguments);
+				trace('\n');
+				return v;
+			};
+			return {
+				trace: trace,
+				tracel: tracel,
+				clrscr: clrscr
+			}
 		}
+		var clrscr = function () {
+			document.getElementById('output').innerHTML = document.getElementById('info').innerHTML = '';
 		}
-var clrscr = function(){
-	document.getElementById('output').innerHTML=document.getElementById('info').innerHTML='';
-}
 //]]></script>
 
 	<script src="primitives.js" type="text/javascript"></script>
+
 	<script src="token.js" type="text/javascript"></script>
+
 	<script src="parse.js" type="text/javascript"></script>
+
 	<script src="vm.js" type="text/javascript"></script>
+
 	<script src="stl.js" type="text/javascript"></script>
+
 	<script type="text/javascript">
 		document.getElementById('go').onclick = function () {
 			clrscr();
 			var tracel = G_TRACE('info').tracel;
 			// start VM
 			//	try {
-				var start = new Date();
-				var tokens = lex(document.getElementById('input').value);
-				tracel('| Lex time: ',new Date()-start);
-				start = new Date();
-				var ScriptScopes = parse(tokens);
-				tracel('| Parse time: ',new Date()-start);
-				start = new Date();
-				var script = VM(ScriptScopes, global,standardTransform);
-				tracel('| Generation time: ',new Date()-start);
-//				tracel('Generated code:\n'+(' |\t'+script.__bodyCode).replace(/\n/g,'\n |\t'));
-//				script();
-				tracel('--- DONE  ---');
-//			} catch (e) {
-//				tracel('\n--- ERROR ---\n! An error occurs \n  ' + e+'\n-------------');
-//				throw e;
-//			} finally {
-//				tracel('--- DONE  ---');
-//			}
+			var start = new Date();
+			var tokens = lex(document.getElementById('input').value);
+			tracel('| Lex time: ', new Date() - start);
+			//console.log(tokens);
+			start = new Date();
+			var ScriptScopes = parse(tokens);
+			tracel('| Parse time: ', new Date() - start);
+			start = new Date();
+			var script = VM(ScriptScopes, global, standardTransform);
+			tracel('| Generation time: ', new Date() - start);
+			tracel('Generated code:\n' + (' |\t' + script.__bodyCode).replace(/\n/g, '\n |\t'));
+			script();
+			tracel('--- DONE  ---');
+			//			} catch (e) {
+			//				tracel('\n--- ERROR ---\n! An error occurs \n  ' + e+'\n-------------');
+			//				throw e;
+			//			} finally {
+			//				tracel('--- DONE  ---');
+			//			}
 		}
 	</script>
 

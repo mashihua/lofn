@@ -100,32 +100,32 @@ var parse = function (tokens) {
 		this.parent = env;
 		this.usedVariables = new Nai;
 	};
-	ScopedScript.prototype.newVar = function(name, isarg){
-		if(this.variables[name] >= 0) return;
+	ScopedScript.prototype.newVar = function (name, isarg) {
+		if (this.variables[name] >= 0) return;
 		this.locals.push(name);
-		this.varIsArg[name] = isarg===true;
-		return this.variables[name]=this.id;
+		this.varIsArg[name] = isarg === true;
+		return this.variables[name] = this.id;
 	};
-	ScopedScript.prototype.resolveVar = function(name){
-		if(this.variables[name]>=0)
+	ScopedScript.prototype.resolveVar = function (name) {
+		if (this.variables[name] >= 0)
 			return this.variables[name];
 		else
 			return this.newVar(name)
 	};
-	ScopedScript.prototype.useVar = function(name){
+	ScopedScript.prototype.useVar = function (name) {
 		this.usedVariables[name] = true;
 	}
-	ScopedScript.prototype.listVar = function(){
-		for(var each in this.usedVariables){
-			if(this.usedVariables[each]===true && !(this.variables[each]>0))
+	ScopedScript.prototype.listVar = function () {
+		for (var each in this.usedVariables) {
+			if (this.usedVariables[each] === true && !(this.variables[each] > 0))
 				this.newVar(each);
 		};
-		for(var i =0;i<this.nest.length;i++)
+		for (var i = 0; i < this.nest.length; i++)
 			this.nest[i].listVar();
 	};
-	ScopedScript.prototype.ready = function(){
-		if(this.parameters){
-			for(var i = 0;i<this.parameters.names.length;i++){
+	ScopedScript.prototype.ready = function () {
+		if (this.parameters) {
+			for (var i = 0; i < this.parameters.names.length; i++) {
 				this.newVar(this.parameters.names[i], true)
 			}
 		}
@@ -135,7 +135,7 @@ var parse = function (tokens) {
 
 	var scopes = [], token = tokens[0], next, i = 0, len = tokens.length, workingScopes = [], workingScope, nt = NodeType, curline;
 	if (token) curline = token.line;
-	function acquire(){};
+	function acquire() { };
 	var moveNext = function () {
 		var t = token;
 		acquire();
@@ -147,7 +147,7 @@ var parse = function (tokens) {
 	};
 	var newScope = function (isLE) {
 		var n = scopes.length;
-		var s = new ScopedScript(n+1, workingScope);
+		var s = new ScopedScript(n + 1, workingScope);
 		s.rebindThis = isLE;
 		if (workingScope) {
 			workingScope.hasNested = true;
@@ -175,14 +175,14 @@ var parse = function (tokens) {
 	};
 	var SQSTART = 91, SQEND = 93, RDSTART = 40, RDEND = 41, CRSTART = 123, CREND = 125;
 
-	var tokenIs = function(t, v){
+	var tokenIs = function (t, v) {
 		return token && token.type === t && (v ? token.value === v : true);
 	}
-	var nextIs = function(t, v){
+	var nextIs = function (t, v) {
 		return next && next.type === t && (v ? next.value === v : true);
 	}
-	var shiftIs = function(n, t, v){
-		return tokens[i+n] && tokens[i+n].type === t && (v ? tokens[i+n].value === v : true);
+	var shiftIs = function (n, t, v) {
+		return tokens[i + n] && tokens[i + n].type === t && (v ? tokens[i + n].value === v : true);
 	}
 
 	// Identifier: like the javascript
@@ -238,7 +238,7 @@ var parse = function (tokens) {
 		advance(OBJECT);
 		advance(STARTBRACE, CRSTART);
 		var node = new Node(nt.OBJECT);
-		if(tokenIs(ENDBRACE,CREND)){
+		if (tokenIs(ENDBRACE, CREND)) {
 			node.args = [];
 			advance();
 			return node
@@ -271,7 +271,7 @@ var parse = function (tokens) {
 		workingScope.code = statements();
 		endScope();
 		advance(ENDBRACE, 125);
-		return new Node(nt.FUNCTION, { tree:s });
+		return new Node(nt.FUNCTION, { tree: s });
 	};
 	// Function body using
 	//		COLON
@@ -285,7 +285,7 @@ var parse = function (tokens) {
 		workingScope.code = statements(END);
 		endScope();
 		advance(END);
-		return new Node(nt.FUNCTION, { tree:s });
+		return new Node(nt.FUNCTION, { tree: s });
 	};
 
 	// Function literal
@@ -312,8 +312,8 @@ var parse = function (tokens) {
 	var parameters = function () {
 		var arr = [];
 		advance(STARTBRACE, 40);
-		if (!tokenIs(ENDBRACE,RDEND)) {
-				arr[0] = name().name;
+		if (!tokenIs(ENDBRACE, RDEND)) {
+			arr[0] = name().name;
 			while (tokenIs(COMMA)) {
 				advance(COMMA);
 				arr[arr.length] = name().name;
@@ -338,7 +338,7 @@ var parse = function (tokens) {
 	var lambdaCont = function (p) {
 		var right;
 		advance(OPERATOR, ':>');
-		if (tokenIs(STARTBRACE,CRSTART)) { // statement lambda
+		if (tokenIs(STARTBRACE, CRSTART)) { // statement lambda
 			right = functionBody(p);
 			return right;
 		} else {
@@ -349,12 +349,12 @@ var parse = function (tokens) {
 			workingScope.code = new Node(nt.RETURN, { expression: right });
 			endScope();
 			return new Node(nt.FUNCTION, {
-				tree:s
+				tree: s
 			});
 		}
 	}
-	var isLambdaPar = function(){
-		if(nextIs(ID) && (shiftIs(2,ENDBRACE,RDEND) && shiftIs(3,OPERATOR,':>') || shiftIs(2,COMMA))){
+	var isLambdaPar = function () {
+		if (nextIs(ID) && (shiftIs(2, ENDBRACE, RDEND) && shiftIs(3, OPERATOR, ':>') || shiftIs(2, COMMA))) {
 			return true;
 		}
 		return false;
@@ -416,14 +416,14 @@ var parse = function (tokens) {
 	};
 	var memberitem = function (left) {
 		var right;
-		if (tokenIs(STARTBRACE,SQSTART)) {  // .[ Expressuib ]  format
+		if (tokenIs(STARTBRACE, SQSTART)) {  // .[ Expressuib ]  format
 			advance();
 			right = expression();
 			advance(ENDBRACE, SQEND);
 			return new Node(nt.MEMBERREFLECT, { left: left, right: right });
-		} else if(tokenIs(STRING)){
+		} else if (tokenIs(STRING)) {
 			right = literal();
-			return new Node(nt.MEMBERREFLECT, {left:left, right:right});
+			return new Node(nt.MEMBERREFLECT, { left: left, right: right });
 		} else { // . Identifier  format
 			right = name();
 			return new Node(nt.MEMBER, { left: left, right: right });
@@ -432,7 +432,7 @@ var parse = function (tokens) {
 	var member = function () {
 		var node = primary();
 		// a.b.[e1].c[e2]			...
-		while (tokenIs(DOT)||tokenIs(STARTBRACE, SQSTART)) {
+		while (tokenIs(DOT) || tokenIs(STARTBRACE, SQSTART)) {
 			var t = advance();
 			if (t.type === DOT) {
 				node = memberitem(node);
@@ -531,7 +531,7 @@ var parse = function (tokens) {
 		} while (true);
 		ensure(!HAS_DUPL(names), 'Named argument list contains duplicate');
 		nc.args = (nc.args || []).concat(args);
-	   	nc.names = (nc.names || []).concat(names);
+		nc.names = (nc.names || []).concat(names);
 		nc.nameused = nc.nameused || nameused;
 	};
 
@@ -570,7 +570,7 @@ var parse = function (tokens) {
 	};
 
 	var bp = {
-		'*': 10, '/': 10,'%':10,
+		'*': 10, '/': 10, '%': 10,
 		'+': 20, '-': 20,
 		'<<': 25, '>>': 25,
 		'<': 30, '>': 30, '<=': 30, '>=': 30, '<=>': 30, 'is': 30, 'in': 30,
@@ -606,9 +606,9 @@ var parse = function (tokens) {
 		return uber.right;
 	};
 
-	var omissionCall = function(node){
-		while(true){
-			if(!token) return node;
+	var omissionCall = function (node) {
+		while (true) {
+			if (!token) return node;
 			switch (token.type) {
 				case END:
 				case SEMICOLON:
@@ -617,9 +617,9 @@ var parse = function (tokens) {
 					return node;
 				default:
 					var n_ = node;
-					node = new Node(nt.CALL, {func:n_});
+					node = new Node(nt.CALL, { func: n_ });
 					arglist(node);
-					if(node.args.length === 1 && node.names[0] == null){
+					if (node.args.length === 1 && node.names[0] == null) {
 						return new Node(nt.CALL, {
 							func: n_,
 							args: [omissionCall(node.args[0])],
@@ -638,7 +638,7 @@ var parse = function (tokens) {
 		// - Omissioned calls
 		// - "then" syntax for chained calls.
 		var pivot = unary(), right, c;
-		if (tokenIs(OPERATOR,'=')) { //赋值
+		if (tokenIs(OPERATOR, '=')) { //赋值
 			advance();
 			return new Node(nt['='], { left: pivot, right: expression(true) });
 		}
@@ -681,14 +681,14 @@ var parse = function (tokens) {
 							args: [c],
 							names: [null],
 							pipelike: true,
-						  	pipeline:true
+							pipeline: true
 						});
 					}
 					break;
 				default:
 					if (c.type === nt.CALL && c.pipelike) {
 						arglist(c);
-					} else if(isOmission) {
+					} else if (isOmission) {
 						c = omissionCall(c);
 						isOmission = false;
 					} else {
@@ -769,7 +769,7 @@ var parse = function (tokens) {
 		};
 	};
 	var vardecls = function () {
-		if (nextIs(OPERATOR,'=')) { // assigned variable
+		if (nextIs(OPERATOR, '=')) { // assigned variable
 			var v = variable();
 			workingScope.newVar(v.name);
 			advance();
@@ -919,7 +919,7 @@ var parse = function (tokens) {
 		advance(LABEL);
 		ensure(tokenIs(ID));
 		var label = name().name;
-		ensure(! workingScope.labels[label] && workingScope.labels[label] !== 0, 'Unable to re-label a statement');
+		ensure(!workingScope.labels[label] && workingScope.labels[label] !== 0, 'Unable to re-label a statement');
 		var node = new Node(nt.LABEL, {
 			name: label
 		});
