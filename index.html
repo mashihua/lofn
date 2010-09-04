@@ -74,18 +74,11 @@
 			var tracel = G_TRACE('info').tracel;
 			// start VM
 			//	try {
-			var start = new Date();
-			var tokens = lex(document.getElementById('input').value);
-			tracel('| Lex time: ', new Date() - start);
-			//console.log(tokens);
-			start = new Date();
-			var ScriptScopes = parse(tokens);
-			tracel('| Parse time: ', new Date() - start);
-			start = new Date();
-			var script = VM(ScriptScopes, global, standardTransform);
-			tracel('| Generation time: ', new Date() - start);
-			tracel('Generated code:\n' + (' |\t' + script.__bodyCode).replace(/\n/g, '\n |\t'));
-			script();
+				var script = new lofn.Script(document.getElementById('input').value);
+				script.setGlobalVariable('alert', alert);
+			var cm = script.compile();
+			tracel('Generated code:\n' + (' |\t' + cm.generatedSource).replace(/\n/g, '\n |\t'));
+			script.start();
 			tracel('--- DONE  ---');
 			//			} catch (e) {
 			//				tracel('\n--- ERROR ---\n! An error occurs \n  ' + e+'\n-------------');

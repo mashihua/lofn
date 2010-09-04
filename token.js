@@ -120,12 +120,8 @@ var symbolType = function (m) {
 	else
 		throw new Error('Unspecified symbol '+m)
 }
-var ensure = function (c, m) {
-	if (!c)
-		throw new Error(m);
-	return c;
-}
-var lex = function () {
+
+var lex = lofn.lex = function () {
 	var Token = function (t, v) {
 		this.type = t;
 		this.value = v

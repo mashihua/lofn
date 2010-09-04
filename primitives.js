@@ -1,3 +1,4 @@
+// The smallest Runtime environment for Lofn.
 var Nai = function(){};
 Nai.prototype = {
 	constructor: undefined,
@@ -113,6 +114,19 @@ Object.prototype.each = function(f){
 			if(OWNS(this,each))
 				f.call(this[each],this[each],each);
 	}
+};
+Array.prototype.each = function (f) {
+	for (var i = 0; i < this.length; i++) {
+		f.call(this[i], this[i], i)
+	};
+	return this;
+};
+String.prototype.each = function(f){
+	for(var i = 0; i<this.length; i++){
+		var ch = this.charAt(i);
+		f.call(ch, ch, i)
+	};
+	return this;
 }
 Function.prototype.be = function (b) {
 	return b instanceof this;
@@ -157,4 +171,35 @@ Rule.prototype.each = function (f) {
 			}
 		}
 	}
+}
+
+
+var lofn = {};
+lofn.stl = new Nai;
+
+
+lofn.Script = function(source, config, libraries){
+	var tree = lofn.parse(lofn.lex(source));
+	var specL = new Nai;
+	var vm;
+	var inita = function(libs){
+		return function(r){
+			for(var i = 0; i<libs.length;i++)
+				for(var each in libs[i])
+					if(OWNS(libs[i], each))
+						r(each, libs[i][each])
+		}
+	}([lofn.stl].concat(libraries || [], [specL]));
+	return {
+		setGlobalVariable: function(name, value){specL[name] = value},
+		compile: function(){
+			this.setGlobalVariable = null;
+			vm = lofn.VM(tree, inita, config || lofn.standardTransform); 
+			return vm
+		},
+		start: function(){
+			if(!vm) this.compile();
+			vm.compiled.apply(null, arguments)
+		}
+	};
 }

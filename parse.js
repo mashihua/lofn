@@ -1,26 +1,9 @@
-﻿var formNode = function (n, s) {
-	s = s || '';
-	if (n == null || !n.type && !(n instanceof Array)) { tracel(n); return }
-	if (n instanceof Array)
-		tracel('[ARRAY]');
-	else if (n.type === NodeType.VARIABLE) {
-		tracel('#' + n.name);
-		return n;
-	}
-	else
-		tracel('[' + typename[n.type] + ']');
-	for (var each in n) if (each !== 'type' && each !== 'bp') {
-		trace(s + '+-', each, ': ');
-		if (each === 'upper') { tracel('[SCOPE]') }
-		else if (each === 'destination' && n[each]) {
-			tracel('[[LABEL]]')
-		} else {
-			formNode(n[each], s + ':  ');
-		}
-	};
-
-	return n
-};
+﻿lofn.parse = function(){
+var ensure = function (c, m) {
+	if (!c)
+		throw new Error(m);
+	return c;
+}
 
 var HAS_DUPL = function (arr) {
 	var b = arr.slice(0).sort();
@@ -31,7 +14,7 @@ var HAS_DUPL = function (arr) {
 
 var itself = function () { return this };
 var typename;
-var NodeType = function () {
+var NodeType = lofn.NodeType = function () {
 
 	var types = typename = [
 		'UNKNOWN', 'VARIABLE', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT', 'ARGUMENTS', 'CALLEE',
@@ -78,7 +61,7 @@ var NodeType = function () {
 
 
 
-var parse = function (tokens) {
+return function (tokens) {
 
 	var Node = function (type, props) {
 		var p = props || {};
@@ -963,3 +946,4 @@ var parse = function (tokens) {
 
 	return scopes;
 };
+}();
