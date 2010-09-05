@@ -17,7 +17,7 @@
 		<address>by <a href="http://github.com/infinte">infinte</a></address>
 	</div>
 	<div id="trylofn" class="section">
-		<h2>Try lofn (WIP)</h2>
+		<h2>Try lofn (based on <a href="http://github.com/infinte/lofn/tree/r__hky_1">Hky.1</a>)</h2>
 		<textarea id="input" name="input" rows="7" cols="30">
 cout &lt;&lt; "Hello world!" &lt;&lt; endl
 // or:
@@ -38,7 +38,7 @@ tracel "Hello world, again!"
 	<div id="api" class="section">
 		<h2>The API</h2>
 		<p>The lofn-web API is very easy-to-use. You can easily start a lofn script from a string:</p>
-<pre class="js">var script = new Lofn.Script("alert example");
+<pre class="js">var script = new lofn.Script("alert example");
 script.setGlobalVariable('alert', alert);
 script.setGlobalVariable('example', 1);
 script.start() // will alert '1'

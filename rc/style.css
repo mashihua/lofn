@@ -45,5 +45,13 @@ pre, textarea {
 	padding:4px;
 	width:550px;
 	border:1px solid #bbb;
+	border-radius: 4px;
 	resize:vertical;
+}
+#input:focus {
+	outline:none;
+	border-color:rgb(15,135,255);
+	box-shadow:rgba(15,135,255,0.4) 0 0 5px;
+	-moz-box-shadow:rgba(15,135,255,0.4) 0 0 5px;
+	-webkit-box-shadow:rgba(15,135,255,0.4) 0 0 5px;
 }
