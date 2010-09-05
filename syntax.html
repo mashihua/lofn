@@ -1,0 +1,78 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+	<title>Lofn @ GitHub</title>
+	<style type="text/css">
+		@import url(rc/style.css);
+	</style>
+</head>
+
+<body>
+	<div id="head">
+		<h1>Lofn</h1>
+		<h3>The language over</h3>
+		<address>by <a href="http://github.com/infinte">infinte</a></address>
+	</div>
+	<div id="syntax" class="section">
+		<h2>Syntax Guide</h2>
+		<h3>Identifiers</h3>
+		<p>First of all, let's look at identifiers. Like Javascript, Identifiers is formed by Letters, Numbers, <samp>_</samp> or <samp>$</samp>, and, numbers can't appear at the beginning of any identifier.</p>
+		<div class="grammer">
+			<div class="item">
+				<var>identifier</var> = ( Letter | <q>"_"</q> | <q>"$"</q> ) ( Letter | Digit | <q>"_"</q> | <q>"$"</q> )<span class="rep">*</span>
+			</div>
+		</div>
+		<p>And, some names are reserved:</p>
+		<ul class="wordlist">
+			<li><samp>is</samp></li>
+			<li><samp>and</samp></li>
+			<li><samp>not</samp></li>
+			<li><samp>or</samp></li>
+			<li><samp>as</samp></li>
+			<li><samp>if</samp></li>
+			<li><samp>for</samp></li>
+			<li><samp>while</samp></li>
+			<li><samp>repeat</samp></li>
+			<li><samp>until</samp></li>
+			<li><samp>case</samp></li>
+			<li><samp>piecewise</samp></li>
+			<li><samp>when</samp></li>
+			<li><samp>function</samp></li>
+			<li><samp>return</samp></li>
+			<li><samp>throw</samp></li>
+			<li><samp>break</samp></li>
+			<li><samp>continue</samp></li>
+			<li><samp>label</samp></li>
+			<li><samp>end</samp></li>
+			<li><samp>else</samp></li>
+			<li><samp>otherwise</samp></li>
+			<li><samp>then</samp></li>
+			<li><samp>var</samp></li>
+			<li><samp>me</samp></li>
+			<li><samp>this</samp></li>
+			<li><samp>my</samp></li>
+			<li><samp>true</samp></li>
+			<li><samp>false</samp></li>
+			<li><samp>null</samp></li>
+			<li><samp>undefined</samp></li>
+			<li><samp>fallthrough</samp></li>
+			<li><samp>arguments</samp></li>
+			<li><samp>callee</samp></li>
+			<li><samp>object</samp></li>
+		</ul>
+		<p>They're operators, statements, or something else.</p>
+		<p>The <samp>in</samp> identifier directly after operator <samp>is</samp> will be regarded as an operator. So, <samp>is in</samp>  will be processed specially.</p>
+		<h3>Numbers</h3>
+		<p>And, numbers are much simpler (and safer) than JavaScript. There are hex-integers and normal numbers:</p>
+		<div class="grammer">
+			<div class="item"><var>number</var> = hexInteger | normalNumber</div>
+			<div class="item"><var>hexInteger</var> = <q>"0x"</q> HexDigit<span class="rep">+</span></div>
+			<div class="item"><var>normalNumber</var> = Digit<span class="rep">+</span> ( <q>"."</q> Digit<span class="rep">+</span> ( ( <q>"e"</q> | <q>"E"</q> ) <q>"-"</q><span class="rep">?</span> Digit<span class="rep">+</span> )<span class="rep">?</span> )<span class="rep">?</span></div>
+		</div>
+	</div>
+</body>
+</html>
+

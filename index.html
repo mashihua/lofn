@@ -35,6 +35,23 @@ tracel "Hello world, again!"
 <pre class="lofn">list.reduce (a,b) :&gt; a + b</pre>
 		<p>Isn't it fun?</p>
 	</div>
+	<div id="thelang" class="section">
+		<h2>The language</h2>
+		<h3>Using functions are simple</h3>
+		<p>Do you feel annoyed when using JavaScript functions? Now it will be changed. Lofn supports:</p>
+		<ul>
+			<li>Code blocks: <code>{something}</code></li>
+			<li>Lambda statements: <code>(a, b) :&gt; {something}</code></li>
+			<li>Lambda expressions: <code>(a, b) :&gt; expression</code></li>
+			<li>and Traditional functions: <code>function(args){something</code></li>
+		</ul>
+		<p>Hmmmm... Considering you're using a list-filter, like this:</p>
+<pre class="js">list.select(function(item){return item.mark &gt; 0})</pre>
+		<p>So let's find out the needlesses:</p>
+<pre class="js">list.select(<del>function</del>(item){<del>return</del> item.mark &gt; 0})</pre>
+		<p>You see! and the lofn code is:</p>
+<pre class="lofn">list.select item :&gt; list.mark &gt; 0</pre>
+	</div>
 	<div id="api" class="section">
 		<h2>The API</h2>
 		<p>The lofn-web API is very easy-to-use. You can easily start a lofn script from a string:</p>
@@ -46,7 +63,7 @@ script.start() // will alert '1'
 	</div>
 	<div id="safety" class="section">
 		<h2>Safety</h2>
-		<p>Lofn managed source is very safe, that means only the outer-valuew you exposed to Lofn will be accessable for the Lofn code.</p>
+		<p>Lofn managed source is very safe, that means only the outer-value you exposed to Lofn will be accessable for the Lofn code.</p>
 	</div>
 	<div id="informations" class="section">
 		<h2>Get information</h2>

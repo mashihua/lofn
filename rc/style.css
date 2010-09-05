@@ -10,9 +10,11 @@ h1,h2,h3,h4,h5,h6{
 	margin: 1.2em 0 0.4em
 }
 p {
-	margin-bottom: 1.5em
+	margin: 1.3em 0
 }
-pre, code, textarea, samp, kbd {
+.grammer q:before {content: ''}
+.grammer q:after {content: ''}
+pre, code, textarea, samp, kbd,.grammer q,.grammer span.rep {
 	font-family: Consolas, Inconsolata, Monaco, "Bitstream Vera Sans Mono", Courier New, monospace;
 }
 pre, textarea {
@@ -54,4 +56,20 @@ pre, textarea {
 	box-shadow:rgba(15,135,255,0.4) 0 0 5px;
 	-moz-box-shadow:rgba(15,135,255,0.4) 0 0 5px;
 	-webkit-box-shadow:rgba(15,135,255,0.4) 0 0 5px;
+}
+.grammer{
+	font-family: Cambria, Times New Roman, Times, serif;
+	font-size:110%;
+	padding: 0.4em;
+	margin:1.2em 0;
+}
+.grammer span.rep{
+	color:#009;
+	font-weight:bold;
+}
+.grammer q{
+	color:#900
+}
+.wordlist {
+	line-height:1.2
 }
