@@ -184,8 +184,8 @@ var lex = lofn.lex = function () {
 			}
 		}
 		0, input.replace(
-			(/(\/\/[^\n]*)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$])|('[^']*(?:''[^']*)*')|("[^\\"]*(?:\\.[^\\"]*)*")|(0x[a-fA-F0-9]+)|(\d+(?:\.\d+(?:[eE]-?\d+)?)?)|([+\-*\/<>=!:%~,.;#]+|[()\[\]\{\}|])|(\n\s*)/g),
-			function (match, comment, nme, reflects, singles, doubles, hnumber, fnumber, symbol, newline) {
+			(/(\/\/[^\n]*)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$])|('[^']*(?:''[^']*)*')|("[^\\"]*(?:\\.[^\\"]*)*")|((?:0x[a-fA-F0-9]+)|(?:\d+(?:\.\d+(?:[eE]-?\d+)?)?))|([+\-*\/<>=!:%~,.;#]+|[()\[\]\{\}|])|(\n\s*)/g),
+			function (match, comment, nme, reflects, singles, doubles, number, symbol, newline) {
 				if (nme) {
 					make(nameType(match), match)
 				} else if (reflects) {
@@ -194,10 +194,8 @@ var lex = lofn.lex = function () {
 					make(STRING, match.slice(1, -1).replace(/''/g, "'"));
 				} else if (doubles) {
 					make(STRING, lfUnescape(match.slice(1, -1)));
-				} else if (hnumber) {
-					make(NUMBER, (match.slice(2)) - 0);
-				} else if (fnumber) {
-					make(NUMBER, (match - 0))
+				} else if (number) {
+					make(NUMBER, (match - 0));
 				} else if (symbol) {
 					p_symbol(match);
 				} else if (newline) {

@@ -151,9 +151,9 @@ return function (tokens) {
 	var advance = function (type, test) {
 		var nt, value, t, node;
 		if (type !== undefined && token.type !== type)
-			throw new Error('Unexpected token: got' + token + ' but expected ' + new Token(type, test));
+			throw new Error('Unexpected token: got' + token);
 		if (test !== undefined && token.value !== test)
-			throw new Error('Unexpected token: got' + token + ' but expected ' + new Token(type, test));
+			throw new Error('Unexpected token: got' + token);
 		return moveNext();
 	};
 	var SQSTART = 91, SQEND = 93, RDSTART = 40, RDEND = 41, CRSTART = 123, CREND = 125;
@@ -433,7 +433,6 @@ return function (tokens) {
 		out: while (
 					 tokenIs(STARTBRACE, RDSTART)
 					 || tokenIs(STARTBRACE, SQSTART)
-					 || tokenIs(FUNCTION)
 					 || tokenIs(DOT)
 					 ) {
 			switch (token.type) {
@@ -456,29 +455,8 @@ return function (tokens) {
 							item: expression()
 						});
 						advance(ENDBRACE, SQEND);
-					} else if (token.value === CRSTART) {
-						// something { body } invocation
-						// creates advanced functions directly
-						// like::	 chained { actions }
-						m = new Node(nt.CALL, {
-							func: m,
-							args: [functionBody()],
-							names: [],
-							nameused: false
-						});
-						break out;
 					}
 					continue;
-				case FUNCTION:
-					// like:
-					// constructor function(){ ...... }
-					m = new Node(nt.CALL, {
-						func: m,
-						args: [functionLiteral()],
-						names: [],
-						nameused: false
-					});
-					break out;
 				case DOT:
 					advance();
 					m = memberitem(m);

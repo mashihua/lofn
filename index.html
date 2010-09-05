@@ -27,8 +27,7 @@
 </head>
 <body>
 	<textarea id="input"></textarea>
-	<button id="go">
-		Start script</button>
+	<button id="go">Start script</button>
 	<pre id="output"></pre>
 	<pre id="info"></pre>
 
@@ -74,8 +73,8 @@
 			var tracel = G_TRACE('info').tracel;
 			// start VM
 			//	try {
-				var script = new lofn.Script(document.getElementById('input').value);
-				script.setGlobalVariable('alert', alert);
+			var script = new lofn.Script(document.getElementById('input').value);
+			script.setGlobalVariable('alert', alert);
 			var cm = script.compile();
 			tracel('Generated code:\n' + (' |\t' + cm.generatedSource).replace(/\n/g, '\n |\t'));
 			script.start();
