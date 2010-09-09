@@ -686,9 +686,9 @@ return function (tokens) {
 			case RETURN:
 				advance();
 				return new Node(nt.RETURN, { expression: expression() });
-			case THROW:
-				advance();
-				return new Node(nt.THROW, { expression: expression() });
+//			case THROW:
+//				advance();
+//				return new Node(nt.THROW, { expression: expression() });
 			case OPERATOR:
 				if (token.value === '=') {
 					advance();

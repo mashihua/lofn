@@ -54,7 +54,7 @@ var nameTypes = {
 	'when': WHEN,
 	'function': FUNCTION,
 	'return': RETURN,
-	'throw': THROW,
+//	'throw': THROW,
 	'break': BREAK,
 	'continue': CONTINUE,
 	'label': LABEL,
