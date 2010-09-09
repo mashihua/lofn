@@ -157,6 +157,9 @@ var lex = lofn.lex = function () {
 		var noImplicits = function () {
 			while (tokens[tokl - 1].type === SEMICOLON && tokens[tokl - 1].value === 0) tokl--;
 		}
+		var noSemicolons = function(){
+			while (tokens[tokl - 1].type === SEMICOLON) tokl--;
+		}
 		var p_symbol = function (s) {
 			var t = symbolType(s);
 			switch (t) {
@@ -180,6 +183,7 @@ var lex = lofn.lex = function () {
 					break;
 
 				case SEMICOLON:
+					noImplicits();
 					make(t, 1);
 					contt = true;
 					break;

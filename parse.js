@@ -758,11 +758,13 @@ return function (tokens) {
 	};
 
 	var contBlock = function (fin) {
+		var e = fin || END;
 		switch (token.type) {
 			case COLON:
 				advance();
 				var s = statements(fin);
-				ensure(tokenIs(fin) || tokenIs(END), 'Unterminated statement block');
+				if(tokenIs(END) && e!==END) throw new Error('The control block is wrongly ended by END. Maybe an ELSE after it?');
+				ensure(tokenIs(e), 'Unterminated statement block');
 				if (tokenIs(END)) advance();
 				return s;
 			case COMMA:
@@ -780,6 +782,7 @@ return function (tokens) {
 		var n = new Node(nt.IF);
 		n.condition = callItem();
 		n.thenPart = contBlock(ELSE);
+		while(tokenIs(SEMICOLON) && nextIs(ELSE)) advance();
 		if (tokenIs(ELSE)) {
 			advance(ELSE);
 			if (token.type === IF) n.elsePart = ifstmt();
