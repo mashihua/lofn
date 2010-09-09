@@ -376,6 +376,8 @@
 		inital(REG_VAR);
 		enter.listVar();
 		var body = createFromTree(enter, 'var ' + C_NAME(0, '__global__') + '=' + T_THIS() + ';\n' + inits.join('\n') + '\n');
+
+
 		var f_ = Function(body);
 		var f = function () {
 			return f_.apply(initv, arguments)

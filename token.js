@@ -124,9 +124,11 @@ var symbolType = function (m) {
 }
 
 var lex = lofn.lex = function () {
-	var Token = function (t, v) {
+	var Token = function (t, v, l, s) {
 		this.type = t;
-		this.value = v
+		this.value = v;
+		this.line = l;
+		this.spaced = s;
 	}
 	Token.prototype.toString = function () {
 		return '[' + this.value + ']'
@@ -148,10 +150,10 @@ var lex = lofn.lex = function () {
 		return str.replace(/\\(\\|n|"|t|v|u[a-fA-F0-9]{4})/g, condF);
 	};
 	return function (input) {
-		var tokens = [], tokl = 0;
-		var make = function (t, v) {
+		var tokens = [], tokl = 0, line = 0;
+		var make = function (t, v, as) {
 			contt = false;
-			tokens[tokl++] = new Token(t, v);
+			tokens[tokl++] = new Token(t, v, line, as);
 		};
 		var contt = false;
 		var noImplicits = function () {
@@ -160,7 +162,7 @@ var lex = lofn.lex = function () {
 		var noSemicolons = function(){
 			while (tokens[tokl - 1].type === SEMICOLON) tokl--;
 		}
-		var p_symbol = function (s) {
+		var p_symbol = function (s, n) {
 			var t = symbolType(s);
 			switch (t) {
 				case OPERATOR:
@@ -174,7 +176,7 @@ var lex = lofn.lex = function () {
 					break;
 
 				case STARTBRACE:
-					make(t, s.charCodeAt(0));
+					make(t, s.charCodeAt(0), input.charAt(n-1) === ' ' || input.charAt(n-1) === '\t');
 					contt = true;
 					break;
 				case ENDBRACE:
@@ -190,8 +192,9 @@ var lex = lofn.lex = function () {
 			}
 		}
 		0, input.replace(
-			(/(\/\/[^\n]*)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$])|('[^']*(?:''[^']*)*')|("[^\\"]*(?:\\.[^\\"]*)*")|((?:0x[a-fA-F0-9]+)|(?:\d+(?:\.\d+(?:[eE]-?\d+)?)?))|([+\-*\/<>=!:%~,.;#]+|[()\[\]\{\}|])|(\n\s*)/g),
-			function (match, comment, nme, reflects, singles, doubles, number, symbol, newline) {
+			(/(\/\/[^\n]*)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$]*)|('[^']*(?:''[^']*)*')|("[^\\"]*(?:\\.[^\\"]*)*")|((?:0x[a-fA-F0-9]+)|(?:\d+(?:\.\d+(?:[eE]-?\d+)?)?))|([+\-*\/<>=!:%~,.;#]+|[()\[\]\{\}|])|(\n\s*)/g),
+			function (match, comment, nme, reflects, singles, doubles, number, symbol, newline, n, full) {
+				after_space = false;
 				if (nme) {
 					make(nameType(match), match)
 				} else if (reflects) {
@@ -203,7 +206,7 @@ var lex = lofn.lex = function () {
 				} else if (number) {
 					make(NUMBER, (match - 0));
 				} else if (symbol) {
-					p_symbol(match);
+					p_symbol(match, n);
 				} else if (newline) {
 					if (!contt) make(SEMICOLON, 0);
 					contt = false;

@@ -415,7 +415,7 @@ return function (tokens) {
 	var member = function () {
 		var node = primary();
 		// a.b.[e1].c[e2]			...
-		while (tokenIs(DOT) || tokenIs(STARTBRACE, SQSTART)) {
+		while (tokenIs(DOT) || tokenIs(STARTBRACE, SQSTART) && !token.spaced) {
 			var t = advance();
 			if (t.type === DOT) {
 				node = memberitem(node);
@@ -432,14 +432,12 @@ return function (tokens) {
 		var m = member();
 		out: while (
 					 tokenIs(STARTBRACE, RDSTART)
-					 || tokenIs(STARTBRACE, SQSTART)
+					 || tokenIs(STARTBRACE, SQSTART) && !token.spaced
 					 || tokenIs(DOT)
 					 ) {
 			switch (token.type) {
 				case STARTBRACE:
-					if (token.value === RDSTART && token.isLambdaArg) { // lambda looks like an invocation
-						break out;
-					} else if (token.value === RDSTART && !token.isLambdaArg) { // invocation f(a,b,c...)
+					if (token.value === RDSTART && !token.spaced) { // invocation f(a,b,c...)
 						advance();
 						m = new Node(nt.CALL, {
 							func: m
@@ -455,6 +453,8 @@ return function (tokens) {
 							item: expression()
 						});
 						advance(ENDBRACE, SQEND);
+					} else {
+						break out;
 					}
 					continue;
 				case DOT:
