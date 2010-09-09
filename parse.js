@@ -813,7 +813,7 @@ return function (tokens) {
 		var n = new Node(t ? nt.CASE : nt.PIECEWISE);
 		n.conditions = [], n.bodies = [];
 		advance();
-		if (!t && tokenIs(FALLTHROUGH)) { // is it fallthrough?
+		if (t && tokenIs(FALLTHROUGH)) { // is it fallthrough?
 			n.fallThrough = true;
 			advance();
 		};
