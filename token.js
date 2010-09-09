@@ -97,6 +97,8 @@ var symbolTypes = {
 	'<=>': OPERATOR,
 	'==': OPERATOR,
 	'!=': OPERATOR,
+	'===': OPERATOR,
+	'!==': OPERATOR,
 	'=~': OPERATOR,
 	'!~': OPERATOR,
 	'->': OPERATOR,

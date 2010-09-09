@@ -212,6 +212,8 @@
 	binoper('>=', '>=');
 	binoper('==', '===');
 	binoper('=~', '==');
+	binoper('===', '===');
+	binoper('!==', '!==');
 	binoper('!=', '!==');
 	binoper('!~', '!=');
 	binoper('and', '&&');
