@@ -174,13 +174,18 @@ return function (tokens) {
 	var variable = function () {
 		var t = advance(ID);
 		workingScope.useVar(t.value);
-		return new Node(NodeType.VARIABLE,
-		{ name: t.value });
+		return new Node(NodeType.VARIABLE, { name: t.value });
+	};
+	var lname = function () {
+		var t = advance(ID);
+		return new Node(NodeType.VARIABLE, { name: t.value });
 	};
 	var name = function () {
-		var t = advance(ID);
-		return new Node(NodeType.VARIABLE,
-		{ name: t.value });
+		if(token.isName) 
+			var t = advance();	
+		else 
+			throw new Error("A name is needed!");
+		return new Node(NodeType.VARIABLE, { name: t.value });
 	};
 
 	// literals: number, string
@@ -471,7 +476,7 @@ return function (tokens) {
 	var arglist = function (nc) {
 		var args = [], names = [], pivot, name, sname, nameused;
 		do {
-			if ((tokenIs(ID) || tokenIs(STRING)) && nextIs(COLON)) {
+			if ((token.isName || tokenIs(STRING)) && nextIs(COLON)) {
 				// named argument
 				// name : value
 				name = token.value, sname = true, nameused = true;
@@ -630,7 +635,7 @@ return function (tokens) {
 					if (tokenIs(DOT)) {
 						// |.name chaining
 						advance(DOT);
-						ensure(token && token.type === ID, 'Missing identifier for Chain invocation');
+						ensure(token && token.isName, 'Missing identifier for Chain invocation');
 						method = name();
 						c = new Node(nt.CALL, {
 							func: new Node(nt.MEMBER, {
@@ -886,7 +891,7 @@ return function (tokens) {
 	var labelstmt = function () {
 		advance(LABEL);
 		ensure(tokenIs(ID));
-		var label = name().name;
+		var label = lname().name;
 		ensure(!workingScope.labels[label] && workingScope.labels[label] !== 0, 'Unable to re-label a statement');
 		var node = new Node(nt.LABEL, {
 			name: label

@@ -126,11 +126,12 @@ var symbolType = function (m) {
 }
 
 var lex = lofn.lex = function () {
-	var Token = function (t, v, l, s) {
+	var Token = function (t, v, l, s, i) {
 		this.type = t;
 		this.value = v;
 		this.line = l;
 		this.spaced = s;
+		this.isName = i;
 	}
 	Token.prototype.toString = function () {
 		return '[' + this.value + ']'
@@ -153,9 +154,9 @@ var lex = lofn.lex = function () {
 	};
 	return function (input) {
 		var tokens = [], tokl = 0, line = 0;
-		var make = function (t, v, as) {
+		var make = function (t, v, as, isn) {
 			contt = false;
-			tokens[tokl++] = new Token(t, v, line, as);
+			tokens[tokl++] = new Token(t, v, line, as, isn);
 		};
 		var contt = false;
 		var noImplicits = function () {
@@ -198,7 +199,7 @@ var lex = lofn.lex = function () {
 			function (match, comment, nme, reflects, singles, doubles, number, symbol, newline, n, full) {
 				after_space = false;
 				if (nme) {
-					make(nameType(match), match)
+					make(nameType(match), match, false, true)
 				} else if (reflects) {
 					make(STRING, match.slice(1));
 				} else if (singles) {
