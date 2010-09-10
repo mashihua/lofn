@@ -36,9 +36,10 @@ var
 	OTHERWISE = 30,
 	THEN = 31,
 	VAR = 32,
-	SHARP = 35,
-	FALLTHROUGH = 33,
-	OBJECT = 34
+	SHARP = 33,
+	FALLTHROUGH = 34,
+	OBJECT = 35,
+	DO = 36
 
 
 var nameTypes = {
@@ -73,7 +74,8 @@ var nameTypes = {
 	'fallthrough': FALLTHROUGH,
 	'arguments': ARGUMENTS,
 	'callee': CALLEE,
-	'object': OBJECT
+	'object': OBJECT,
+	'do': DO
 };
 var nameType = function (m) {
 	if (nameTypes[m] > -65536)

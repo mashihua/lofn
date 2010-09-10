@@ -21,6 +21,8 @@ var NodeType = lofn.NodeType = function () {
 
 		'MEMBER', 'ITEM', 'MEMBERREFLECT',
 
+		'DO',
+
 		'CALL', 'NEW',
 
 		'NEGATIVE', 'NOT',
@@ -525,6 +527,9 @@ return function (tokens) {
 			// slot operator
 			advance();
 			return new Node(nt.MEMBERREFLECT, { left: new Node(nt.ARGUMENTS), right: callExpression() });
+		} else if (tokenIs(DO)){
+			advance();
+			return new Node(nt.DO, {operand: callExpression()});
 		} else {
 			return callExpression();
 		}
@@ -572,6 +577,9 @@ return function (tokens) {
 			if (!token) return node;
 			switch (token.type) {
 				case END:
+				case ELSE:
+				case WHEN:
+				case OTHERWISE:
 				case SEMICOLON:
 				case ENDBRACE:
 				case THEN:
@@ -615,9 +623,7 @@ return function (tokens) {
 		while (true) {
 			if (!token) return c;
 			switch (token.type) {
-				case END:
-				case SEMICOLON:
-				case ENDBRACE:
+				case END: case SEMICOLON: case ENDBRACE: case ELSE: case WHEN: case OTHERWISE:
 					return c;
 				case THEN:
 					advance();
@@ -780,7 +786,7 @@ return function (tokens) {
 		var n = new Node(nt.IF);
 		n.condition = callItem();
 		n.thenPart = contBlock(ELSE);
-		if(tokenIs(SEMICOLON) && nextIs(END)) advance();
+		if(tokenIs(SEMICOLON) && nextIs(ELSE)) advance();
 		if (tokenIs(ELSE)) {
 			advance(ELSE);
 			if (token.type === IF) n.elsePart = ifstmt();

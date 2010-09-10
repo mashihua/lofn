@@ -106,7 +106,7 @@
 	schemata(nt.VARIABLE, function (n, env) {
 		return GETV(n, env);
 	});
-	schemata(nt.THIS, function (n, e) {
+	schemata(nt.THIS, function (nd, e) {
 		var n = e;
 		while (n.rebindThis) n = n.upper;
 		n.thisOccurs = true;
@@ -234,6 +234,13 @@
 	});
 	schemata(nt.NOT, function () {
 		return '!(' + transform(this.operand) + ')';
+	});
+
+	schemata(nt.DO, function(nd, e){
+		var n = e;
+		while (n.rebindThis) n = n.upper;
+		n.thisOccurs = true;
+		return '(('+transform(this.operand)+').apply('+T_THIS(e)+', arguments))';
 	});
 
 	schemata(nt.FUNCTION, function () {
