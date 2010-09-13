@@ -33,6 +33,7 @@ var NodeType = lofn.NodeType = function () {
 		'<<', '>>',
 
 		'<', '>', '<=', '>=', '<=>', 'is', 'in',
+		'+=','-=','*=','/=','%=','<<=','>>=',
 
 		'==', '!=', '=~', '!~', '===', '!==',
 		'and', 'or',
@@ -118,7 +119,7 @@ return function (tokens) {
 
 
 
-	var scopes = [], token = tokens[0], next, i = 0, len = tokens.length, workingScopes = [], workingScope, nt = NodeType, curline;
+	var scopes = [], token = tokens[0], next, i = 0, len = tokens.length, workingScopes = [], workingScope, nt = NodeType, curline, token_type, token_value;
 	if (token) curline = token.line;
 	function acquire() { };
 	var moveNext = function () {
@@ -126,6 +127,10 @@ return function (tokens) {
 		acquire();
 		i += 1;
 		token = tokens[i];
+		if(token){
+			token_type = token.type;
+			token_value = token.value;
+		}
 		next = tokens[i + 1];
 		if (token) curline = token.line;
 		return t;
@@ -161,7 +166,7 @@ return function (tokens) {
 	var SQSTART = 91, SQEND = 93, RDSTART = 40, RDEND = 41, CRSTART = 123, CREND = 125;
 
 	var tokenIs = function (t, v) {
-		return token && token.type === t && (v ? token.value === v : true);
+		return token && token_type === t && (v ? token_value === v : true);
 	}
 	var nextIs = function (t, v) {
 		return next && next.type === t && (v ? next.value === v : true);
@@ -604,7 +609,23 @@ return function (tokens) {
 					}
 			}
 		}
-	}
+	};
+
+	var ASSIGNIS = function(){
+		var assi = {
+			'+=' : 1,
+			'-=' : 1,
+			'*=' :1,
+			'/=':1,
+			'%=':1,
+			'<<=':1,
+			'>>=':1
+		};
+		return function(){
+			return tokenIs(OPERATOR) && assi[token.value]===1
+		};
+
+	}();
 
 	var expression = function () {
 		// expression.
@@ -612,9 +633,13 @@ return function (tokens) {
 		// - Omissioned calls
 		// - "then" syntax for chained calls.
 		var pivot = unary(), right, c;
-		if (tokenIs(OPERATOR, '=')) { //赋值
+		if (tokenIs(OPERATOR, '=')){
 			advance();
 			return new Node(nt['='], { left: pivot, right: expression(true) });
+		} else if (ASSIGNIS()) { //赋值
+			var _v = token.value;
+			advance();
+			return new Node(nt['='], { left: pivot, right: new Node(nt[_v.slice(0, _v.length - 1)], {left:pivot, right:expression(true)})});
 		}
 
 		if (tokenIs(OPERATOR) && bp[token.value]) {
