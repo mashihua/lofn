@@ -42,7 +42,47 @@ var
 	DO = 36
 
 
-var nameTypes = {
+var lex = lofn.lex = function () {
+	var Token = function (t, v, p, l, s, i) {
+		this.type = t;
+		this.value = v;
+		this.position = p;
+		this.line = l;
+		this.spaced = s;
+		this.isName = i;
+	}
+	Token.prototype.toString = function () {
+		return '[' + this.value + ']'
+	}
+	var condF = function (match, $1) {
+		if ($1.length > 1) {
+			return String.fromCharCode(parseInt($1.slice(1), 16));
+		} else {
+			return {
+				'n': '\n',
+				'\\': '\\',
+				'"': '"',
+				't': '\t',
+				'v': '\v'
+			}[$1];
+		}
+	};
+	var lfUnescape = function (str) {
+		return str.replace(/\\(\\|n|"|t|v|u[a-fA-F0-9]{4})/g, condF);
+	};
+	var REPSTR = function(){
+		var cache = [];
+		return function(n){
+			if(cache[n]) return cache[n];
+			if(n <= 0) return '';
+			if(n <= 1) return 'T';
+			var q = REPSTR(n >>> 1);
+			q += q;
+			if (n & 1) q += 'T';
+			return cache[n] = q;
+		};
+	}();
+	var nameTypes = {
 	'is': OPERATOR, 'and': OPERATOR, 'not': OPERATOR, 'or': OPERATOR,
 	'as': OPERATOR,
 	'if': IF,
@@ -130,40 +170,15 @@ var symbolType = function (m) {
 		return symbolTypes[m]
 	else
 		throw new Error('Unspecified symbol '+m)
-}
-
-var lex = lofn.lex = function () {
-	var Token = function (t, v, l, s, i) {
-		this.type = t;
-		this.value = v;
-		this.line = l;
-		this.spaced = s;
-		this.isName = i;
+};
+	var token_err = function(message, input, position){
+		return new Error(message + ' at ' + position);
 	}
-	Token.prototype.toString = function () {
-		return '[' + this.value + ']'
-	}
-	var condF = function (match, $1) {
-		if ($1.length > 1) {
-			return String.fromCharCode(parseInt($1.slice(1), 16));
-		} else {
-			return {
-				'n': '\n',
-				'\\': '\\',
-				'"': '"',
-				't': '\t',
-				'v': '\v'
-			}[$1];
-		}
-	};
-	var lfUnescape = function (str) {
-		return str.replace(/\\(\\|n|"|t|v|u[a-fA-F0-9]{4})/g, condF);
-	};
 	return function (input) {
 		var tokens = [], tokl = 0, line = 0;
-		var make = function (t, v, as, isn) {
+		var make = function (t, v, p, as, isn) {
 			contt = false;
-			tokens[tokl++] = new Token(t, v, line, as, isn);
+			tokens[tokl++] = new Token(t, v, p, line, as, isn);
 		};
 		var contt = false;
 		var noImplicits = function () {
@@ -181,48 +196,54 @@ var lex = lofn.lex = function () {
 				case DOT:
 					noImplicits();
 				case COLON:
-					make(t, s);
+					make(t, s, n);
 					contt = true;
 					break;
 
 				case STARTBRACE:
-					make(t, s.charCodeAt(0), input.charAt(n-1) === ' ' || input.charAt(n-1) === '\t');
+					make(t, s.charCodeAt(0), n, input.charAt(n-1) === ' ' || input.charAt(n-1) === '\t');
 					contt = true;
 					break;
 				case ENDBRACE:
 					noImplicits();
-					make(t, s.charCodeAt(0));
+					make(t, s.charCodeAt(0), n);
 					break;
 
 				case SEMICOLON:
 					noImplicits();
-					make(t, 1);
+					make(t, 1, n);
 					contt = true;
 					break;
 			}
 		}
-		0, input.replace(
+		var ou = input.replace(
 			(/(\/\/[^\n]*)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$]*)|('[^']*(?:''[^']*)*')|("[^\\"]*(?:\\.[^\\"]*)*")|((?:0x[a-fA-F0-9]+)|(?:\d+(?:\.\d+(?:[eE]-?\d+)?)?))|([+\-*\/<>=!:%~,.;#]+|[()\[\]\{\}|])|(\n\s*)/g),
 			function (match, comment, nme, reflects, singles, doubles, number, symbol, newline, n, full) {
 				after_space = false;
 				if (nme) {
-					make(nameType(match), match, false, true)
+					make(nameType(match), match, n, false, true)
 				} else if (reflects) {
-					make(STRING, match.slice(1));
+					make(STRING, match.slice(1), n);
 				} else if (singles) {
-					make(STRING, match.slice(1, -1).replace(/''/g, "'"));
+					make(STRING, match.slice(1, -1).replace(/''/g, "'"), n);
 				} else if (doubles) {
-					make(STRING, lfUnescape(match.slice(1, -1)));
+					make(STRING, lfUnescape(match.slice(1, -1)), n);
 				} else if (number) {
-					make(NUMBER, (match - 0));
+					make(NUMBER, (match - 0), n);
 				} else if (symbol) {
 					p_symbol(match, n);
 				} else if (newline) {
-					if (!contt) make(SEMICOLON, 0);
+					if (!contt) make(SEMICOLON, 0, n);
 					contt = false;
 				}
-				return ''
+				return REPSTR(match.length);
 			});
+		var ep;
+		if((ep = ou.indexOf('\'')) >= 0) {
+			throw token_err('Unmatched quotations encountered' ,input,ep)
+		} else if ((ep = ou.indexOf('"')) >= 0) {
+			throw token_err('Unmatched quotations encountered',input,ep)
+		}
 		return tokens;
 	}
 } ();
