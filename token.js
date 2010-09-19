@@ -163,7 +163,8 @@ var symbolTypes = {
 	':': COLON,
 	'|': THEN,
 	'.': DOT,
-	';': SEMICOLON
+	';': SEMICOLON,
+	'@': MY
 };
 var symbolType = function (m) {
 	if (symbolTypes[m] > -65536)
@@ -196,6 +197,7 @@ var symbolType = function (m) {
 				case DOT:
 					noImplicits();
 				case COLON:
+				case MY:
 					make(t, s, n);
 					contt = true;
 					break;
@@ -204,6 +206,7 @@ var symbolType = function (m) {
 					make(t, s.charCodeAt(0), n, input.charAt(n-1) === ' ' || input.charAt(n-1) === '\t');
 					contt = true;
 					break;
+
 				case ENDBRACE:
 					noImplicits();
 					make(t, s.charCodeAt(0), n);
@@ -217,7 +220,7 @@ var symbolType = function (m) {
 			}
 		}
 		var ou = input.replace(
-			(/(\/\/[^\n]*)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$]*)|('[^']*(?:''[^']*)*')|("[^\\"]*(?:\\.[^\\"]*)*")|((?:0x[a-fA-F0-9]+)|(?:\d+(?:\.\d+(?:[eE]-?\d+)?)?))|([+\-*\/<>=!:%~,.;#]+|[()\[\]\{\}|])|(\n\s*)/g),
+			(/(\/\/[^\n]*)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$]*)|('[^']*(?:''[^']*)*')|("[^\\"]*(?:\\.[^\\"]*)*")|((?:0x[a-fA-F0-9]+)|(?:\d+(?:\.\d+(?:[eE]-?\d+)?)?))|([+\-*\/<>=!:%~,.;#]+|[()\[\]\{\}|@])|(\n\s*)/g),
 			function (match, comment, nme, reflects, singles, doubles, number, symbol, newline, n, full) {
 				after_space = false;
 				if (nme) {
