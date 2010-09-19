@@ -1,0 +1,55 @@
+var gettags = do {
+
+	var entify = s :> s.replace('[&"<>]' as RegExp.g, ch :> {
+		if ch == '&', return '&amp;'
+		else if ch == '"', return '&quod;'
+		else if ch == '<', return '&lt;'
+		else, return '&gt;'
+	});
+	var gen_tag = tag :> function:
+		var obj = derive this;
+		var props = '';
+		obj.result = '';
+		arguments.each item :> {
+			if item is String, obj.result += entify(item)
+			else if item is Function, item.call obj
+			else if item is NamedArguments, item.each (value, prop) :> {
+				props += ' ' + prop + '="' + entify(value) + '"'
+			}
+		}
+		this.result += '<' + tag + props + '>' + obj.result + '</' + tag + '>';
+	end
+
+	var text = s :> {this.result += entify(s)};
+
+
+	var gen = object{result:'', text:text};
+	gen.html = gen_tag(`html)
+	gen.div = gen_tag(`div)
+	gen.span = gen_tag(`span)
+	gen.ul = gen_tag(`ul)
+	gen.ol = gen_tag(`ol)
+	gen.li = gen_tag(`li)
+
+
+	return f :> {
+		var obj = derive gen;
+		f.call obj;
+		return obj.result
+	};
+};
+
+gettags{
+	@html {
+		@div id:'1', aux:'"', '1'
+		@div { 
+			@span 'text-test'
+			@text '2'
+		}
+		@ul {
+			for(var i = 0; i < 10; i += 1):
+				@li 'item ' + i
+			end
+		}
+	}
+} |trace

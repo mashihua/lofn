@@ -141,7 +141,19 @@ Function.prototype.be = function(that){
 	return that instanceof this;
 }
 String.be = function(s){
-	return (typeof(s) === 'string') || s instanceof This
+	return (typeof(s) === 'string') || s instanceof this
+}
+Number.be = function(s){
+	return (typeof(s) === 'string') || s instanceof this
+}
+Boolean.be = function(s){
+	return (typeof(s) === 'string') || s instanceof this
+}
+RegExp.convertFrom = function(s){
+	return new RegExp(s);
+}
+RegExp.g = {
+	convertFrom : function(s){return new RegExp(s, 'g')}
 }
 
 
