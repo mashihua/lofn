@@ -19,12 +19,17 @@
 
 	reg('Rule', Rule);
 	reg('derive', derive);
-	reg('Date', Date);
 	reg('endl', '\n');
 
+	reg('Object', Object);
+	reg('Number', Number);
+	reg('Boolean', Boolean);
+	reg('Array', Array);
 	reg('Function', Function);
 	reg('String', String);
 	reg('RegExp', RegExp);
+	reg('Date', Date);
+	
 	reg('operator', {
 		add: function (a, b) { return a + b },
 		minus: function (a, b) { return a - b },
@@ -34,7 +39,9 @@
 		shr: function (a, n) { return a >> n },
 		shrf: function (a, n) { return a >>> n }
 	});
+	
 	reg('NamedArguments', NamedArguments);
+
 	reg('tee', function (x, f) {
 		f(x);
 		return x

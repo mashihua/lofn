@@ -198,6 +198,7 @@ var symbolType = function (m) {
 					noImplicits();
 				case COLON:
 				case MY:
+				case SHARP:
 					make(t, s, n);
 					contt = true;
 					break;
@@ -247,6 +248,7 @@ var symbolType = function (m) {
 		} else if ((ep = ou.indexOf('"')) >= 0) {
 			throw token_err('Unmatched quotations encountered',input,ep)
 		}
+
 		return tokens;
 	}
 } ();

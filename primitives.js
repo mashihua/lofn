@@ -77,6 +77,12 @@ var T_NAMES = function(){
 		o._[arguments[i]]=arguments[i+1]
 	return o;
 }
+var C_NARG = function(a){
+	if(a instanceof NamedArguments)
+		return a
+	else
+		return new NamedArguments
+}
 
 
 Object.prototype.item = function (i) {

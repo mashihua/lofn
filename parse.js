@@ -17,7 +17,7 @@ var typename;
 var NodeType = lofn.NodeType = function () {
 
 	var types = typename = [
-		'UNKNOWN', 'VARIABLE', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT', 'ARGUMENTS', 'CALLEE',
+		'UNKNOWN', 'VARIABLE', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT', 'ARGUMENTS', 'CALLEE', 'ARGN',
 
 		'MEMBER', 'ITEM', 'MEMBERREFLECT',
 
@@ -402,6 +402,25 @@ return function (tokens) {
 					// with no arguments
 					return functionBody(undefined, true);
 				}
+			case SHARP:
+				// # form
+				// depended on coming token
+				// #{n`umber} --> Arguments[number]
+				// #{identifier} --> ArgNS[identifier]
+				advance();
+				if (tokenIs(NUMBER)) {
+					return new Node(nt.MEMBERREFLECT, {
+						left : new Node(nt.ARGUMENTS),
+						right : literal()
+					});
+				} else if (tokenIs(ID)) {
+					return new Node(nt.ITEM, {
+						left : new Node(nt.ARGN),
+						item : new Node(nt.LITERAL, {value: name().name})
+					});
+				} else {
+					return new Node(nt.ARGUMENTS);
+				}
 			case FUNCTION:
 				// function literal started with "function"
 				return functionLiteral();
@@ -533,10 +552,6 @@ return function (tokens) {
 			var t = advance(OPERATOR);
 			var n = callExpression();
 			return new Node(t.value === '-' ? nt.NEGATIVE : nt.NOT, { operand: n });
-		} else if (tokenIs(SHARP)) {
-			// slot operator
-			advance();
-			return new Node(nt.MEMBERREFLECT, { left: new Node(nt.ARGUMENTS), right: callExpression() });
 		} else if (tokenIs(DO)){
 			advance();
 			return new Node(nt.DO, {operand: callExpression()});

@@ -12,8 +12,14 @@
 			thisName: function (env) {
 				return '_$T_'
 			},
+			argnName: function(){
+				return '_$A_ARGN_'
+			},
 			thisBind: function (env) {
-				return !env.thisOccurs || env.rebindThis ? '' : 'var _$T_ = (this === M_TOP ? null : this)'
+				return (!env.thisOccurs || env.rebindThis) ? '' : 'var _$T_ = (this === M_TOP ? null : this)'
+			},
+			argnBind: function (env) {
+				return env.argnOccurs ? 'var _$A_ARGN_ = C_NARG(arguments[arguments.length - 1])' : ''
 			},
 			joinStatements: function (statements) {
 				return statements.join(';\n') + ';\n';
@@ -36,6 +42,7 @@
 	var C_NAME
 	var C_LABELNAME
 	var T_THIS
+	var T_ARGN
 	var BEFORE_BLOCK
 	var AFTER_BLOCK
 	var JOIN_STMTS
@@ -162,6 +169,10 @@
 		while (n.rebindThis) n = n.upper;
 		n.thisOccurs = true;
 		return T_THIS(e);
+	});
+	schemata(nt.ARGN, function (nd, e){
+		e.argnOccurs = true;
+		return T_ARGN();
 	});
 	schemata(nt.ARGUMENTS, function () {
 		return 'arguments';
@@ -404,7 +415,7 @@
 			vars = [];
 		for (var i = 0; i < locals.length; i++)
 		if (!(tree.varIsArg[locals[i]])) vars.push(C_NAME(tree.id, locals[i]));
-		s = JOIN_STMTS(['var ___$TMP,___$PIPE', THIS_BIND(tree), (vars.length ? 'var ' + vars.join(', ') : '')]) + (hook || '') + s;
+		s = JOIN_STMTS(['var ___$TMP,___$PIPE', THIS_BIND(tree), ARGN_BIND(tree), (vars.length ? 'var ' + vars.join(', ') : '')]) + (hook || '') + s;
 
 		tree.transformed = s;
 		return s;
@@ -416,6 +427,8 @@
 		T_THIS = config.thisName;
 		JOIN_STMTS = config.joinStatements;
 		THIS_BIND = config.thisBind;
+		ARGN_BIND = config.argnBind;
+		T_ARGN = config.argnName;
 	};
 
 
@@ -434,7 +447,6 @@
 		inital(REG_VAR);
 		enter.listVar();
 		var body = createFromTree(enter, 'var ' + C_NAME(0, '__global__') + '=' + T_THIS() + ';\n' + inits.join('\n') + '\n');
-
 
 		var f_ = Function(body);
 		var f = function () {
