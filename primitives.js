@@ -87,10 +87,10 @@ var C_NARG = function(a){
 
 Object.prototype.item = function (i) {
 	if('length' in this
-			&&	(typeof this[length] === 'number')
-			&& (this[length]-1) in this
-			&& (typeof i === 'number')
-			&& i<0 
+			&&	(typeof this.length === 'number')
+			&&	(this.length - 1) in this
+			&&	(typeof i === 'number')
+			&&	i < 0 
 			) {
 		// arraioid and negative indexing
 		return this[this.length + (i|0)]
@@ -109,12 +109,17 @@ Object.prototype.be = function (b) {
 Object.prototype.contains = function (b) {
 	return b in this;
 };
+ISARRAIOID = function(a){
+	return 'length' in this && (typeof this.length === 'number') && (this["length"] - 1) in this
+
+}
 Object.prototype.each = function(f){
-	if('length' in this && (typeof this[length] === 'number') && (this[length]-1) in this){
+	var i, l;
+	if(ISARRAIOID){
 		// array like
-		for(var i = 0,l = this.length;i<l;i++)
-			if(i in this)
-				f.call(this[i],this[i],i)
+		for(i = 0,l = this.length; i<l; i++){
+			f.call(this[i],this[i],i)
+		}
 	} else {
 		for(var each in this)
 			if(OWNS(this,each))
