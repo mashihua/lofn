@@ -34,12 +34,13 @@ var gettags = do {
 
 	return f :> {
 		var obj = derive gen;
+		obj.result = "";
 		f.call obj;
 		return obj.result
 	};
 };
 
-gettags{
+gettags {
 	@html {
 		@div id:'1', aux:'"', '1'
 		@div { 

@@ -111,8 +111,8 @@ Object.prototype.contains = function (b) {
 };
 ISARRAIOID = function(a){
 	return 'length' in this && (typeof this.length === 'number') && (this["length"] - 1) in this
+};
 
-}
 Object.prototype.each = function(f){
 	var i, l;
 	if(ISARRAIOID){
