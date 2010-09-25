@@ -19,7 +19,7 @@ var NodeType = lofn.NodeType = function () {
 	var types = typename = [
 		'UNKNOWN', 'VARIABLE', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT', 'ARGUMENTS', 'CALLEE', 'ARGN',
 
-		'MEMBER', 'ITEM', 'MEMBERREFLECT',
+		'MEMBER', 'ITEM', 'MEMBERREFLECT', 
 
 		'DO',
 
@@ -46,7 +46,7 @@ var NodeType = lofn.NodeType = function () {
 
 		'=',
 
-		'IF', 'FOR', 'WHILE', 'REPEAT', 'CASE', 'PIECEWISE', 'VAR', 'BREAK', 'CONTINUE', 'LABEL', 'THROW', 'RETURN',
+		'IF', 'FOR', 'WHILE', 'REPEAT', 'CASE', 'PIECEWISE', 'VAR', 'BREAK', 'CONTINUE', 'LABEL', 'THROW', 'RETURN', 'TRY',
 
 		'VARDECL',
 
@@ -608,6 +608,9 @@ return function (tokens) {
 				case SEMICOLON:
 				case ENDBRACE:
 				case THEN:
+				case TRY:
+				case CATCH:
+				case FINALLY:
 					return node;
 				default:
 					var n_ = node;
@@ -737,9 +740,9 @@ return function (tokens) {
 			case RETURN:
 				advance();
 				return new Node(nt.RETURN, { expression: expression() });
-//			case THROW:
-//				advance();
-//				return new Node(nt.THROW, { expression: expression() });
+			case THROW:
+				advance();
+				return new Node(nt.THROW, { expression: expression() });
 			case OPERATOR:
 				if (token.value === '=') {
 					advance();
@@ -773,6 +776,8 @@ return function (tokens) {
 			case VAR:
 				advance();
 				return vardecls();
+			case TRY:
+				return trystmt();
 			case ENDBRACE:
 				if (token.value === 125)
 					return;
@@ -957,6 +962,24 @@ return function (tokens) {
 			return new Node(nt.BREAK, { destination: null });
 		}
 	};
+	var trystmt = function(){
+		var n = new Node(nt.TRY), v;
+		advance(TRY);
+		advance(COLON);
+		n.trystmts = statements(CATCH, END);
+		if(tokenIs(END)) {
+			advance(END);
+			return n;
+		} else {
+			advance(CATCH);
+			n.catchvar = v = variable();
+			workingScope.newVar(v.name);
+			advance(COLON);
+			n.catchstmts = statements(END, END);
+			advance(END);
+			return n;
+		}
+	}
 	var statements = function (fin, fin2) {
 		var script = new Node(nt.SCRIPT);
 		stripSemicolons();

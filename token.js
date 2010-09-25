@@ -39,7 +39,11 @@ var
 	SHARP = 33,
 	FALLTHROUGH = 34,
 	OBJECT = 35,
-	DO = 36
+	DO = 36,
+	TRY = 37,
+	CATCH = 38,
+	FINALLY = 39,
+	TASK = 40;		//reserved for coro
 
 
 var lex = lofn.lex = function () {
@@ -95,7 +99,7 @@ var lex = lofn.lex = function () {
 	'when': WHEN,
 	'function': FUNCTION,
 	'return': RETURN,
-//	'throw': THROW,
+	'throw': THROW,
 	'break': BREAK,
 	'continue': CONTINUE,
 	'label': LABEL,
@@ -115,7 +119,11 @@ var lex = lofn.lex = function () {
 	'arguments': ARGUMENTS,
 	'callee': CALLEE,
 	'object': OBJECT,
-	'do': DO
+	'do': DO,
+	'try': TRY,
+	'catch': CATCH,
+	'funally': FINALLY,
+	'Task': TASK
 };
 var nameType = function (m) {
 	if (nameTypes[m] > -65536)

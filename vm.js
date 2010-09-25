@@ -398,6 +398,16 @@
 	schemata(nt.LABEL, function () {
 		return C_LABELNAME(this.name) + ':{' + transform(this.body) + '}';
 	});
+	schemata(nt.TRY, function(n, e){
+		var s = 'try {' + transform(this.trystmts) + '}';
+		if(this.catchvar){
+			s += 'catch('+C_NAME(e.id, this.catchvar.name)+'){'+transform(this.catchstmts)+'};'
+		} else {
+			s += 'catch(___$EXCEPTION){}'
+		}
+		console.log(s);
+		return s;
+	});
 
 	var env;
 	var transform = function (node) {
@@ -415,7 +425,7 @@
 			vars = [];
 		for (var i = 0; i < locals.length; i++)
 		if (!(tree.varIsArg[locals[i]])) vars.push(C_NAME(tree.id, locals[i]));
-		s = JOIN_STMTS(['var ___$TMP,___$PIPE', THIS_BIND(tree), ARGN_BIND(tree), (vars.length ? 'var ' + vars.join(', ') : '')]) + (hook || '') + s;
+		s = JOIN_STMTS(['var ___$TMP,___$PIPE,___$EXCEPTION', THIS_BIND(tree), ARGN_BIND(tree), (vars.length ? 'var ' + vars.join(', ') : '')]) + (hook || '') + s;
 
 		tree.transformed = s;
 		return s;
