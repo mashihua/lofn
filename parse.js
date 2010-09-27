@@ -68,9 +68,7 @@ return function (tokens) {
 
 	var Node = function (type, props) {
 		var p = props || {};
-		p.type = type;
-		p.bp = p.bp || 0;
-		p.line = curline;
+		p.type = type, p.bp = p.bp || 0, p.line = curline;
 		return p
 	};
 	var ScopedScript = function (id, env) {
@@ -108,6 +106,13 @@ return function (tokens) {
 		};
 		for (var i = 0; i < this.nest.length; i++)
 			this.nest[i].listVar();
+	};
+	ScopedScript.prototype.generateQueue = function(arr){
+		if(!arr) arr = [];
+		for(var i = 0; i < this.nest.length; i++)
+			this.nest[i].generateQueue(arr);
+		arr.push(this);
+		return arr;
 	};
 	ScopedScript.prototype.ready = function () {
 		if (this.parameters) {

@@ -58,13 +58,9 @@
 //]]></script>
 
 	<script src="primitives.js" type="text/javascript"></script>
-
 	<script src="token.js" type="text/javascript"></script>
-
 	<script src="parse.js" type="text/javascript"></script>
-
 	<script src="vm.js" type="text/javascript"></script>
-
 	<script src="stl.js" type="text/javascript"></script>
 
 	<script type="text/javascript">
@@ -75,10 +71,11 @@
 			//	try {
 			var script = new lofn.Script(document.getElementById('input').value);
 			script.setGlobalVariable('alert', alert);
-			var cm = script.compile();
-			tracel('Generated code:\n' + (' |\t' + cm.generatedSource).replace(/\n/g, '\n |\t'));
-			script.start();
-			tracel('--- DONE  ---');
+			script.asyncCompile(function(cm){
+				tracel('Generated code:\n' + (' |\t' + cm.generatedSource).replace(/\n/g, '\n |\t'));
+				script.start();
+				tracel('--- DONE  ---');					
+				}, function(t,i,b){tracel('done function #'+i+' (@'+t.id+')')});
 			//			} catch (e) {
 			//				tracel('\n--- ERROR ---\n! An error occurs \n  ' + e+'\n-------------');
 			//				throw e;

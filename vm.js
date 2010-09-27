@@ -1,9 +1,11 @@
-﻿0, function () {
+﻿// The backend.
+
+0, function () {
 	lofn.standardTransform = function () {
 		var _indent = 0,
 			c;
 		return c = {
-			varName: function (id, name) {
+			varName: function (name) {
 				return '_$$_' + TO_ENCCD(name)
 			},
 			label: function (name) {
@@ -57,12 +59,11 @@
 	};
 
 	var GETV = function (node, env) {
-		var depth = env.useVar(node.name)
-		return C_NAME(depth, node.name);
+		return C_NAME(node.name);
 	}
 	var SETV = function (node, val, env) {
 		var depth = env.useVar(node.name)
-		return '(' + C_NAME(depth, node.name) + '=' + val + ')';
+		return '(' + C_NAME(node.name) + '=' + val + ')';
 	}
 	schemata(nt.SCRIPT, function (n) {
 		var a = [];
@@ -87,68 +88,38 @@
 			throw new Error('Invalid assignment left value: only VARIABLE, MEMBER, MEMBERREFLECT or ITEM avaliable');
 		}
 	});
-	var SPECIALNAMES = {
-"break":1,
-"continue":1,
-"do":1,
-"for":1,
-"import":1,
-"new":1,
-"this":1,
-"void":1,
-"case":1,
-"default":1,
-"else":1,
-"function":1,
-"in":1,
-"return":1,
-"typeof":1,
-"while":1,
-"comment":1,
-"delete":1,
-"export":1,
-"if":1,
-"label":1,
-"switch":1,
-"var":1,
-"with":1,
-"abstract":1,
-"implements":1,
-"protected":1,
-"boolean":1,
-"instanceOf":1,
-"public":1,
-"byte":1,
-"int":1,
-"short":1,
-"char":1,
-"interface":1,
-"static":1,
-"double":1,
-"long":1,
-"synchronized":1,
-"false":1,
-"native":1,
-"throws":1,
-"final":1,
-"null":1,
-"transient":1,
-"float":1,
-"package":1,
-"true":1,
-"goto":1,
-"private":1,
-"catch":1,
-"enum":1,
-"throw":1,
-"class":1,
-"extends":1,
-"try":1,
-"const":1,
-"finally":1,
-"debugger":1,
+	var SPECIALNAMES = {"break":1,
+"continue":1,"do":1,
+"for":1,"import":1,
+"new":1,"this":1,
+"void":1,"case":1,
+"default":1,"else":1,
+"function":1,"in":1,
+"return":1,"typeof":1,
+"while":1,"comment":1,
+"delete":1,"export":1,
+"if":1,"label":1,
+"switch":1,"var":1,
+"with":1,"abstract":1,
+"implements":1,"protected":1,
+"boolean":1,"instanceOf":1,
+"public":1,"byte":1,
+"int":1,"short":1,
+"char":1,"interface":1,
+"static":1,"double":1,
+"long":1,"synchronized":1,
+"false":1,"native":1,
+"throws":1,"final":1,
+"null":1,"transient":1,
+"float":1,"package":1,
+"true":1,"goto":1,
+"private":1,"catch":1,
+"enum":1,"throw":1,
+"class":1,"extends":1,
+"try":1,"const":1,
+"finally":1,"debugger":1,
 "super":1
-	};
+};
 	schemata(nt.MEMBER, function () {
 		var memberName = this.right.name;
 		if (SPECIALNAMES[memberName] === 1) return '(' + transform(this.left) + ')["' + memberName + '"]';
@@ -308,10 +279,10 @@
 	schemata(nt.FUNCTION, function () {
 		var _e = env,
 			f = this.tree;
-		var s = createFromTree(f);
+		var s = compileFunctionBody(f);
 		var pars = f.parameters.names.slice(0);
 		for (var i = 0; i < pars.length; i++)
-		pars[i] = C_NAME(f.id, pars[i])
+		pars[i] = C_NAME(pars[i])
 		s = 'function(' + pars.join(',') + '){\n' + s + '\n}';
 
 		env = _e;
@@ -401,7 +372,7 @@
 	schemata(nt.TRY, function(n, e){
 		var s = 'try {' + transform(this.trystmts) + '}';
 		if(this.catchvar){
-			s += 'catch('+C_NAME(e.id, this.catchvar.name)+'){'+transform(this.catchstmts)+'};'
+			s += 'catch('+C_NAME(this.catchvar.name)+'){'+transform(this.catchstmts)+'};'
 		} else {
 			s += 'catch(___$EXCEPTION){}'
 		}
@@ -417,14 +388,14 @@
 			return '{!UNKNOWN}';
 		}
 	}
-	var createFromTree = function (tree, hook) {
-		if (tree.transformed) return;
+	var compileFunctionBody = function (tree, hook) {
+		if (tree.transformed) return tree.transformed;
 		env = tree;
 		var s = transform(tree.code);
 		var locals = tree.locals,
 			vars = [];
 		for (var i = 0; i < locals.length; i++)
-		if (!(tree.varIsArg[locals[i]])) vars.push(C_NAME(tree.id, locals[i]));
+		if (!(tree.varIsArg[locals[i]])) vars.push(C_NAME(locals[i]));
 		s = JOIN_STMTS(['var ___$TMP,___$PIPE,___$EXCEPTION', THIS_BIND(tree), ARGN_BIND(tree), (vars.length ? 'var ' + vars.join(', ') : '')]) + (hook || '') + s;
 
 		tree.transformed = s;
@@ -443,29 +414,51 @@
 
 
 	//============
-	lofn.VM = function (tree, inital, vmConfig) {
+	lofn.Compiler = function (tree, inital, vmConfig) {
 		bindConfig(vmConfig);
-		var inits = [], initv = new Nai;
-			enter = tree[0];
-		enter.thisOccurs = true;
-		enter.newVar('__global__', true);
+		var inits = [], initv = new Nai, enter = tree[0];
+		enter.thisOccurs = true, enter.newVar('__global__', true);
 		var REG_VAR = function(name, value){
 			initv[name] = value;
 			enter.newVar(name, true);
-			inits.push('var ' + C_NAME(0, name) + ' =(' + C_NAME(0, '__global__') + '[' + strize(name) + ']);');
-		}
+			inits.push('var ' + C_NAME(name) + ' =(' + C_NAME('__global__') + '[' + strize(name) + ']);');
+		};
 		inital(REG_VAR);
 		enter.listVar();
-		var body = createFromTree(enter, 'var ' + C_NAME(0, '__global__') + '=' + T_THIS() + ';\n' + inits.join('\n') + '\n');
+		var body = '', ENTER_TEXT = 'var ' + C_NAME('__global__') + '=' + T_THIS() + ';\n' + inits.join('\n') + '\n';
+		var getFs = function(body){
+				var f_ = Function(body);
+				var f = function () {
+					return f_.apply(initv, arguments)
+				};
+				return {
+					wrappedF: f,
+					rawF: f_,
+					generatedSource: body
+				}
+		}
 
-		var f_ = Function(body);
-		var f = function () {
-			return f_.apply(initv, arguments)
-		};
 		return {
-			compiled: f,
-			raw: f_,
-			generatedSource: body
+			compile: function(){
+				body = compileFunctionBody(enter, ENTER_TEXT);
+				return getFs(body);
+			},
+			asyncCompile: function(onSuccess, onStep){
+				var queue = enter.generateQueue([]);
+				var onStep = onStep || function(){};
+				var i = 0, body;
+				var step = function(){
+					if(i < queue.length){
+						body = compileFunctionBody(queue[i], queue[i] === enter ? ENTER_TEXT : '');
+						onStep(queue[i], i, body);
+						i += 1;
+						setTimeout(step, 10);
+					} else {
+						return onSuccess(getFs(body))
+					}
+				}
+				setTimeout(step, 0);
+			}
 		}
 	}
 }();

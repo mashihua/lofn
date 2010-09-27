@@ -207,22 +207,29 @@ lofn.Script = function(source, config, libraries){
 	var vm;
 	var inita = function(libs){
 		return function(r){
-			for(var i = 0; i<libs.length;i++)
-				for(var each in libs[i])
-					if(OWNS(libs[i], each))
-						r(each, libs[i][each])
+			for(var i = 0; i<libs.length;i++) for(var each in libs[i])
+				if(OWNS(libs[i], each))
+					r(each, libs[i][each])
 		}
 	}([lofn.stl].concat(libraries || [], [specL]));
 	return {
 		setGlobalVariable: function(name, value){specL[name] = value},
 		compile: function(){
 			this.setGlobalVariable = null;
-			vm = lofn.VM(tree, inita, config || lofn.standardTransform); 
-			return vm
+			lfcr = lofn.Compiler(tree, inita, config || lofn.standardTransform).compile(); 
+			return lfcr;
+		},
+		asyncCompile: function(onSuccess, onStep){
+			lofn.Compiler(tree, inita, config||lofn.standardTransform).asyncCompile(
+				function(cm){
+					lfcr = cm;
+					onSuccess.apply(this, arguments)
+				}, onStep
+			);
 		},
 		start: function(){
-			if(!vm) this.compile();
-			vm.compiled.apply(null, arguments)
+			if(!lfcr) this.compile();
+			lfcr.wrappedF.apply(null, arguments);
 		}
 	};
 }
