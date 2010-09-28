@@ -461,5 +461,37 @@
 			}
 		}
 	}
+lofn.Script = function(source, config, libraries){
+	var tree = lofn.parse(lofn.lex(source));
+	var specL = new Nai;
+	var vm;
+	var inita = function(libs){
+		return function(r){
+			for(var i = 0; i<libs.length;i++) for(var each in libs[i])
+				if(OWNS(libs[i], each))
+					r(each, libs[i][each])
+		}
+	}([lofn.stl].concat(libraries || [], [specL]));
+	return {
+		setGlobalVariable: function(name, value){specL[name] = value},
+		compile: function(){
+			this.setGlobalVariable = null;
+			lfcr = lofn.Compiler(tree, inita, config || lofn.standardTransform).compile(); 
+			return lfcr;
+		},
+		asyncCompile: function(onSuccess, onStep){
+			lofn.Compiler(tree, inita, config||lofn.standardTransform).asyncCompile(
+				function(cm){
+					lfcr = cm;
+					onSuccess.apply(this, arguments)
+				}, onStep
+			);
+		},
+		start: function(){
+			if(!lfcr) this.compile();
+			lfcr.wrappedF.apply(null, arguments);
+		}
+	};
+};	
 }();
 
