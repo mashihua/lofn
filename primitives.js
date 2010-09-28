@@ -47,8 +47,6 @@ var NARG = function () {
 
 var noth = void 0;
 
-var Lofn = {};
-
 var LF_M_TOP = this;
 var SLICE = Array.prototype.slice;
 var LF_MINVOKE = function (p, s) {
@@ -194,4 +192,3 @@ Rule.prototype.each = function (f) {
 
 
 var lofn = {};
-lofn.stl = new Nai;

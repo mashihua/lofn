@@ -1,4 +1,6 @@
-﻿0, function(){
+﻿lofn.stl = new Nai;
+
+0, function(){
 	// Lofn standard linrary
 	var reg = function (n, x) {
 		lofn.stl[n] = x
