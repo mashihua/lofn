@@ -235,7 +235,6 @@ return function (tokens) {
 	// object
 	var objinit = function () {
 		var arr = [], ams = [];
-		advance(OBJECT);
 		advance(STARTBRACE, CRSTART);
 		var node = new Node(nt.OBJECT);
 		if (tokenIs(ENDBRACE, CREND)) {
@@ -387,6 +386,7 @@ return function (tokens) {
 			case ARGUMENTS:
 				return argsp();
 			case OBJECT:
+				advance(OBJECT);
 				return objinit();
 			case STARTBRACE:
 				if (token.value === SQSTART) {
@@ -403,9 +403,13 @@ return function (tokens) {
 					advance(ENDBRACE, 41);
 					return n;
 				} else if (token.value === CRSTART) {
+					if((next.isName || nextIs(STRING)) && shiftIs(2, COLON)){
+						// object literal
+						return objinit()
+					}
 					// Raw function body
 					// with no arguments
-					return functionBody(undefined, true);
+					else return functionBody(undefined, true);
 				}
 			case SHARP:
 				// # form
