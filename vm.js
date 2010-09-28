@@ -18,10 +18,10 @@
 				return '_$A_ARGN_'
 			},
 			thisBind: function (env) {
-				return (!env.thisOccurs || env.rebindThis) ? '' : 'var _$T_ = (this === M_TOP ? null : this)'
+				return (!env.thisOccurs || env.rebindThis) ? '' : 'var _$T_ = (this === LF_M_TOP ? null : this)'
 			},
 			argnBind: function (env) {
-				return env.argnOccurs ? 'var _$A_ARGN_ = C_NARG(arguments[arguments.length - 1])' : ''
+				return env.argnOccurs ? 'var _$A_ARGN_ = LF_CNARG(arguments[arguments.length - 1])' : ''
 			},
 			joinStatements: function (statements) {
 				return statements.join(';\n') + ';\n';
@@ -161,10 +161,10 @@
 			comp = transform(this.func) + '(';
 			break;
 		case nt.MEMBERREFLECT:
-			comp = 'MINVOKE(' + transform(this.func.left) + ',' + transform(this.func.right) + ',';
+			comp = 'LF_MINVOKE(' + transform(this.func.left) + ',' + transform(this.func.right) + ',';
 			break;
 		case nt.ITEM:
-			comp = 'IINVOKE(' + transform(this.func.left) + ',' + transform(this.func.item) + ',';
+			comp = 'LF_IINVOKE(' + transform(this.func.left) + ',' + transform(this.func.item) + ',';
 			break;
 		default:
 			comp = transform(this.func) + '(';
@@ -182,7 +182,7 @@
 			comp = '___$PIPE=' + arg0 + ',' + comp;
 		};
 		comp += args.join(',');
-		if (this.nameused) comp += (args.length ? ',' : '') + 'T_NAMES(' + names.join(',') + ')';
+		if (this.nameused) comp += (args.length ? ',' : '') + 'LF_TNAMES(' + names.join(',') + ')';
 		comp += ')'
 		return '(' + comp + ')';
 	});
@@ -260,7 +260,7 @@
 	lmethodoper('/@', 'map');
 
 	schemata(nt['->'], function () {
-		return 'CREATERULE(' + transform(this.left) + ',' + transform(this.right) + ')';
+		return 'LF_CREATERULE(' + transform(this.left) + ',' + transform(this.right) + ')';
 	});
 	schemata(nt.NEGATIVE, function () {
 		return '-(' + transform(this.operand) + ')';

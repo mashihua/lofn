@@ -46,18 +46,15 @@ var NARG = function () {
 }
 
 var noth = void 0;
-var M_TOP = this;
 
 var Lofn = {};
-var SLICE = Array.prototype.slice;
 
-var DINVOKE = function (pivot, shift, nameused, names) {
-	return INVOKEP(pivot, shift, SLICE(arguments, 4), nameused, names);
-}
-var MINVOKE = function (p, s) {
+var LF_M_TOP = this;
+var SLICE = Array.prototype.slice;
+var LF_MINVOKE = function (p, s) {
 	return p[s].apply(p,SLICE.call(arguments,2))
 }
-var IINVOKE = function (p, s) {
+var LF_IINVOKE = function (p, s) {
 	return p.item(s).apply(p,SLICE.call(arguments,2))
 }
 
@@ -71,13 +68,13 @@ NamedArguments.prototype.each = function(f){
 		if(OWNS(_,each))
 			f.call(_[each],_[each],each);
 }
-var T_NAMES = function(){
+var LF_TNAMES = function(){
 	var o = new NamedArguments;
 	for(var i=arguments.length-2;i>=0;i-=2)
 		o._[arguments[i]]=arguments[i+1]
 	return o;
 }
-var C_NARG = function(a){
+var LF_CNARG = function(a){
 	if(a instanceof NamedArguments)
 		return a
 	else
@@ -112,7 +109,6 @@ Object.prototype.contains = function (b) {
 ISARRAIOID = function(a){
 	return 'length' in this && (typeof this.length === 'number') && (this["length"] - 1) in this
 };
-
 Object.prototype.each = function(f){
 	var i, l;
 	if(ISARRAIOID){
@@ -169,7 +165,7 @@ RegExp.g = {
 
 
 // Rule
-var CREATERULE = function (l, r) {
+var LF_CREATERULE = function (l, r) {
 	return new Rule(l, r);
 }
 var Rule = function (l, r) {
