@@ -225,7 +225,7 @@
 	};
 	var methodoper = function (operator, method) {
 		schemata(nt[operator], function () {
-			return '(___$PIPE = ' + transform(this.left) + ',' + transform(this.right) + '.' + method + '(___$PIPE))';
+			return '(___$TMP = ' + transform(this.left) + ',' + transform(this.right) + '.' + method + '(___$TMP))';
 		});
 	};
 	var lmethodoper = function (operator, method) {
