@@ -157,10 +157,6 @@ Boolean.be = function(s){
 RegExp.convertFrom = function(s){
 	return new RegExp(s);
 }
-RegExp.g = {
-	convertFrom : function(s){return new RegExp(s, 'g')}
-}
-
 
 // Rule
 var LF_CREATERULE = function (l, r) {

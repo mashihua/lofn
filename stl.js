@@ -29,7 +29,34 @@
 	reg('Array', Array);
 	reg('Function', Function);
 	reg('String', String);
-	reg('RegExp', RegExp);
+	reg('RegExp', function(){
+		var R = function(){
+			return RegExp.apply(this, arguments)
+		}
+		R.prototype = RegExp;
+		R.convertFrom = function(s){
+			return RegExp(s)
+		};
+		
+		var rType = function(options){
+			R[options] = function(s){
+				return RegExp(s, options)
+			};
+			R[options].convertFrom = function(s){
+				return RegExp(s, options)
+			}
+		}
+
+		rType('g');
+		rType('i');
+		rType('m');
+		rType('gi');
+		rType('gm');
+		rType('im');
+		rType('gim');
+
+		return R;
+	}());
 	reg('Date', Date);
 	
 	reg('operator', {
