@@ -287,15 +287,28 @@ return function (tokens) {
 		return new Node(nt.FUNCTION, { tree: s });
 	};
 
+	var curryBody = function (p) {
+		var n = newScope(), s = workingScope;
+		workingScope.parameters = p;
+		workingScope.ready();
+		workingScope.code = new Node(nt.SCRIPT, {
+			content: [new Node(nt.RETURN, { expression: functionLiteral() })]
+		});
+		endScope();
+		return new Node(nt.FUNCTION, { tree: s });
+	};
+
+
 	// Function literal
 	// "function" [Parameters] FunctionBody
 	var functionLiteral = function () {
-		advance(FUNCTION);
+		var f;
 		if (tokenIs(STARTBRACE, RDSTART)) {
 			var p = parameters();
 		};
-		var f;
-		if (tokenIs(COLON))
+		if (tokenIs(STARTBRACE, RDSTART)) { // currying arguments
+			f = curryBody(p);
+		} else if (tokenIs(COLON))
 			f = colonBody(p)
 		else
 			f = functionBody(p);
@@ -353,7 +366,10 @@ return function (tokens) {
 		}
 	}
 	var isLambdaPar = function () {
-		if (nextIs(ID) && (shiftIs(2, ENDBRACE, RDEND) && shiftIs(3, OPERATOR, ':>') || shiftIs(2, COMMA))) {
+		if (
+			nextIs(ENDBRACE, RDEND) && shiftIs(2, OPERATOR, ':>') ||
+			nextIs(ID) && (shiftIs(2, ENDBRACE, RDEND) && shiftIs(3, OPERATOR, ':>') || shiftIs(2, COMMA))
+		) {
 			return true;
 		}
 		return false;
@@ -432,6 +448,7 @@ return function (tokens) {
 				}
 			case FUNCTION:
 				// function literal started with "function"
+				advance(FUNCTION);
 				return functionLiteral();
 			default:
 				throw new Error('Unexpected token' + token);
@@ -469,7 +486,7 @@ return function (tokens) {
 		return node;
 	};
 	var callExpression = function () {
-		var m = member();
+		var m = primary();
 		out: while (
 					 tokenIs(STARTBRACE, RDSTART)
 					 || tokenIs(STARTBRACE, SQSTART) && !token.spaced
