@@ -44,7 +44,8 @@ var
 	CATCH = 38,
 	FINALLY = 39,
 	TASK = 40,		//reserved for coro
-	LAMBDA = 41
+	LAMBDA = 41,
+	BACKSLASH = 501
 ;
 
 var lex = lofn.lex = function () {
@@ -57,13 +58,14 @@ var lex = lofn.lex = function () {
 		this.isName = i;
 	}
 	Token.prototype.toString = function () {
-		return '[' + this.value + ']'
+		return '  ' + this.type + '[' + this.value + ']'
 	}
 	var condF = function (match, $1) {
 		if ($1.length > 1) {
 			return String.fromCharCode(parseInt($1.slice(1), 16));
 		} else {
 			return {
+				'r': '\r',
 				'n': '\n',
 				'\\': '\\',
 				'"': '"',
@@ -173,7 +175,8 @@ var symbolTypes = {
 	'|': THEN,
 	'.': DOT,
 	';': SEMICOLON,
-	'@': MY
+	'@': MY,
+	'\\': BACKSLASH
 };
 var symbolType = function (m) {
 	if (symbolTypes[m] > -65536)
@@ -185,17 +188,20 @@ var symbolType = function (m) {
 		return new Error(message + ' at ' + position);
 	}
 	return function (input) {
-		var tokens = [], tokl = 0, line = 0;
+		var tokens = [], tokl = 0, line = 0, options = {};
 		var make = function (t, v, p, as, isn) {
 			contt = false;
 			tokens[tokl++] = new Token(t, v, p, line, as, isn);
 		};
+		var option = function(name){
+			options[name] = true
+		};
 		var contt = false;
 		var noImplicits = function () {
-			while (tokens[tokl - 1].type === SEMICOLON && tokens[tokl - 1].value === 0) tokl--;
+			while (tokens[tokl - 1] && tokens[tokl - 1].type === SEMICOLON && tokens[tokl - 1].value === 0) tokl--;
 		}
 		var noSemicolons = function(){
-			while (tokens[tokl - 1].type === SEMICOLON) tokl--;
+			while (tokens[tokl - 1] && tokens[tokl - 1].type === SEMICOLON) tokl--;
 		}
 		var p_symbol = function (s, n) {
 			var t = symbolType(s);
@@ -207,8 +213,6 @@ var symbolType = function (m) {
 				case DOT:
 					noImplicits();
 				case COLON:
-				case MY:
-				case SHARP:
 					make(t, s, n);
 					contt = true;
 					break;
@@ -228,13 +232,19 @@ var symbolType = function (m) {
 					make(t, 1, n);
 					contt = true;
 					break;
+
+				case BACKSLASH:
+					contt = true;
+					break;
 			}
 		}
 		var ou = input.replace(
-			(/(\/\/[^\n]*)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$]*)|('[^']*(?:''[^']*)*')|("[^\\"]*(?:\\.[^\\"]*)*")|((?:0x[a-fA-F0-9]+)|(?:\d+(?:\.\d+(?:[eE]-?\d+)?)?))|([+\-*\/<>=!:%~,.;#]+|[()\[\]\{\}|@])|(\n\s*)/g),
-			function (match, comment, nme, reflects, singles, doubles, number, symbol, newline, n, full) {
+			(/(\/\/.*)|(?:^![ \t]*option[ \t]+(\w+)[ \t]*$)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$]*)|('[^']*(?:''[^']*)*')|("[^\\"]*(?:\\.[^\\"]*)*")|((?:0[xX][a-fA-F0-9]+)|(?:\d+(?:\.\d+(?:[eE]-?\d+)?)?))|([+\-*\/<>=!:%~.#]+|[()\[\]\{\}|@\\;,])|(\n\s*)/mg),
+			function (match, comment, optionname, nme, reflects, singles, doubles, number, symbol, newline, n, full) {
 				after_space = false;
-				if (nme) {
+				if(optionname) {
+					option(optionname);
+				} if (nme) {
 					make(nameType(match), match, n, false, true)
 				} else if (reflects) {
 					make(STRING, match.slice(1), n);
@@ -243,7 +253,7 @@ var symbolType = function (m) {
 				} else if (doubles) {
 					make(STRING, lfUnescape(match.slice(1, -1)), n);
 				} else if (number) {
-					make(NUMBER, (match - 0), n);
+					make(NUMBER, (match.replace(/^0+([1-9])/, '$1') - 0), n);
 				} else if (symbol) {
 					p_symbol(match, n);
 				} else if (newline) {
@@ -259,6 +269,9 @@ var symbolType = function (m) {
 			throw token_err('Unmatched quotations encountered',input,ep)
 		}
 
-		return tokens;
+		return {
+			tokens : tokens,
+			options: options
+		}
 	}
 } ();

@@ -64,7 +64,7 @@ var NodeType = lofn.NodeType = function () {
 
 
 
-return function (tokens) {
+return function (input) {
 
 	var Node = function (type, props) {
 		var p = props || {};
@@ -101,8 +101,12 @@ return function (tokens) {
 	}
 	ScopedScript.prototype.listVar = function () {
 		for (var each in this.usedVariables) {
-			if (this.usedVariables[each] === true && !(this.variables[each] > 0))
-				this.newVar(each);
+			if (this.usedVariables[each] === true && !(this.variables[each] > 0)){
+				if(!opt_explicit)
+					this.newVar(each);
+				else
+					throw new Error('Undeclared variable encountered when using `!option explicit`.')
+			}
 		};
 		for (var i = 0; i < this.nest.length; i++)
 			this.nest[i].listVar();
@@ -123,8 +127,22 @@ return function (tokens) {
 	};
 
 
+	var 
+		tokens = input.tokens,
+		scopes = [],
+		token = tokens[0],
+		next, 
+		i = 0, 
+		len = tokens.length, 
+		workingScopes = [],
+		workingScope, 
+		nt = NodeType,
+		curline, 
+		token_type = token.type,
+		token_value = token.value,
+		opt_explicit = !!input.options.explicit,
+		opt_colononly = !!input.options.colononly;
 
-	var scopes = [], token = tokens[0], next, i = 0, len = tokens.length, workingScopes = [], workingScope, nt = NodeType, curline, token_type, token_value;
 	if (token) curline = token.line;
 	function acquire() { };
 	var moveNext = function () {
@@ -853,6 +871,8 @@ return function (tokens) {
 				if (tokenIs(END)) advance();
 				return s;
 			case COMMA:
+				if(opt_colononly)
+					throw new Error('Only COLON bodies can be used due to `!option colononly`');
 				advance();
 				var s = statement();
 				//while (token && token.type === SEMICOLON) advance();
@@ -1013,12 +1033,13 @@ return function (tokens) {
 	}
 	var statements = function (fin, fin2) {
 		var script = new Node(nt.SCRIPT);
+	//	debugger;
 		stripSemicolons();
 		var a = [statement()];
 		while (tokenIs(SEMICOLON)) {
 			curline = token.line;
 			stripSemicolons();
-			if (token && (token.type === fin || token.type === END || token.type === fin2)) break;
+			if (token && (tokenIs(fin) || tokenIs(END) || tokenIs(fin2))) break;
 			a.push(statement());
 		}
 		//ensure(!token || token.type === fin, "Unfinished statement block");
