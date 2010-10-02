@@ -217,6 +217,10 @@ var symbolType = function (m) {
 					contt = true;
 					break;
 
+				case SHARP:
+				case MY:
+					make(t, s, n);
+
 				case STARTBRACE:
 					make(t, s.charCodeAt(0), n, input.charAt(n-1) === ' ' || input.charAt(n-1) === '\t');
 					contt = true;
@@ -239,7 +243,7 @@ var symbolType = function (m) {
 			}
 		}
 		var ou = input.replace(
-			(/(\/\/.*)|(?:^![ \t]*option[ \t]+(\w+)[ \t]*$)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$]*)|('[^']*(?:''[^']*)*')|("[^\\"]*(?:\\.[^\\"]*)*")|((?:0[xX][a-fA-F0-9]+)|(?:\d+(?:\.\d+(?:[eE]-?\d+)?)?))|([+\-*\/<>=!:%~.#]+|[()\[\]\{\}|@\\;,])|(\n\s*)/mg),
+			(/(\/\/.*)|(?:^![ \t]*option[ \t]+(\w+)[ \t]*$)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$]*)|('[^']*(?:''[^']*)*')|("[^\\"]*(?:\\.[^\\"]*)*")|((?:0[xX][a-fA-F0-9]+)|(?:\d+(?:\.\d+(?:[eE]-?\d+)?)?))|([+\-*\/<>=!:%][<>=~]*|[()\[\]\{\}|@\\;,\.#])|(\n\s*)/mg),
 			function (match, comment, optionname, nme, reflects, singles, doubles, number, symbol, newline, n, full) {
 				after_space = false;
 				if(optionname) {
