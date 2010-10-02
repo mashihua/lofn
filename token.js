@@ -220,6 +220,7 @@ var symbolType = function (m) {
 				case SHARP:
 				case MY:
 					make(t, s, n);
+					break;
 
 				case STARTBRACE:
 					make(t, s.charCodeAt(0), n, input.charAt(n-1) === ' ' || input.charAt(n-1) === '\t');
