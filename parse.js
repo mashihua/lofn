@@ -349,7 +349,7 @@ return function (tokens) {
 	// Lambda Expression content
 	var lambdaCont = function (p) {
 		var right;
-		advance(OPERATOR, ':>');
+		advance(LAMBDA);
 		if (tokenIs(STARTBRACE, CRSTART)) { // statement lambda
 			right = functionBody(p);
 			return right;
@@ -367,8 +367,8 @@ return function (tokens) {
 	}
 	var isLambdaPar = function () {
 		if (
-			nextIs(ENDBRACE, RDEND) && shiftIs(2, OPERATOR, ':>') ||
-			nextIs(ID) && (shiftIs(2, ENDBRACE, RDEND) && shiftIs(3, OPERATOR, ':>') || shiftIs(2, COMMA))
+			nextIs(ENDBRACE, RDEND) && shiftIs(2, LAMBDA) ||
+			nextIs(ID) && (shiftIs(2, ENDBRACE, RDEND) && shiftIs(3, LAMBDA) || shiftIs(2, COMMA))
 		) {
 			return true;
 		}
@@ -380,11 +380,11 @@ return function (tokens) {
 			case ID:
 				// x :> BODY
 				// lambda
-				if (nextIs(OPERATOR, ':>')) {
+				if (nextIs(LAMBDA)) {
 					var v = name();
 					return lambdaCont(new Node(nt.PARAMETERS, {
 						names: [v.name],
-						anames: []
+						anames: [null]
 					}));
 					// or variable
 				} else return variable();
@@ -445,7 +445,12 @@ return function (tokens) {
 					});
 				} else {
 					return new Node(nt.ARGUMENTS);
-				}
+				};
+			case LAMBDA:
+				return lambdaCont(new Node(nt.PARAMETERS, {
+					names: [],
+					anames: []
+				}));
 			case FUNCTION:
 				// function literal started with "function"
 				advance(FUNCTION);

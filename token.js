@@ -43,8 +43,9 @@ var
 	TRY = 37,
 	CATCH = 38,
 	FINALLY = 39,
-	TASK = 40;		//reserved for coro
-
+	TASK = 40,		//reserved for coro
+	LAMBDA = 41
+;
 
 var lex = lofn.lex = function () {
 	var Token = function (t, v, p, l, s, i) {
@@ -159,7 +160,7 @@ var symbolTypes = {
 	'=~': OPERATOR,
 	'!~': OPERATOR,
 	'->': OPERATOR,
-	':>': OPERATOR,
+	':>': LAMBDA,
 	'#': SHARP,
 	'(': STARTBRACE,
 	'[': STARTBRACE,
@@ -200,6 +201,7 @@ var symbolType = function (m) {
 			var t = symbolType(s);
 			switch (t) {
 				case OPERATOR:
+				case LAMBDA:
 				case COMMA:
 				case THEN:
 				case DOT:
