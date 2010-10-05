@@ -55,6 +55,9 @@ var LF_MINVOKE = function (p, s) {
 var LF_IINVOKE = function (p, s) {
 	return p.item(s).apply(p,SLICE.call(arguments,2))
 }
+var LF_RMETHOD = function (l, r, m){
+	return r[m](l)
+}
 
 var NamedArguments = function(){this._ = new Nai}
 NamedArguments.prototype = {};

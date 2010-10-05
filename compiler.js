@@ -215,6 +215,8 @@
 	schemata(nt.LITERAL, function () {
 		if (typeof this.value === 'string') {
 			return strize(this.value);
+		} else if (typeof this.value === 'number'){
+			return '(' + this.value + ')';	
 		} else return '' + this.value;
 	});
 
@@ -225,7 +227,7 @@
 	};
 	var methodoper = function (operator, method) {
 		schemata(nt[operator], function () {
-			return '(___$PIPE = ' + transform(this.left) + ',' + transform(this.right) + '.' + method + '(___$PIPE))';
+			return '('+transform(this.right)+'.'+method+'('+transform(this.left)+'))'
 		});
 	};
 	var lmethodoper = function (operator, method) {
@@ -257,7 +259,6 @@
 	methodoper('>>', 'acceptShiftIn');
 	lmethodoper('<=>', 'compareTo');
 	lmethodoper('<<', 'shiftIn');
-	lmethodoper('/@', 'map');
 
 	schemata(nt['->'], function () {
 		return 'LF_CREATERULE(' + transform(this.left) + ',' + transform(this.right) + ')';
@@ -376,7 +377,6 @@
 		} else {
 			s += 'catch(___$EXCEPTION){}'
 		}
-		console.log(s);
 		return s;
 	});
 
@@ -396,7 +396,7 @@
 			vars = [];
 		for (var i = 0; i < locals.length; i++)
 		if (!(tree.varIsArg[locals[i]])) vars.push(C_NAME(locals[i]));
-		s = JOIN_STMTS(['var ___$TMP,___$PIPE,___$EXCEPTION', THIS_BIND(tree), ARGN_BIND(tree), (vars.length ? 'var ' + vars.join(', ') : '')]) + (hook || '') + s;
+		s = JOIN_STMTS(['var ___$PIPE,___$EXCEPTION', THIS_BIND(tree), ARGN_BIND(tree), (vars.length ? 'var ' + vars.join(', ') : '')]) + (hook || '') + s;
 
 		tree.transformed = s;
 		return s;
@@ -462,7 +462,9 @@
 		}
 	}
 lofn.Script = function(source, config, libraries){
-	var tree = lofn.parse(lofn.lex(source));
+	var tokens = lofn.lex(source);
+	var tree = lofn.parse(tokens, source);
+
 	var specL = new Nai;
 	var vm;
 	var inita = function(libs){
@@ -472,6 +474,9 @@ lofn.Script = function(source, config, libraries){
 					r(each, libs[i][each])
 		}
 	}([lofn.stl].concat(libraries || [], [specL]));
+
+	tokens = null;
+
 	return {
 		setGlobalVariable: function(name, value){specL[name] = value},
 		compile: function(){

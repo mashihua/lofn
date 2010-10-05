@@ -1,9 +1,4 @@
 ﻿lofn.parse = function(){
-var ensure = function (c, m) {
-	if (!c)
-		throw new Error(m);
-	return c;
-}
 
 var HAS_DUPL = function (arr) {
 	var b = arr.slice(0).sort();
@@ -64,8 +59,23 @@ var NodeType = lofn.NodeType = function () {
 
 
 
-return function (input) {
-
+return function (input, source) {
+	var PE = function(message, p){
+		if(token || p != undefined){
+			var pos = p == undefined ? token.position : p;
+			var lineno = ('\n' + source.slice(0, pos)).match(/\n/g).length;
+			var lineno_l = lineno.toString().length;
+			message += '\nat line: ' + lineno;
+			message += '\n ' + lineno + ' : ' + (source.split('\n')[lineno - 1]);
+			message += '\n-' + (lineno + '').replace(/./g, '-') + '---' + (source.slice(0, pos).split('\n')[lineno - 1].replace(/./g, '-').replace(/$/, '^'));
+		}
+		var e = new Error(message);
+		return e;
+	}
+	var ensure = function(c, m, p){
+		if(!c) throw PE(m, p);
+		return c;
+	}
 	var Node = function (type, props) {
 		var p = props || {};
 		p.type = type, p.bp = p.bp || 0, p.line = curline;
@@ -83,6 +93,7 @@ return function (input) {
 		this.id = id;
 		this.parent = env;
 		this.usedVariables = new Nai;
+		this.usedVariablesOcc = new Nai;
 	};
 	ScopedScript.prototype.newVar = function (name, isarg) {
 		if (this.variables[name] >= 0) return;
@@ -96,8 +107,10 @@ return function (input) {
 		else
 			return this.newVar(name)
 	};
-	ScopedScript.prototype.useVar = function (name) {
+	ScopedScript.prototype.useVar = function (name, position) {
 		this.usedVariables[name] = true;
+		if(this.usedVariablesOcc[name] === undefined)
+			this.usedVariablesOcc[name] = position;
 	}
 	ScopedScript.prototype.listVar = function () {
 		for (var each in this.usedVariables) {
@@ -105,7 +118,7 @@ return function (input) {
 				if(!opt_explicit)
 					this.newVar(each);
 				else
-					throw new Error('Undeclared variable encountered when using `!option explicit`.')
+					throw PE('Undeclared variable "' + each + '" when using `!option explicit`.', this.usedVariablesOcc[each])
 			}
 		};
 		for (var i = 0; i < this.nest.length; i++)
@@ -181,9 +194,9 @@ return function (input) {
 	var advance = function (type, test) {
 		var nt, value, t, node;
 		if (type !== undefined && token.type !== type)
-			throw new Error('Unexpected token: got' + token);
+			throw PE('Unexpected token: got' + token);
 		if (test !== undefined && token.value !== test)
-			throw new Error('Unexpected token: got' + token);
+			throw PE('Unexpected token: got' + token);
 		return moveNext();
 	};
 	var SQSTART = 91, SQEND = 93, RDSTART = 40, RDEND = 41, CRSTART = 123, CREND = 125;
@@ -201,7 +214,7 @@ return function (input) {
 	// Identifier: like the javascript
 	var variable = function () {
 		var t = advance(ID);
-		workingScope.useVar(t.value);
+		workingScope.useVar(t.value, t.position);
 		return new Node(NodeType.VARIABLE, { name: t.value });
 	};
 	var lname = function () {
@@ -212,7 +225,7 @@ return function (input) {
 		if(token.isName) 
 			var t = advance();	
 		else 
-			throw new Error("A name is needed!");
+			throw PE("A name is needed!");
 		return new Node(NodeType.VARIABLE, { name: t.value });
 	};
 
@@ -437,7 +450,7 @@ return function (input) {
 					advance(ENDBRACE, 41);
 					return n;
 				} else if (token.value === CRSTART) {
-					if((next.isName || nextIs(STRING)) && shiftIs(2, COLON)){
+					if((next && next.isName || nextIs(STRING)) && shiftIs(2, COLON)){
 						// object literal
 						return objinit()
 					}
@@ -448,7 +461,7 @@ return function (input) {
 			case SHARP:
 				// # form
 				// depended on coming token
-				// #{n`umber} --> Arguments[number]
+				// #{number} --> Arguments[number]
 				// #{identifier} --> ArgNS[identifier]
 				advance();
 				if (tokenIs(NUMBER)) {
@@ -474,7 +487,7 @@ return function (input) {
 				advance(FUNCTION);
 				return functionLiteral();
 			default:
-				throw new Error('Unexpected token' + token);
+				throw PE('Unexpected token' + token);
 		};
 	};
 	var memberitem = function (left) {
@@ -541,7 +554,6 @@ return function (input) {
 					advance();
 					m = memberitem(m);
 					continue;
-				default:
 			}
 		};
 		return m;
@@ -622,6 +634,75 @@ return function (input) {
 		'->': 80
 	};
 
+	var operating = function(){
+		var g = function(operators, lower){
+			var tbl = {};
+			for(var i = 0; i < operators.length; i += 1)
+				tbl[operators[i]] = true;
+			
+			return function(){
+				var n = lower();
+				while(tokenIs(OPERATOR) && tbl[token_value] === true){
+					var t = advance(OPERATOR);
+					n = new Node(nt[t.value], {
+						left: n,
+						right: lower()
+					});
+				};
+	
+				return n;
+			}
+		};
+		var gr = function(operators, lower){
+			var tbl = {};
+			for(var i = 0; i < operators.length; i += 1)
+				tbl[operators[i]] = true;
+			var opt = function(){
+				var n = lower();
+				if(tokenIs(OPERATOR) && tbl[token_value] === true){
+					var t = advance(OPERATOR);
+					return new Node(nt[t.value], {
+						left: n,
+						right: opt()
+					});
+				};
+				return n;
+			};
+			return opt;
+		};
+		var gu = function(operators, lower){
+			var tbl = {};
+			for(var i = 0; i < operators.length; i += 1)
+				tbl[operators[i]] = true;
+			return function(){
+				var n = lower();
+				if(tokenIs(OPERATOR) && tbl[token_value] === true){
+					var t = advance(OPERATOR);
+					return new Node(nt[t.value], {
+						left: n,
+						right: lower()
+					});
+				};
+				return n;
+			};
+		};
+
+	
+		var l1 = g(['*', '/', '%'], unary);
+		var l2 = g(['+', '-'], l1);
+		var l3 = g(['<<'], l2);
+		var l3r = gr(['>>'], l3);
+		var lsp = gu(['<=>'], l3r);
+		var l4 = gu(['<', '>', '<=', '>='], lsp);
+		var l5 = g(['is', 'in'], l4);
+		var l6 = gu(['==', '!=', '=~', '!~', '===', '!=='], l5);
+		var l7 = g(['and', 'or'], l6);
+		var l8 = g(['as'], l7);
+		var l9 = gr(['->'], l8);
+
+		return l9;
+	}();
+
 	var operatorPiece = function (start, progress) {
 		// operators.
 		// the "->" operator gets a "Rule" object
@@ -699,22 +780,17 @@ return function (input) {
 		// following specifics are supported:
 		// - Omissioned calls
 		// - "then" syntax for chained calls.
-		var pivot = unary(), right, c;
+		var right, c = operating();
 		if (tokenIs(OPERATOR, '=')){
 			advance();
-			return new Node(nt['='], { left: pivot, right: expression(true) });
+			return new Node(nt['='], { left: c, right: expression(true) });
 		} else if (ASSIGNIS()) { //赋值
 			var _v = token.value;
 			advance();
-			return new Node(nt['='], { left: pivot, right: new Node(nt[_v.slice(0, _v.length - 1)], {left:pivot, right:expression(true)})});
+			return new Node(nt['='], { left: c, right: new Node(nt[_v.slice(0, _v.length - 1)], {left:c, right:expression(true)})});
 		}
 
-		if (tokenIs(OPERATOR) && bp[token.value]) {
-			c = operatorPiece(pivot, unary);
-		} else {
-			// processing omissioned calls
-			c = pivot
-		}
+	
 		var method, isOmission = true;
 
 		while (true) {
@@ -756,34 +832,30 @@ return function (input) {
 						c = omissionCall(c);
 						isOmission = false;
 					} else {
-						throw new Error('Invalid Omission Call');
+						throw PE('Invalid Omission Call');
 					}
 			}
 		}
 	};
-	var callItem = function () {
-		var pivot = unary();
-		if (tokenIs(OPERATOR))
-			pivot = operatorPiece(pivot, unary);
-		return pivot;
-	};
+	var callItem = operating;
 
 
 	var stover = function () {
 		return !token || (token.type === SEMICOLON || token.type === END || token.type === ENDBRACE && token.value === CREND);
 	}
 
-	var statement = function () {
-		// Statements
-		/*
-		if condition:
-		statements
-		statements
-		else if cond2:
-		statement
-		else, ontstatement
-		end
-		*/
+	var endS = false;
+	var stmtover = function(){
+		endS = true;
+	}
+
+
+	var statement =  function(){
+		var r = statement_r.apply(this, arguments);
+		stmtover();
+		return r;
+	};
+	var statement_r = function () {
 		if (token)
 			switch (token.type) {
 			case RETURN:
@@ -821,7 +893,7 @@ return function (input) {
 			case ELSE:
 			case OTHERWISE:
 			case WHEN:
-				throw new Error('Unobtained END,ELSE,WHEN or OTNERWISE');
+				throw PE('Unobtained END,ELSE,WHEN or OTNERWISE');
 			case VAR:
 				advance();
 				return vardecls();
@@ -849,9 +921,6 @@ return function (input) {
 				advance();
 				a.push(vardecl());
 			}
-			//return new Node(nt.VAR, {
-			//	variables: a
-			//});
 		}
 	};
 	var vardecl = function () {
@@ -862,38 +931,51 @@ return function (input) {
 		});
 	};
 
-	var contBlock = function (fin) {
-		switch (token.type) {
-			case COLON:
-				advance();
-				var s = statements(fin);
-				ensure(tokenIs(fin) || tokenIs(END), 'Unterminated statement block');
-				if (tokenIs(END)) advance();
-				return s;
-			case COMMA:
-				if(opt_colononly)
-					throw new Error('Only COLON bodies can be used due to `!option colononly`');
-				advance();
-				var s = statement();
-				//while (token && token.type === SEMICOLON) advance();
-				return s;
-			default:
-				throw new Error('Flow control body not started with COMMA or COLON');
-		}
+	var contBlock = function () {
+		if(tokenIs(COLON)) {
+			var p = advance().position;
+			var s = statements();
+			ensure(token, 'Unterminated control block', p);
+			advance(END);
+			return s;
+		} else if (tokenIs(COMMA)) {
+			if(opt_colononly)
+				throw PE('Only COLON bodies can be used due to `!option colononly`');
+			advance();
+			var s = statement_r();
+	//		while (token && token.type === SEMICOLON) advance();
+			return s;
+		} else throw PE('Flow control body not started with COMMA or COLON');
 	};
 
 	var ifstmt = function () {
 		advance(IF);
 		var n = new Node(nt.IF);
 		n.condition = callItem();
-		n.thenPart = contBlock(ELSE);
-		if(tokenIs(SEMICOLON) && nextIs(ELSE)) advance();
-		if (tokenIs(ELSE)) {
-			advance(ELSE);
-			if (token.type === IF) n.elsePart = ifstmt();
-			else n.elsePart = contBlock(END);
-		};
-
+		if(tokenIs(COLON)){
+			var p = advance().position;
+			n.thenPart = statements(ELSE);
+			ensure(token, "Unterminated control block", p);
+			if(tokenIs(ELSE)){
+				advance(ELSE);
+				if(tokenIs(IF)){
+					n.elsePart = ifstmt();
+				} else {
+					n.elsePart = contBlock();
+				}
+			} else if (tokenIs(END)) {
+				advance(END);
+			} else {
+				throw PE("Unterminated control block", p);
+			}
+		} else if (tokenIs(COMMA)){
+			advance(COMMA);
+			if(opt_colononly)
+				throw PE('Only COLON bodies can be used due to `!option colononly`');
+			n.thenPart = statement_r();
+		} else {
+			throw PE('Flow control body not started with COMMA or COLON');
+		}
 		return n;
 	};
 	var whilestmt = function () {
@@ -973,7 +1055,7 @@ return function (input) {
 		if (token.type !== SEMICOLON) {
 			node.condition = expression();
 		} else {
-			throw new Error('The condition of a FOR loop mustn\'t be empty. at:' + token);
+			throw PE('The condition of a FOR loop mustn\'t be empty.');
 		}
 		advance(SEMICOLON);
 		if (token.type !== ENDBRACE && token.value !== RDEND) {
@@ -1006,7 +1088,7 @@ return function (input) {
 				ensure(stover(), 'Something more after BREAK statement');
 				return new Node(nt.BREAK, { destination: name });
 			} else {
-				throw new Error('BREAK statement used a unfound label');
+				throw PE('BREAK statement used a unfound label');
 			}
 		} else {
 			ensure(stover(), 'Something more after BREAK statement');
@@ -1026,24 +1108,29 @@ return function (input) {
 			n.catchvar = v = variable();
 			workingScope.newVar(v.name);
 			advance(COLON);
-			n.catchstmts = statements(END, END);
+			n.catchstmts = statements();
 			advance(END);
 			return n;
 		}
 	}
 	var statements = function (fin, fin2) {
 		var script = new Node(nt.SCRIPT);
+		var _t = endS;
 	//	debugger;
 		stripSemicolons();
 		var a = [statement()];
-		while (tokenIs(SEMICOLON)) {
+
+
+		while (endS && token) {
 			curline = token.line;
+			endS = false;
 			stripSemicolons();
-			if (token && (tokenIs(fin) || tokenIs(END) || tokenIs(fin2))) break;
+			if (token && (tokenIs(fin) || tokenIs(END) || tokenIs(ENDBRACE, CREND) || tokenIs(fin2))) break;
 			a.push(statement());
 		}
 		//ensure(!token || token.type === fin, "Unfinished statement block");
 		script.content = a;
+		endS = _t;
 		return script;
 	};
 	newScope();
