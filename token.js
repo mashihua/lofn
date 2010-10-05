@@ -1,9 +1,9 @@
 ﻿// token types
 var 
-	CONSTANT = -1,
-	ME = -2,
-	MY = -3,
-	CALLEE = -4,
+	CONSTANT = 101,
+	ME = 102,
+	MY = 103,
+	CALLEE = 104,
 	ID = 0,
 	OPERATOR = 1,
 	COLON = 2,
@@ -45,8 +45,7 @@ var
 	FINALLY = 39,
 	TASK = 40,		//reserved for coro
 	LAMBDA = 41,
-	BACKSLASH = 501
-;
+	BACKSLASH = 501;
 
 var lex = lofn.lex = function () {
 	var Token = function (t, v, p, l, s, i) {
@@ -58,7 +57,7 @@ var lex = lofn.lex = function () {
 		this.isName = i;
 	}
 	Token.prototype.toString = function () {
-		return '  ' + this.type + '[' + this.value + ']'
+		return '~' + this.type + '[' + this.value + ']'
 	}
 	var condF = function (match, $1) {
 		if ($1.length > 1) {
