@@ -70,7 +70,8 @@
 			// start VM
 			//	try {
 			var script = new lofn.Script(document.getElementById('input').value);
-			script.setGlobalVariable('alert', alert);
+			script.expose('alert', alert);
+			script.expose('exports', {});
 			script.asyncCompile(function(cm){
 				tracel('Generated code:\n' + (' |\t' + cm.generatedSource).replace(/\n/g, '\n |\t'));
 				script.start();

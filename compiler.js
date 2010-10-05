@@ -1,34 +1,6 @@
 ﻿// The backend.
 
 0, function () {
-	lofn.standardTransform = function () {
-		var _indent = 0,
-			c;
-		return c = {
-			varName: function (name) {
-				return '_$$_' + TO_ENCCD(name)
-			},
-			label: function (name) {
-				return '_$L_' + TO_ENCCD(name)
-			},
-			thisName: function (env) {
-				return '_$T_'
-			},
-			argnName: function(){
-				return '_$A_ARGN_'
-			},
-			thisBind: function (env) {
-				return (!env.thisOccurs || env.rebindThis) ? '' : 'var _$T_ = (this === LF_M_TOP ? null : this)'
-			},
-			argnBind: function (env) {
-				return env.argnOccurs ? 'var _$A_ARGN_ = LF_CNARG(arguments[arguments.length - 1])' : ''
-			},
-			joinStatements: function (statements) {
-				return statements.join(';\n') + ';\n';
-			}
-		}
-	}();
-
 	var TO_ENCCD = function (name) {
 		return name.replace(/[^a-zA-Z0-9_]/g, function (m) {
 			return '$' + m.charCodeAt(0).toString(36) + '$'
@@ -388,7 +360,7 @@
 			return '{!UNKNOWN}';
 		}
 	}
-	var compileFunctionBody = function (tree, hook) {
+	var compileFunctionBody = function (tree, hook_enter, hook_exit) {
 		if (tree.transformed) return tree.transformed;
 		env = tree;
 		var s = transform(tree.code);
@@ -396,11 +368,15 @@
 			vars = [];
 		for (var i = 0; i < locals.length; i++)
 		if (!(tree.varIsArg[locals[i]])) vars.push(C_NAME(locals[i]));
-		s = JOIN_STMTS(['var ___$PIPE,___$EXCEPTION', THIS_BIND(tree), ARGN_BIND(tree), (vars.length ? 'var ' + vars.join(', ') : '')]) + (hook || '') + s;
+		s = JOIN_STMTS(['var ___$PIPE,___$EXCEPTION', THIS_BIND(tree), ARGN_BIND(tree), (vars.length ? 'var ' + vars.join(', ') : '')]) 
+			+ (hook_enter || '') 
+			+ s 
+			+ (hook_exit || '');
 
 		tree.transformed = s;
 		return s;
 	};
+
 	var bindConfig = function (vmConfig) {
 		config = vmConfig;
 		C_NAME = config.varName;
@@ -411,36 +387,75 @@
 		ARGN_BIND = config.argnBind;
 		T_ARGN = config.argnName;
 	};
-
-
+	// Default Lofn compilation config
+	lofn.standardTransform = function () {
+		var _indent = 0,
+			c;
+		return c = {
+			varName: function (name) {
+				return '_$$_' + TO_ENCCD(name)
+			},
+			label: function (name) {
+				return '_$L_' + TO_ENCCD(name)
+			},
+			thisName: function (env) {
+				return '_$T_'
+			},
+			argnName: function(){
+				return '_$A_ARGN_'
+			},
+			thisBind: function (env) {
+				return (!env.thisOccurs || env.rebindThis) ? '' : 'var _$T_ = (this === LF_M_TOP ? null : this)'
+			},
+			argnBind: function (env) {
+				return env.argnOccurs ? 'var _$A_ARGN_ = LF_CNARG(arguments[arguments.length - 1])' : ''
+			},
+			joinStatements: function (statements) {
+				return statements.join(';\n') + ';\n';
+			},
+			initGVM: {
+				globally: function(){return 'var ' + c.varName('__global__') + ' = ' + c.thisName()+ ';\n'},
+				itemly: function(env, initFunction, aSrc, initv){
+					initFunction(function(n, v){
+						initv[n] = v;
+						env.newVar(n, true);
+						aSrc.push('var ' + c.varName(n) + '=(' + c.varName('__global__') + '[' + strize(n) + ']);');
+					});
+				}
+			},
+			dumpGVM: function(initFunction){
+				var aSrc = [];
+				initFunction(function(n, v){
+					aSrc.push(c.varName('__global__') + '[' + strize(n) + '] = ' + c.varName(n)+';');
+				});	
+				return aSrc;
+			}
+		}
+	}();
 	//============
 	lofn.Compiler = function (tree, inital, vmConfig) {
 		bindConfig(vmConfig);
 		var inits = [], initv = new Nai, enter = tree[0];
 		enter.thisOccurs = true, enter.newVar('__global__', true);
-		var REG_VAR = function(name, value){
-			initv[name] = value;
-			enter.newVar(name, true);
-			inits.push('var ' + C_NAME(name) + ' =(' + C_NAME('__global__') + '[' + strize(name) + ']);');
-		};
-		inital(REG_VAR);
+		var REG_VAR = vmConfig.initGVM.itemly;
+		REG_VAR(enter, inital, inits, initv);
 		enter.listVar();
-		var body = '', ENTER_TEXT = 'var ' + C_NAME('__global__') + '=' + T_THIS() + ';\n' + inits.join('\n') + '\n';
+		var body = '', enterText = vmConfig.initGVM.globally() + inits.join('\n') + '\n', exitText = vmConfig.dumpGVM(inital).join('\n');
 		var getFs = function(body){
-				var f_ = Function(body);
-				var f = function () {
-					return f_.apply(initv, arguments)
-				};
-				return {
-					wrappedF: f,
-					rawF: f_,
-					generatedSource: body
-				}
+			var f_ = Function(body);
+			var f = function () {
+				return f_.apply(initv, arguments)
+			};
+			return {
+				wrappedF: f,
+				rawF: f_,
+				generatedSource: body
+			}
 		}
 
 		return {
 			compile: function(){
-				body = compileFunctionBody(enter, ENTER_TEXT);
+				body = compileFunctionBody(enter, enterText, exitText);
 				return getFs(body);
 			},
 			asyncCompile: function(onSuccess, onStep){
@@ -449,7 +464,7 @@
 				var i = 0, body;
 				var step = function(){
 					if(i < queue.length){
-						body = compileFunctionBody(queue[i], queue[i] === enter ? ENTER_TEXT : '');
+						body = compileFunctionBody(queue[i], queue[i] === enter ? enterText : '', queue[i] === enter ? exitText : '');
 						onStep(queue[i], i, body);
 						i += 1;
 						setTimeout(step, 10);
@@ -461,42 +476,45 @@
 			}
 		}
 	}
-lofn.Script = function(source, config, libraries){
-	var tokens = lofn.lex(source);
-	var tree = lofn.parse(tokens, source);
-
-	var specL = new Nai;
-	var vm;
-	var inita = function(libs){
-		return function(r){
-			for(var i = 0; i<libs.length;i++) for(var each in libs[i])
-				if(OWNS(libs[i], each))
-					r(each, libs[i][each])
-		}
-	}([lofn.stl].concat(libraries || [], [specL]));
-
-	tokens = null;
-
-	return {
-		setGlobalVariable: function(name, value){specL[name] = value},
-		compile: function(){
-			this.setGlobalVariable = null;
-			lfcr = lofn.Compiler(tree, inita, config || lofn.standardTransform).compile(); 
-			return lfcr;
-		},
-		asyncCompile: function(onSuccess, onStep){
-			lofn.Compiler(tree, inita, config||lofn.standardTransform).asyncCompile(
-				function(cm){
-					lfcr = cm;
-					onSuccess.apply(this, arguments)
-				}, onStep
-			);
-		},
-		start: function(){
-			if(!lfcr) this.compile();
-			lfcr.wrappedF.apply(null, arguments);
-		}
-	};
-};	
+	lofn.Script = function(source, config, libraries){
+		var tokens = lofn.lex(source);
+		var tree = lofn.parse(tokens, source);
+		config = config || lofn.standardTransform
+	
+		var specL = new Nai;
+		var vm;
+		var inita = function(libs){
+			return function(r){
+				for(var i = 0; i<libs.length;i++) for(var each in libs[i])
+					if(OWNS(libs[i], each))
+						r(each, libs[i][each])
+			}
+		}([lofn.stl].concat(libraries || [], [specL]));
+	
+		tokens = null;
+	
+		return {
+			expose: function(name, value){
+				specL[name] = value
+			},
+			compile: function(){
+				this.setGlobalVariable = null;
+				lfcr = lofn.Compiler(tree, inita, config).compile(); 
+				return lfcr;
+			},
+			asyncCompile: function(onSuccess, onStep){
+				lofn.Compiler(tree, inita, config).asyncCompile(
+					function(cm){
+						lfcr = cm;
+						onSuccess.apply(this, arguments)
+					}, onStep
+				);
+			},
+			start: function(){
+				if(!lfcr) this.compile();
+				lfcr.wrappedF.apply(null, arguments);
+			}
+		};
+	};	
 }();
 

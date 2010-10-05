@@ -151,13 +151,12 @@ return function (input, source) {
 		workingScope, 
 		nt = NodeType,
 		curline, 
-		token_type = token.type,
-		token_value = token.value,
+		token_type = token ? token.type : undefined,
+		token_value = token ? token.value : undefined,
 		opt_explicit = !!input.options.explicit,
 		opt_colononly = !!input.options.colononly;
 
 	if (token) curline = token.line;
-	function acquire() { };
 	var moveNext = function () {
 		var t = token;
 		acquire();
@@ -166,6 +165,8 @@ return function (input, source) {
 		if(token){
 			token_type = token.type;
 			token_value = token.value;
+		} else {
+			token_type = token_value = undefined;
 		}
 		next = tokens[i + 1];
 		if (token) curline = token.line;
