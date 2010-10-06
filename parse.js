@@ -155,8 +155,8 @@ return function (input, source) {
 		token_value = token ? token.value : undefined,
 		opt_explicit = !!input.options.explicit,
 		opt_colononly = !!input.options.colononly;
-
 	if (token) curline = token.line;
+	function acquire(){};
 	var moveNext = function () {
 		var t = token;
 		acquire();
@@ -621,20 +621,7 @@ return function (input, source) {
 			return callExpression();
 		}
 	};
-
-	var bp = {
-		'*': 10, '/': 10, '%': 10,
-		'+': 20, '-': 20,
-		'<<': 25, '>>': 25,
-		'<': 30, '>': 30, '<=': 30, '>=': 30, '<=>': 30, 'is': 30, 'in': 30,
-
-		'==': 40, '!=': 40, '=~': 40, '!~': 40, '===':40, '!==':40,
-		'and': 50, 'or': 50,
-		'as': 60,
-		'/@': 70,
-		'->': 80
-	};
-
+/*
 	var operating = function(){
 		var g = function(operators, lower){
 			var tbl = {};
@@ -703,30 +690,84 @@ return function (input, source) {
 
 		return l9;
 	}();
+*/
+	var bp = {
+		'*': 10, '/': 10, '%': 10,
+		'+': 20, '-': 20,
+		'<<': 25, '>>': 25,
+		'<=>': 27,
+		'<': 30, '>': 30, '<=': 30, '>=': 30,
+		'is': 35, 'in': 35,
+		'==': 40, '!=': 40, '=~': 40, '!~': 40, '===':40, '!==':40,
+		'and': 50, 'or': 50,
+		'as': 60,
+		'->': 70
+	};
+	var combp = function(){
+		var L = 0, R = 1, N = 2;
+		return {
+			'*': L, '/': L, '%': L,
+			'+': L, '-': L,
+			'<<': L, '>>': R,
+			'<=>': N,
+			'<': N, '>': N, '<=': N, '>=': N,
+			'is': L, 'in': L,
+			'==': N, '!=': N, '=~': N, '!~': N, '===':N, '!==':N,
+			'and': L, 'or': L,
+			'as': L,
+			'->': R
+		}
+	}();
+
 
 	var operatorPiece = function (start, progress) {
 		// operators.
 		// the "->" operator gets a "Rule" object
-		// the "is","is in","as",">>","<<" operators are costumizable.
-		// Should I remove "/@"?
-		var uber = { right: start, bp: 65536 };
-		while (tokenIs(OPERATOR) && ensure(bp[token.value] > -65536, "Invalid Operator: " + token)) { // if is a valid operator, then...
+		// the "is","in","as",">>","<<" operators are costumizable.
+		var uber = { right: start, bp: 65536 }, t, tv, operand, nbp, combining, n, node, p;
+		while (tokenIs(OPERATOR) && ensure(bp[token.value] > 0, "Invalid Operator")) { // if is a valid operator, then...
 
-			var t = advance(OPERATOR);
-			var right = progress();
-			var nbp = Math.abs(bp[t.value]), combRight = bp[t.value] < 0;
-			var node = new Node(nt[t.value], {
-				right: right,
+			t = advance(OPERATOR), tv = t.value, p = t.position;
+			operand = progress();
+			nbp = bp[tv], combining = combp[tv];
+			node = new Node(nt[tv], {
+				right: operand,
 				bp: nbp
 			});
-			var n = uber;
-			while (n.right.bp > nbp)
-				n = n.right;
-			node.left = n.right;
-			n.right = node;
+			n = uber;
+			if(combining === 0 || combining === 2) {
+				// Left combining & uncombining
+				/*    H       H
+				 *   / X ->  / !
+				 *    / \     X R
+				 *           / \
+				 */
+				while (n.right.bp > nbp)
+					n = n.right;
+				if (combining === 2 && n.right.bp === nbp)
+					throw PE("Attempting to combine uncombinable operator", p);
+				node.left = n.right;
+				n.right = node;
+			} else if (combining === 1){
+				/* Right combining
+				 *     H             H
+				 *      L     ->      L
+				 *     / L           / L
+				 *      / \           / !
+				 *         A           A R
+				 */
+				while (n.right.bp >= nbp)
+					n = n.right;
+				node.left = n.right;
+				n.right = node;
+			}
 		};
 		return uber.right;
 	};
+	var operating = function(){
+		var start = unary();
+		return operatorPiece(start, unary);
+	}
 
 	var omissionCall = function (node) {
 		while (true) {

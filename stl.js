@@ -21,6 +21,13 @@
 
 	reg('Rule', Rule);
 	reg('derive', derive);
+	reg('composing', function(obj_, na){
+		var obj = derive(obj_);
+		na.each(function(item, prop){
+			obj[prop] = item
+		});
+		return obj;
+	});
 	reg('endl', '\n');
 
 	reg('Object', Object);

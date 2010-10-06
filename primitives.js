@@ -7,7 +7,7 @@ Nai.prototype = {
 	hasOwnProperty: undefined
 }
 
-var derive = function(){
+var derive = Object.create ? Object.create : function(){
 	var F = function(){};
 	return function(obj){
 		F.prototype = obj;
