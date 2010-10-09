@@ -21,11 +21,16 @@
 
 	reg('Rule', Rule);
 	reg('derive', derive);
-	reg('composing', function(obj_, na){
+	reg('composing', function(obj_){
 		var obj = derive(obj_);
-		na.each(function(item, prop){
-			obj[prop] = item
-		});
+		for(var i = 1; i < arguments.length; i++){
+			if(arguments[i] instanceof LF_Rule)
+				obj[arguments[i].left] = arguments[i].right;
+			else if (arguments[i] instanceof LF_NamedArguments)
+				arguments[i].each(function(val, prop){
+					obj[prop] = val
+				});
+		}
 		return obj;
 	});
 	reg('endl', '\n');

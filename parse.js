@@ -12,7 +12,7 @@ var typename;
 var NodeType = lofn.NodeType = function () {
 
 	var types = typename = [
-		'UNKNOWN', 'VARIABLE', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT', 'ARGUMENTS', 'CALLEE', 'ARGN',
+		'UNKNOWN', 'VARIABLE', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT', 'ARGUMENTS', 'CALLEE', 'ARGN', 'GROUP',
 
 		'MEMBER', 'ITEM', 'MEMBERREFLECT', 
 
@@ -94,6 +94,8 @@ return function (input, source) {
 		this.parent = env;
 		this.usedVariables = new Nai;
 		this.usedVariablesOcc = new Nai;
+		this.usedTemps = {};
+		this.grDepth = 0;
 	};
 	ScopedScript.prototype.newVar = function (name, isarg) {
 		if (this.variables[name] >= 0) return;
@@ -112,6 +114,9 @@ return function (input, source) {
 		if(this.usedVariablesOcc[name] === undefined)
 			this.usedVariablesOcc[name] = position;
 	}
+	ScopedScript.prototype.useTemp = function (type, id){
+		this.usedTemps[type+id] = true;
+	}
 	ScopedScript.prototype.listVar = function () {
 		for (var each in this.usedVariables) {
 			if (this.usedVariables[each] === true && !(this.variables[each] > 0)){
@@ -123,7 +128,14 @@ return function (input, source) {
 		};
 		for (var i = 0; i < this.nest.length; i++)
 			this.nest[i].listVar();
-	};
+	}
+	ScopedScript.prototype.listTemp = function(){
+		var l = []
+		for(var each in this.usedTemps)
+			if(this.usedTemps[each] === true)
+				l.push(each);
+		return l;
+	}
 	ScopedScript.prototype.generateQueue = function(arr){
 		if(!arr) arr = [];
 		for(var i = 0; i < this.nest.length; i++)
@@ -446,8 +458,6 @@ return function (input, source) {
 					// braced expression (expr)
 					advance();
 					var n = expression(true);
-					n.bp = 0;
-					n.grouped = true;
 					advance(ENDBRACE, 41);
 					return n;
 				} else if (token.value === CRSTART) {
@@ -699,7 +709,7 @@ return function (input, source) {
 		'<': 30, '>': 30, '<=': 30, '>=': 30,
 		'is': 35, 'in': 35,
 		'==': 40, '!=': 40, '=~': 40, '!~': 40, '===':40, '!==':40,
-		'and': 50, 'or': 50,
+		'and': 50, 'or': 55,
 		'as': 60,
 		'->': 70
 	};
@@ -836,11 +846,11 @@ return function (input, source) {
 	
 		var method, isOmission = true;
 
-		while (true) {
-			if (!token) return c;
+		out: while (true) {
+			if (!token) break out;
 			switch (token.type) {
 				case END: case SEMICOLON: case ENDBRACE: case ELSE: case WHEN: case OTHERWISE:
-					return c;
+					break out;
 				case THEN:
 					advance();
 					if (tokenIs(DOT)) {
@@ -878,7 +888,9 @@ return function (input, source) {
 						throw PE('Invalid Omission Call');
 					}
 			}
-		}
+		};
+
+		return new Node(nt.GROUP, {operand: c});
 	};
 	var callItem = operating;
 

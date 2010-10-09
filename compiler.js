@@ -21,6 +21,7 @@
 	var AFTER_BLOCK
 	var JOIN_STMTS
 	var THIS_BIND
+	var C_TEMP
 
 	var CTRLCHR = function (c) {
 		var n = c.charCodeAt(0);
@@ -107,6 +108,12 @@
 	schemata(nt.VARIABLE, function (n, env) {
 		return GETV(n, env);
 	});
+	schemata(nt.GROUP, function(n, env){
+		env.grDepth += 1;
+		var r = '('+transform(this.operand)+')';
+		env.grDepth -= 1;
+		return r;
+	});
 	schemata(nt.THIS, function (nd, e) {
 		var n = e;
 		while (n.rebindThis) n = n.upper;
@@ -126,7 +133,7 @@
 	schemata(nt.PARAMETERS, function () {
 		throw new Error('Unexpected parameter group');
 	});
-	schemata(nt.CALL, function () {
+	schemata(nt.CALL, function (n, env) {
 		var comp;
 		switch (this.func.type) {
 		case nt.MEMBER:
@@ -149,9 +156,10 @@
 			} else args.push(transform(this.args[i]));
 		}
 		if (this.pipeline) {
+			env.useTemp('PIPE', env.grDepth);
 			var arg0 = args[0];
-			args[0] = '___$PIPE';
-			comp = '___$PIPE=' + arg0 + ',' + comp;
+			args[0] = C_TEMP('PIPE'+env.grDepth);
+			comp =  C_TEMP('PIPE'+env.grDepth) + '=' + arg0 + ',' + comp;
 		};
 		comp += args.join(',');
 		if (this.nameused) comp += (args.length ? ',' : '') + 'LF_TNAMES(' + names.join(',') + ')';
@@ -194,17 +202,17 @@
 
 	var binoper = function (operator, tfoper) {
 		schemata(nt[operator], function () {
-			return '(' + transform(this.left) + tfoper + transform(this.right) + ')';
+			return transform(this.left) + tfoper + transform(this.right);
 		});
 	};
 	var methodoper = function (operator, method) {
 		schemata(nt[operator], function () {
-			return '('+transform(this.right)+'.'+method+'('+transform(this.left)+'))'
+			return '(' + transform(this.right) + ').' + method + '(' + transform(this.left) + ')'
 		});
 	};
 	var lmethodoper = function (operator, method) {
 		schemata(nt[operator], function () {
-			return '(' + transform(this.left) + '.' + method + '(' + transform(this.right) + '))';
+			return '(' + transform(this.left) + ').' + method + '(' + transform(this.right) + ')';
 		});
 	};
 
@@ -236,10 +244,10 @@
 		return 'LF_CREATERULE(' + transform(this.left) + ',' + transform(this.right) + ')';
 	});
 	schemata(nt.NEGATIVE, function () {
-		return '-(' + transform(this.operand) + ')';
+		return '(-(' + transform(this.operand) + '))';
 	});
 	schemata(nt.NOT, function () {
-		return '!(' + transform(this.operand) + ')';
+		return '(!(' + transform(this.operand) + '))';
 	});
 
 	schemata(nt.DO, function(nd, e){
@@ -365,10 +373,14 @@
 		env = tree;
 		var s = transform(tree.code);
 		var locals = tree.locals,
-			vars = [];
+			vars = [],
+			temps = tree.listTemp();
 		for (var i = 0; i < locals.length; i++)
-		if (!(tree.varIsArg[locals[i]])) vars.push(C_NAME(locals[i]));
-		s = JOIN_STMTS(['var ___$PIPE,___$EXCEPTION', THIS_BIND(tree), ARGN_BIND(tree), (vars.length ? 'var ' + vars.join(', ') : '')]) 
+			if (!(tree.varIsArg[locals[i]])) vars.push(C_NAME(locals[i]));
+		for (var i = 0; i < temps.length; i++)
+			temps[i] = C_TEMP(temps[i]);
+
+		s = JOIN_STMTS(['var ___$EXCEPTION' + (temps.length ? ',' + temps.join(','): ''), THIS_BIND(tree), ARGN_BIND(tree), (vars.length ? 'var ' + vars.join(', ') : '')]) 
 			+ (hook_enter || '') 
 			+ s 
 			+ (hook_exit || '');
@@ -386,6 +398,7 @@
 		THIS_BIND = config.thisBind;
 		ARGN_BIND = config.argnBind;
 		T_ARGN = config.argnName;
+		C_TEMP = config.tempName;
 	};
 	// Default Lofn compilation config
 	lofn.standardTransform = function () {
@@ -397,6 +410,9 @@
 			},
 			label: function (name) {
 				return '_$L_' + TO_ENCCD(name)
+			},
+			tempName: function (type){
+				return '___$' + type
 			},
 			thisName: function (env) {
 				return '_$T_'

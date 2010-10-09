@@ -59,7 +59,8 @@ var LF_RMETHOD = function (l, r, m){
 	return r[m](l)
 }
 
-var NamedArguments = function(){this._ = new Nai}
+var NamedArguments = function(){this._ = new Nai};
+var LF_NamedArguments = NamedArguments;
 NamedArguments.prototype = {};
 NamedArguments.prototype.item = function(p){return this._[p]}
 NamedArguments.prototype.itemset = function(p, v){return this._[p] = v}
@@ -169,6 +170,7 @@ var Rule = function (l, r) {
 	this.left = l,
 	this.right = r;
 }
+var LF_Rule = Rule;
 Rule.prototype.reverse = function () {
 	return new Rule(this.right, this.left);
 }
