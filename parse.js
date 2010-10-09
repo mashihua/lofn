@@ -822,7 +822,7 @@ return function (input, source) {
 		// following specifics are supported:
 		// - Omissioned calls
 		// - "then" syntax for chained calls.
-		var right, c = operating();
+		var right, c = unary();
 		if (tokenIs(OPERATOR, '=')){
 			advance();
 			return new Node(nt['='], { left: c, right: expression(true) });
@@ -832,6 +832,7 @@ return function (input, source) {
 			return new Node(nt['='], { left: c, right: new Node(nt[_v.slice(0, _v.length - 1)], {left:c, right:expression(true)})});
 		}
 
+		c = operatorPiece(c, unary);
 	
 		var method, isOmission = true;
 
@@ -1015,6 +1016,16 @@ return function (input, source) {
 			if(opt_colononly)
 				throw PE('Only COLON bodies can be used due to `!option colononly`');
 			n.thenPart = statement_r();
+			while(tokenIs(SEMICOLON)) advance();
+			if(tokenIs(ELSE)){
+				advance(ELSE);
+				if(tokenIs(IF)){
+					n.elsePart = ifstmt();
+				} else {
+					advance(COMMA);
+					n.elsePart = statement_r();
+				}
+			}
 		} else {
 			throw PE('Flow control body not started with COMMA or COLON');
 		}
@@ -1179,5 +1190,7 @@ return function (input, source) {
 	workingScope.code = statements();
 
 	return scopes;
-};
+}
+
+
 }();
