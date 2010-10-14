@@ -900,9 +900,7 @@ return function (input, source) {
 	}
 
 	var endS = false;
-	var stmtover = function(){
-		endS = true;
-	}
+	var stmtover = function(){endS = true}
 
 
 	var statement =  function(){
@@ -976,7 +974,8 @@ return function (input, source) {
 				advance();
 				a.push(vardecl());
 			}
-		}
+		};
+		ensure(stover(), "Invalid VAR declaration");
 	};
 	var vardecl = function () {
 		var v = variable();
