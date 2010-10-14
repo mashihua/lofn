@@ -96,6 +96,7 @@ return function (input, source) {
 		this.usedVariablesOcc = new Nai;
 		this.usedTemps = {};
 		this.grDepth = 0;
+		this.sharpNo = 0;
 	};
 	ScopedScript.prototype.newVar = function (name, isarg) {
 		if (this.variables[name] >= 0) return;
@@ -156,7 +157,7 @@ return function (input, source) {
 		tokens = input.tokens,
 		scopes = [],
 		token = tokens[0],
-		next, 
+		next = tokens[1], 
 		i = 0, 
 		len = tokens.length, 
 		workingScopes = [],
@@ -166,7 +167,8 @@ return function (input, source) {
 		token_type = token ? token.type : undefined,
 		token_value = token ? token.value : undefined,
 		opt_explicit = !!input.options.explicit,
-		opt_colononly = !!input.options.colononly;
+		opt_colononly = !!input.options.colononly,
+		opt_sharpno = !!input.options.sharpno;
 	if (token) curline = token.line;
 	function acquire(){};
 	var moveNext = function () {
@@ -308,10 +310,13 @@ return function (input, source) {
 	//		"{" statements "}"
 	var functionBody = function (p) {
 		advance(STARTBRACE, 123);
-		var n = newScope(), s = workingScope;
+		var n = newScope(), s = workingScope, code;
 		workingScope.parameters = p || new Node(nt.PARAMETERS, { names: [], anames: [] });
 		workingScope.ready();
-		workingScope.code = statements();
+		workingScope.code = code = statements();
+		if(code.content.length === 1 && code.content[0].type === nt.GROUP){
+			code.content[0] = new Node(nt.RETURN, {expression: code.content[0]});
+		}
 		endScope();
 		advance(ENDBRACE, 125);
 		return new Node(nt.FUNCTION, { tree: s });
@@ -394,7 +399,7 @@ return function (input, source) {
 	var lambdaCont = function (p) {
 		var right;
 		advance(LAMBDA);
-		if (tokenIs(STARTBRACE, CRSTART)) { // statement lambda
+		if (tokenIs(STARTBRACE, CRSTART) && !((next && next.isName || nextIs(STRING)) && shiftIs(2, COLON))) { // statement lambda
 			right = functionBody(p);
 			return right;
 		} else {
@@ -410,13 +415,10 @@ return function (input, source) {
 		}
 	}
 	var isLambdaPar = function () {
-		if (
+		return (
 			nextIs(ENDBRACE, RDEND) && shiftIs(2, LAMBDA) ||
 			nextIs(ID) && (shiftIs(2, ENDBRACE, RDEND) && shiftIs(3, LAMBDA) || shiftIs(2, COMMA))
-		) {
-			return true;
-		}
-		return false;
+		)
 	}
 	var primary = function () {
 		ensure(token, 'Unable to get operand: missing token');
@@ -485,8 +487,18 @@ return function (input, source) {
 						left : new Node(nt.ARGN),
 						item : new Node(nt.LITERAL, {value: name().name})
 					});
-				} else {
+				} else if (tokenIs(SHARP)) {
 					return new Node(nt.ARGUMENTS);
+				} else {
+					// implicit SHARPs
+					if(opt_sharpno)
+						throw PE('Implicit # was disabled due to !option sharono');
+					return new Node(nt.MEMBERREFLECT, {
+						left : new Node(nt.ARGUMENTS),
+						right : new Node(nt.LITERAL, {
+							value: workingScope.sharpNo ++
+						})
+					});
 				};
 			case LAMBDA:
 				return lambdaCont(new Node(nt.PARAMETERS, {

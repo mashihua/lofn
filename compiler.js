@@ -371,7 +371,9 @@
 	var compileFunctionBody = function (tree, hook_enter, hook_exit) {
 		if (tree.transformed) return tree.transformed;
 		env = tree;
-		var s = transform(tree.code);
+		var s;
+		// SEF processing
+		s = transform(tree.code);
 		var locals = tree.locals,
 			vars = [],
 			temps = tree.listTemp();
