@@ -89,7 +89,7 @@ var lex = lofn.lex = function () {
 		};
 	}();
 	var nameTypes = {
-	'is': OPERATOR, 'and': OPERATOR, 'not': OPERATOR, 'or': OPERATOR,
+	'is': OPERATOR, 'and': OPERATOR, 'not': OPERATOR, 'or': OPERATOR, 'in': OPERATOR,
 	'as': OPERATOR,
 	'if': IF,
 	'for': FOR,

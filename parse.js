@@ -12,7 +12,7 @@ var typename;
 var NodeType = lofn.NodeType = function () {
 
 	var types = typename = [
-		'UNKNOWN', 'VARIABLE', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT', 'ARGUMENTS', 'CALLEE', 'ARGN', 'GROUP',
+		'UNKNOWN', 'VARIABLE', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT', 'ARGUMENTS', 'CALLEE', 'ARGN', 'GROUP', 'SHARP',
 
 		'MEMBER', 'ITEM', 'MEMBERREFLECT', 
 
@@ -115,8 +115,8 @@ return function (input, source) {
 		if(this.usedVariablesOcc[name] === undefined)
 			this.usedVariablesOcc[name] = position;
 	}
-	ScopedScript.prototype.useTemp = function (type, id){
-		this.usedTemps[type+id] = true;
+	ScopedScript.prototype.useTemp = function (type, id, aspar){
+		this.usedTemps[type+id] = aspar ? 2 : 1;
 	}
 	ScopedScript.prototype.listVar = function () {
 		for (var each in this.usedVariables) {
@@ -133,7 +133,14 @@ return function (input, source) {
 	ScopedScript.prototype.listTemp = function(){
 		var l = []
 		for(var each in this.usedTemps)
-			if(this.usedTemps[each] === true)
+			if(this.usedTemps[each] === 1)
+				l.push(each);
+		return l;
+	}
+	ScopedScript.prototype.listParTemp = function(){
+		var l = []
+		for(var each in this.usedTemps)
+			if(this.usedTemps[each] === 2)
 				l.push(each);
 		return l;
 	}
@@ -482,22 +489,25 @@ return function (input, source) {
 						left : new Node(nt.ARGUMENTS),
 						right : literal()
 					});
-				} else if (tokenIs(ID)) {
+				} else if (token.isName) {
 					return new Node(nt.ITEM, {
 						left : new Node(nt.ARGN),
 						item : new Node(nt.LITERAL, {value: name().name})
 					});
 				} else if (tokenIs(SHARP)) {
+					advance();
 					return new Node(nt.ARGUMENTS);
+				} else if (tokenIs(MY, '@')){
+					advance();
+					return new Node(nt.ARGN);
 				} else {
 					// implicit SHARPs
 					if(opt_sharpno)
 						throw PE('Implicit # was disabled due to !option sharono');
-					return new Node(nt.MEMBERREFLECT, {
-						left : new Node(nt.ARGUMENTS),
-						right : new Node(nt.LITERAL, {
-							value: workingScope.sharpNo ++
-						})
+					if(workingScope.sharpNo++ >= workingScope.parameters.names.length)
+						workingScope.useTemp('IARG', workingScope.sharpNo, true);
+					return new Node(nt.SHARP, {
+						id :  workingScope.sharpNo
 					});
 				};
 			case LAMBDA:
@@ -529,26 +539,31 @@ return function (input, source) {
 		}
 	}
 	var member = function () {
-		var node = primary();
+		var m = primary();
 		// a.b.[e1].c[e2]			...
 		while (tokenIs(DOT) || tokenIs(STARTBRACE, SQSTART) && !token.spaced) {
 			var t = advance();
 			if (t.type === DOT) {
-				node = memberitem(node);
+				m = memberitem(m);
 			} else {
 				// ITEM
 				// x[e] === x.item(e)
-				node = new Node(nt.ITEM, { left: node, item: expression() });
+				m = new Node(nt.CALL, {
+					func: new Node(nt.MEMBER,{
+						left: m,
+						right: new Node(nt.VARIABLE, {name: 'item'})
+					})
+				});
+				if (tokenIs(ENDBRACE,SQEND)) { m.args = []; advance(); continue; };
+				arglist(m);
 				advance(ENDBRACE, SQEND);
 			}
 		};
-		return node;
+		return m;
 	};
 	var callExpression = function () {
 		var m = primary();
-		out: while (
-					 tokenIs(STARTBRACE, RDSTART)
-					 || tokenIs(STARTBRACE, SQSTART) && !token.spaced
+		out: while (tokenIs(STARTBRACE) && !token.spaced
 					 || tokenIs(DOT)
 					 ) {
 			switch (token.type) {
@@ -558,17 +573,27 @@ return function (input, source) {
 						m = new Node(nt.CALL, {
 							func: m
 						});
-						if (token.type === ENDBRACE && token.value === RDEND) { m.args = []; advance(); continue; };
+						if (tokenIs(ENDBRACE,CREND)) { m.args = []; advance(); continue; };
 						arglist(m);
 						advance(ENDBRACE, RDEND);
 					} else if (token.value === SQSTART) { // ITEM operator
 						// a[e] === a.item(e)
 						advance();
-						m = new Node(nt.ITEM, {
-							left: m,
-							item: expression()
+						m = new Node(nt.CALL, {
+							func: new Node(nt.MEMBER,{
+								left: m,
+								right: new Node(nt.VARIABLE, {name: 'item'})
+							})
 						});
+						if (tokenIs(ENDBRACE,SQEND)) { m.args = []; advance(); continue; };
+						arglist(m);
 						advance(ENDBRACE, SQEND);
+					} else if (token.value === CRSTART && !token.spaced){
+						m = new Node(nt.CALL, {
+							func: m,
+							args: [functionBody(undefined, true)],
+							names: [null],
+						});
 					} else {
 						break out;
 					}

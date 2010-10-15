@@ -70,6 +70,9 @@ NamedArguments.prototype.each = function(f){
 		if(OWNS(_,each))
 			f.call(_[each],_[each],each);
 }
+NamedArguments.prototype.contains = function(name){
+	return OWNS(this._, name);
+}
 var LF_TNAMES = function(){
 	var o = new NamedArguments;
 	for(var i=arguments.length-2;i>=0;i-=2)

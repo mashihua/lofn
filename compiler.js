@@ -36,7 +36,7 @@
 	}
 	var SETV = function (node, val, env) {
 		var depth = env.useVar(node.name)
-		return '(' + C_NAME(node.name) + '=' + val + ')';
+		return C_NAME(node.name) + '=' + val;
 	}
 	schemata(nt.SCRIPT, function (n) {
 		var a = [];
@@ -102,8 +102,14 @@
 		var memberName = this.right.name;
 		return '(' + transform(this.left) + ')[' + transform(this.right) + ']';
 	});
+	schemata(nt.SHARP, function(n, env){
+		if(this.id >= env.parameters.names.length){
+			return C_TEMP('IARG' + this.id);
+		}
+		return C_NAME(env.parameters.names[this.id]);
+	});
 	schemata(nt.ITEM, function () {
-		return '(' + transform(this.left) + '.item(' + transform(this.item) + '))';
+		return '(' + transform(this.left) + ').item(' + transform(this.item) + ')';
 	});
 	schemata(nt.VARIABLE, function (n, env) {
 		return GETV(n, env);
@@ -136,11 +142,8 @@
 	schemata(nt.CALL, function (n, env) {
 		var comp;
 		switch (this.func.type) {
-		case nt.MEMBER:
+		case nt.MEMBER: case nt.MEMBERREFLECT:
 			comp = transform(this.func) + '(';
-			break;
-		case nt.MEMBERREFLECT:
-			comp = 'LF_MINVOKE(' + transform(this.func.left) + ',' + transform(this.func.right) + ',';
 			break;
 		case nt.ITEM:
 			comp = 'LF_IINVOKE(' + transform(this.func.left) + ',' + transform(this.func.item) + ',';
@@ -261,13 +264,15 @@
 		var _e = env,
 			f = this.tree;
 		var s = compileFunctionBody(f);
-		var pars = f.parameters.names.slice(0);
+		var pars = f.parameters.names.slice(0), temppars = f.listParTemp();
 		for (var i = 0; i < pars.length; i++)
-		pars[i] = C_NAME(pars[i])
-		s = 'function(' + pars.join(',') + '){\n' + s + '\n}';
+			pars[i] = C_NAME(pars[i])
+		for (var i = 0; i < temppars.length; i++)
+			temppars[i] = C_TEMP(temppars[i])
+		s = 'function(' + pars.concat(temppars).join(',') + '){\n' + s + '\n}';
 
 		env = _e;
-		return '(' + s + ')';
+		return s;
 	});
 
 	schemata(nt.RETURN, function () {
