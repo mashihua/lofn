@@ -50,7 +50,7 @@
 	schemata(nt['='], function (n, env) {
 		switch (this.left.type) {
 		case nt.ITEM:
-			return '(' + transform(this.left.left) + '.itemset(' + transform(this.left.item) + ',' + transform(this.right) + '))';
+			return 'LF_ITEMSET(' + transform(this.left.left) + ',[' + C_ARGS(this.left) + '],' + transform(this.right) + ')';
 		case nt.MEMBER:
 			return '((' + transform(this.left.left) + ')[' + strize(this.left.right.name) + ']=' + transform(this.right) + ')';
 		case nt.MEMBERREFLECT:
@@ -109,7 +109,7 @@
 		return C_NAME(env.parameters.names[this.id]);
 	});
 	schemata(nt.ITEM, function () {
-		return '(' + transform(this.left) + ').item(' + transform(this.item) + ')';
+		return '(' + transform(this.left) + ').item(' + C_ARGS(this) + ')';
 	});
 	schemata(nt.VARIABLE, function (n, env) {
 		return GETV(n, env);
@@ -139,35 +139,38 @@
 	schemata(nt.PARAMETERS, function () {
 		throw new Error('Unexpected parameter group');
 	});
-	schemata(nt.CALL, function (n, env) {
-		var comp;
-		switch (this.func.type) {
-		case nt.MEMBER: case nt.MEMBERREFLECT:
-			comp = transform(this.func) + '(';
-			break;
-		case nt.ITEM:
-			comp = 'LF_IINVOKE(' + transform(this.func.left) + ',' + transform(this.func.item) + ',';
-			break;
-		default:
-			comp = transform(this.func) + '(';
-		};
+
+	var C_ARGS = function(node){
 		var args = [],
-			names = [];
-		for (var i = 0; i < this.args.length; i++) {
-			if (this.names[i]) {
-				names.push(strize(this.names[i]), transform(this.args[i]));
-			} else args.push(transform(this.args[i]));
+			names = [],
+			comp = '';
+		for (var i = 0; i < node.args.length; i++) {
+			if (node.names[i]) {
+				names.push(strize(node.names[i]), transform(node.args[i]));
+			} else args.push(transform(node.args[i]));
 		}
-		if (this.pipeline) {
+		if (node.pipeline) {
 			env.useTemp('PIPE', env.grDepth);
 			var arg0 = args[0];
 			args[0] = C_TEMP('PIPE'+env.grDepth);
 			comp =  C_TEMP('PIPE'+env.grDepth) + '=' + arg0 + ',' + comp;
 		};
 		comp += args.join(',');
-		if (this.nameused) comp += (args.length ? ',' : '') + 'LF_TNAMES(' + names.join(',') + ')';
-		comp += ')'
-		return '(' + comp + ')';
+		if (node.nameused) comp += (args.length ? ',' : '') + 'LF_TNAMES(' + names.join(',') + ')';
+		return comp;
+	};
+
+	schemata(nt.CALL, function (n, env) {
+		var comp, head;
+		switch (this.func.type) {
+			case nt.ITEM:
+				head = 'LF_IINVOKE(' + transform(this.func.left) + ',[' + C_ARGS(this.func) + ']' + (this.args.length ? ',' : '');
+				break;
+			default:
+				head = transform(this.func) + '(';
+		};
+		comp = C_ARGS(this) + ')'
+		return '(' + head + comp + ')';
 	});
 	schemata(nt.OBJECT, function () {
 		var comp = '{';

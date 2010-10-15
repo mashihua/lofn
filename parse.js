@@ -548,11 +548,8 @@ return function (input, source) {
 			} else {
 				// ITEM
 				// x[e] === x.item(e)
-				m = new Node(nt.CALL, {
-					func: new Node(nt.MEMBER,{
-						left: m,
-						right: new Node(nt.VARIABLE, {name: 'item'})
-					})
+				m = new Node(nt.ITEM, {
+						left: m
 				});
 				if (tokenIs(ENDBRACE,SQEND)) { m.args = []; advance(); continue; };
 				arglist(m);
@@ -573,17 +570,14 @@ return function (input, source) {
 						m = new Node(nt.CALL, {
 							func: m
 						});
-						if (tokenIs(ENDBRACE,CREND)) { m.args = []; advance(); continue; };
+						if (tokenIs(ENDBRACE,RDEND)) { m.args = []; advance(); continue; };
 						arglist(m);
 						advance(ENDBRACE, RDEND);
 					} else if (token.value === SQSTART) { // ITEM operator
 						// a[e] === a.item(e)
 						advance();
-						m = new Node(nt.CALL, {
-							func: new Node(nt.MEMBER,{
-								left: m,
-								right: new Node(nt.VARIABLE, {name: 'item'})
-							})
+						m = new Node(nt.ITEM, {
+							left: m
 						});
 						if (tokenIs(ENDBRACE,SQEND)) { m.args = []; advance(); continue; };
 						arglist(m);

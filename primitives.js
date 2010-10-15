@@ -53,7 +53,10 @@ var LF_MINVOKE = function (p, s) {
 	return p[s].apply(p,SLICE.call(arguments,2))
 }
 var LF_IINVOKE = function (p, s) {
-	return p.item(s).apply(p,SLICE.call(arguments,2))
+	return p.item.apply(p, s).apply(p,SLICE.call(arguments,2))
+}
+var LF_ITEMSET = function (p, s, v){
+	return p.itemset.apply(p, [v].concat(s));
 }
 var LF_RMETHOD = function (l, r, m){
 	return r[m](l)
@@ -72,6 +75,9 @@ NamedArguments.prototype.each = function(f){
 }
 NamedArguments.prototype.contains = function(name){
 	return OWNS(this._, name);
+}
+NamedArguments.prototype.toString = function(){
+	return '[lfMRT NamedArguments]'
 }
 var LF_TNAMES = function(){
 	var o = new NamedArguments;
