@@ -315,9 +315,9 @@ return function (input, source) {
 
 	// Function body: 
 	//		"{" statements "}"
-	var functionBody = function (p) {
+	var functionBody = function (p, rebind) {
 		advance(STARTBRACE, 123);
-		var n = newScope(), s = workingScope, code;
+		var n = newScope(rebind), s = workingScope, code;
 		workingScope.parameters = p || new Node(nt.PARAMETERS, { names: [], anames: [] });
 		workingScope.ready();
 		workingScope.code = code = statements();
@@ -332,9 +332,9 @@ return function (input, source) {
 	//		COLON
 	//			statements
 	//		"end"
-	var colonBody = function (p) {
+	var colonBody = function (p, rebind) {
 		advance(COLON);
-		var n = newScope(), s = workingScope;
+		var n = newScope(rebind), s = workingScope;
 		workingScope.parameters = p || new Node(nt.PARAMETERS, { names: [], anames: [] });
 		workingScope.ready();
 		workingScope.code = statements(END);
@@ -343,12 +343,12 @@ return function (input, source) {
 		return new Node(nt.FUNCTION, { tree: s });
 	};
 
-	var curryBody = function (p) {
-		var n = newScope(), s = workingScope;
+	var curryBody = function (p, rebind) {
+		var n = newScope(rebind), s = workingScope;
 		workingScope.parameters = p;
 		workingScope.ready();
 		workingScope.code = new Node(nt.SCRIPT, {
-			content: [new Node(nt.RETURN, { expression: functionLiteral() })]
+			content: [new Node(nt.RETURN, { expression: functionLiteral(true) })]
 		});
 		endScope();
 		return new Node(nt.FUNCTION, { tree: s });
@@ -357,17 +357,17 @@ return function (input, source) {
 
 	// Function literal
 	// "function" [Parameters] FunctionBody
-	var functionLiteral = function () {
+	var functionLiteral = function (rebind) {
 		var f;
 		if (tokenIs(STARTBRACE, RDSTART)) {
 			var p = parameters();
 		};
 		if (tokenIs(STARTBRACE, RDSTART)) { // currying arguments
-			f = curryBody(p);
+			f = curryBody(p, rebind);
 		} else if (tokenIs(COLON))
-			f = colonBody(p)
+			f = colonBody(p, rebind)
 		else
-			f = functionBody(p);
+			f = functionBody(p, rebind);
 		return f;
 	};
 

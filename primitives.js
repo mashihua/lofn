@@ -62,7 +62,12 @@ var LF_RMETHOD = function (l, r, m){
 	return r[m](l)
 }
 
-var NamedArguments = function(){this._ = new Nai};
+var NamedArguments = function(){
+	var _ = new Nai;
+	for(var i=arguments.length-2;i>=0;i-=2)
+		_[arguments[i]]=arguments[i+1];
+	this._ = _;
+};
 var LF_NamedArguments = NamedArguments;
 NamedArguments.prototype = {};
 NamedArguments.prototype.item = function(p){return this._[p]}
@@ -78,12 +83,6 @@ NamedArguments.prototype.contains = function(name){
 }
 NamedArguments.prototype.toString = function(){
 	return '[lfMRT NamedArguments]'
-}
-var LF_TNAMES = function(){
-	var o = new NamedArguments;
-	for(var i=arguments.length-2;i>=0;i-=2)
-		o._[arguments[i]]=arguments[i+1]
-	return o;
 }
 var LF_CNARG = function(a){
 	if(a instanceof NamedArguments)
