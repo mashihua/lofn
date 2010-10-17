@@ -124,7 +124,7 @@ var lex = lofn.lex = function () {
 	'do': DO,
 	'try': TRY,
 	'catch': CATCH,
-	'funally': FINALLY,
+	'finally': FINALLY,
 	'Task': TASK
 };
 var nameType = function (m) {
