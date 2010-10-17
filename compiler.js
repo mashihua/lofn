@@ -50,7 +50,7 @@
 	schemata(nt['='], function (n, env) {
 		switch (this.left.type) {
 		case nt.ITEM:
-			return 'LF_ITEMSET(' + transform(this.left.left) + ',[' + C_ARGS(this.left) + '],' + transform(this.right) + ')';
+			return 'LF_ITEMSET(' + transform(this.left.left) + ',[' + C_ARGS(this.left).args + '],' + transform(this.right) + ')';
 		case nt.MEMBER:
 			return '((' + transform(this.left.left) + ')[' + strize(this.left.right.name) + ']=' + transform(this.right) + ')';
 		case nt.MEMBERREFLECT:
@@ -94,7 +94,7 @@
 		return C_NAME(env.parameters.names[this.id]);
 	});
 	schemata(nt.ITEM, function () {
-		return '(' + transform(this.left) + ').item(' + C_ARGS(this) + ')';
+		return '(' + transform(this.left) + ').item(' + C_ARGS(this).args + ')';
 	});
 	schemata(nt.VARIABLE, function (n, env) {
 		return GETV(n, env);
@@ -128,7 +128,8 @@
 	var C_ARGS = function(node){
 		var args = [],
 			names = [],
-			comp = '';
+			comp = '',
+			cbef = '';
 		for (var i = 0; i < node.args.length; i++) {
 			if (node.names[i]) {
 				names.push(strize(node.names[i]), transform(node.args[i]));
@@ -138,23 +139,24 @@
 			env.useTemp('PIPE', env.grDepth);
 			var arg0 = args[0];
 			args[0] = C_TEMP('PIPE'+env.grDepth);
-			comp =  C_TEMP('PIPE'+env.grDepth) + '=' + arg0 + ',' + comp;
+			cbef =  C_TEMP('PIPE'+env.grDepth) + '=' + arg0 + ',';
 		};
 		comp += args.join(',');
 		if (node.nameused) comp += (args.length ? ',' : '') + '(new NamedArguments(' + names.join(',') + '))';
-		return comp;
+		return {before: cbef, args: comp};
 	};
 	schemata(nt.CALL, function (n, env) {
 		var comp, head;
 		switch (this.func.type) {
 			case nt.ITEM:
-				head = 'LF_IINVOKE(' + transform(this.func.left) + ',[' + C_ARGS(this.func) + ']' + (this.args.length ? ',' : '');
+				head = 'LF_IINVOKE(' + transform(this.func.left) + ',[' + C_ARGS(this.func).args + ']' + (this.args.length ? ',' : '');
 				break;
 			default:
 				head = transform(this.func) + '(';
 		};
-		comp = C_ARGS(this) + ')'
-		return '(' + head + comp + ')';
+		var ca = C_ARGS(this)
+		comp = ca.args + ')'
+		return '(' + ca.before + head + comp + ')';
 	});
 	schemata(nt.OBJECT, function () {
 		var comp = '{';
