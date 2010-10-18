@@ -875,7 +875,7 @@ return function (input, source) {
 
 		c = operatorPiece(c, unary);
 	
-		var method, isOmission = true;
+		var method, isOmission = true, curry = false;
 
 		out: while (true) {
 			if (!token) break out;
@@ -907,14 +907,24 @@ return function (input, source) {
 							pipelike: true,
 							pipeline: true
 						});
-					}
+					};
+					curry = false;
 					break;
 				default:
-					if (c.type === nt.CALL && c.pipelike) {
+					if (curry & c.type === nt.CALL && c.pipelike) {
+						c = new Node(nt.CALL, {
+							func: c,
+							args: [],
+							pipelike: true
+						});
 						arglist(c);
+					} else if (c.type === nt.CALL && c.pipelike) {
+						arglist(c);
+						curry = true
 					} else if (isOmission) {
 						c = omissionCall(c);
 						isOmission = false;
+						curry = false;
 					} else {
 						throw PE('Invalid Omission Call');
 					}
