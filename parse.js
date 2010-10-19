@@ -492,7 +492,8 @@ return function (input, source) {
 				} else if (token.isName) {
 					return new Node(nt.ITEM, {
 						left : new Node(nt.ARGN),
-						item : new Node(nt.LITERAL, {value: name().name})
+						args : [new Node(nt.LITERAL, {value: name().name})],
+						names : [null]
 					});
 				} else if (tokenIs(SHARP)) {
 					advance();
