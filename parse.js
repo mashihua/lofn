@@ -476,7 +476,7 @@ return function (input, source) {
 					}
 					// Raw function body
 					// with no arguments
-					else return functionBody(undefined, true);
+					else return functionBody(undefined, false);
 				}
 			case SHARP:
 				// # form
