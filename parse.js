@@ -199,7 +199,6 @@ return function (input, source) {
 		s.rebindThis = isLE;
 		if (workingScope) {
 			workingScope.hasNested = true;
-			workingScope.hasRebindThisNested = isLE && !workingScope.rebindThis;
 			workingScope.nest.push(s);
 		}
 		s.upper = workingScopes[workingScopes.length - 1];
@@ -322,6 +321,7 @@ return function (input, source) {
 		workingScope.ready();
 		workingScope.code = code = statements();
 		if(code.content.length === 1 && code.content[0].type === nt.GROUP){
+			// SEF processing.
 			code.content[0] = new Node(nt.RETURN, {expression: code.content[0]});
 		}
 		endScope();
@@ -900,7 +900,7 @@ return function (input, source) {
 						});
 					} else {
 						// pipeline
-						method = member();
+						method = callExpression();
 						c = new Node(nt.CALL, {
 							func: method,
 							args: [c],
