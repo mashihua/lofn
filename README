@@ -1,7 +1,24 @@
 Lofn
 ===============
-From dess, with love.
-
-*** The language, over
+Amor ex Dessis.
+(From dess, with love.)
 
 Lofn is a new language on JavaScript. It's aimed to create the new experience of web programming.
+
+Naming of versions
+---------------
+Names of the versions are character names from Toho series. And the developing version is named 'hoejuu'.
+
+Checkout the [release] branch for released versions (with tags).
+
+Convention
+---------------
+* Primitival functions: UPPERCASED
+* Types:                PascalCase
+* Prototypes:           camelCase_m
+
+Questions?
+---------------
+Concat me via [infinte.cdda@hotmail.com]
+My blog:      [coro.in]
+Typeof.net:   [typeof.net]
