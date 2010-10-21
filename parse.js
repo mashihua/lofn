@@ -175,7 +175,9 @@ return function (input, source) {
 		token_value = token ? token.value : undefined,
 		opt_explicit = !!input.options.explicit,
 		opt_colononly = !!input.options.colononly,
-		opt_sharpno = !!input.options.sharpno;
+		opt_sharpno = !!input.options.sharpno,
+		opt_forfunction = !!input.options.forfunction
+	;
 	if (token) curline = token.line;
 	function acquire(){};
 	var moveNext = function () {
@@ -471,6 +473,8 @@ return function (input, source) {
 					return n;
 				} else if (token.value === CRSTART) {
 					if((next && next.isName || nextIs(STRING)) && shiftIs(2, COLON)){
+						if(opt_forfunction)
+							throw PE('Object literal denied due to !option forfunction');
 						// object literal
 						return objinit()
 					}
@@ -483,7 +487,7 @@ return function (input, source) {
 				// depended on coming token
 				// #{number} --> Arguments[number]
 				// #{identifier} --> ArgNS[identifier]
-				advance();
+				var p = advance();
 				if (tokenIs(NUMBER)) {
 					return new Node(nt.MEMBERREFLECT, {
 						left : new Node(nt.ARGUMENTS),
@@ -504,7 +508,7 @@ return function (input, source) {
 				} else {
 					// implicit SHARPs
 					if(opt_sharpno)
-						throw PE('Implicit # was disabled due to !option sharono');
+						throw PE('Implicit # was disabled due to !option sharpno', p.position + 1);
 					if(workingScope.sharpNo++ >= workingScope.parameters.names.length)
 						workingScope.useTemp('IARG', workingScope.sharpNo, true);
 					return new Node(nt.SHARP, {
@@ -561,9 +565,7 @@ return function (input, source) {
 	};
 	var callExpression = function () {
 		var m = primary();
-		out: while (tokenIs(STARTBRACE) && !token.spaced
-					 || tokenIs(DOT)
-					 ) {
+		out: while (tokenIs(STARTBRACE) && !token.spaced || tokenIs(DOT)) {
 			switch (token.type) {
 				case STARTBRACE:
 					if (token.value === RDSTART && !token.spaced) { // invocation f(a,b,c...)
@@ -733,21 +735,22 @@ return function (input, source) {
 		return l9;
 	}();
 */
-	var bp = {
-		'*': 10, '/': 10, '%': 10,
-		'+': 20, '-': 20,
-		'<<': 25, '>>': 25,
-		'<=>': 27,
-		'<': 30, '>': 30, '<=': 30, '>=': 30,
-		'is': 35, 'in': 35,
-		'==': 40, '!=': 40, '=~': 40, '!~': 40, '===':40, '!==':40,
-		'and': 50, 'or': 55,
-		'as': 60,
-		'->': 70
-	};
-	var combp = function(){
+
+	var operatorPiece = function(){
 		var L = 0, R = 1, N = 2;
-		return {
+		var bp = {
+			'*': 10, '/': 10, '%': 10,
+			'+': 20, '-': 20,	
+			'<<': 25, '>>': 25,
+			'<=>': 27,
+			'<': 30, '>': 30, '<=': 30, '>=': 30,
+			'is': 35, 'in': 35,
+			'==': 40, '!=': 40, '=~': 40, '!~': 40, '===':40, '!==':40,
+			'and': 50, 'or': 55,
+			'as': 60,
+			'->': 70
+		};
+		var combp = {
 			'*': L, '/': L, '%': L,
 			'+': L, '-': L,
 			'<<': L, '>>': R,
@@ -759,53 +762,53 @@ return function (input, source) {
 			'as': L,
 			'->': R
 		}
-	}();
 
-
-	var operatorPiece = function (start, progress) {
-		// operators.
-		// the "->" operator gets a "Rule" object
-		// the "is","in","as",">>","<<" operators are costumizable.
-		var uber = { right: start, bp: 65536 }, t, tv, operand, nbp, combining, n, node, p;
-		while (tokenIs(OPERATOR) && ensure(bp[token.value] > 0, "Invalid Operator")) { // if is a valid operator, then...
-
-			t = advance(OPERATOR), tv = t.value, p = t.position;
-			operand = progress();
-			nbp = bp[tv], combining = combp[tv];
-			node = new Node(nt[tv], {
-				right: operand,
-				bp: nbp
-			});
-			n = uber;
-			if(combining === 0 || combining === 2) {
-				// Left combining & uncombining
-				/*    H       H
-				 *   / X ->  / !
-				 *    / \     X R
-				 *           / \
-				 */
-				while (n.right.bp > nbp)
-					n = n.right;
-				if (combining === 2 && n.right.bp === nbp)
-					throw PE("Attempting to combine uncombinable operator", p);
-				node.left = n.right;
-				n.right = node;
-			} else if (combining === 1){
-				/* Right combining
-				 *     H             H
-				 *      L     ->      L
-				 *     / L           / L
-				 *      / \           / !
-				 *         A           A R
-				 */
-				while (n.right.bp >= nbp)
-					n = n.right;
-				node.left = n.right;
-				n.right = node;
-			}
+		return function (start, progress) {
+			// operators.
+			// the "->" operator gets a "Rule" object
+			// the "is","in","as",">>","<<" operators are costumizable.
+			var uber = { right: start, bp: 65536 }, t, tv, operand, nbp, combining, n, node, p;
+			while (tokenIs(OPERATOR) && ensure(bp[token.value] > 0, "Invalid Operator")) { 
+				// if is a valid operator, then...
+	
+				t = advance(OPERATOR), tv = t.value, p = t.position;
+				operand = progress();
+				nbp = bp[tv], combining = combp[tv];
+				node = new Node(nt[tv], {
+					right: operand,
+					bp: nbp
+				});
+				n = uber;
+				if(combining === L || combining === N) {
+					// Left combining & uncombining
+					/*    H       H
+					 *   / X ->  / !
+					 *    / \     X R
+					 *           / \
+					 */
+					while (n.right.bp > nbp)
+						n = n.right;
+					if (combining === 2 && n.right.bp === nbp)
+						throw PE("Attempting to combine uncombinable operator", p);
+					node.left = n.right;
+					n.right = node;
+				} else if (combining === R){
+					/* Right combining
+					 *     H             H
+					 *      L     ->      L
+					 *     / L           / L
+					 *      / \           / !
+					 *         A           A R
+					 */
+					while (n.right.bp >= nbp)
+						n = n.right;
+					node.left = n.right;
+					n.right = node;
+				}
+			};
+			return uber.right;
 		};
-		return uber.right;
-	};
+	}();
 	var operating = function(){
 		var start = unary();
 		return operatorPiece(start, unary);
