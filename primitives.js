@@ -108,7 +108,7 @@ Object.prototype.itemset = function (i, v) {
 	return this[i] = v;
 };
 Object.prototype.compareTo = function (b) {
-	return a == b ? 0 : a > b ? 1 : -1;
+	return this == b ? 0 : this > b ? 1 : -1;
 };
 Object.prototype.be = function (b) {
 	return this === b
@@ -132,6 +132,9 @@ Object.prototype.each = function(f){
 				f.call(this[each],this[each],each);
 	}
 };
+Object.prototype.of = function(v){
+	return v[this];
+}
 Array.prototype.each = function (f) {
 	for (var i = 0; i < this.length; i++) {
 		f.call(this[i], this[i], i)

@@ -87,4 +87,6 @@
 		f(x);
 		return x
 	});
+
+	reg('type', { of : function(x){return typeof x} })
 }();

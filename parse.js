@@ -23,24 +23,21 @@
 
 			'NEGATIVE', 'NOT',
 
+			'of',
 			'*', '/','%',
-
 			'+', '-',
 			'<<', '>>',
-
 			'<', '>', '<=', '>=', '<=>', 'is', 'in',
-			'+=','-=','*=','/=','%=','<<=','>>=',
-
 			'==', '!=', '=~', '!~', '===', '!==',
 			'and', 'or',
-
 			'as',
-
 			'->',
-			'/@',
+
 			':>',
 
 			'=',
+
+			'CONDITIONAL',
 
 			'IF', 'FOR', 'WHILE', 'REPEAT', 'CASE', 'PIECEWISE', 'VAR', 'BREAK', 'CONTINUE', 'LABEL', 'THROW', 'RETURN', 'TRY',
 
@@ -177,7 +174,8 @@
 			opt_explicit = !!input.options.explicit,
 			opt_colononly = !!input.options.colononly,
 			opt_sharpno = !!input.options.sharpno,
-			opt_forfunction = !!input.options.forfunction
+			opt_forfunction = !!input.options.forfunction,
+			opt_filledbrace = !!input.options.filledbrace
 		;
 		if (token) curline = token.line;
 		function acquire(){};
@@ -469,6 +467,12 @@
 					} else if (token.value === RDSTART) {
 						// braced expression (expr)
 						advance();
+						if(tokenIs(ENDBRACE, RDEND)){
+							if(opt_filledbrace)
+								throw PE('() for undefined is disabled due to !option filledbrace');
+							advance();
+							return new Node(nt.LITERAL, {value: void 0})
+						}
 						var n = expression(true);
 						advance(ENDBRACE, 41);
 						return n;
@@ -516,11 +520,6 @@
 							id :  workingScope.sharpNo
 						});
 					};
-				case LAMBDA:
-					return lambdaCont(new Node(nt.PARAMETERS, {
-						names: [],
-						anames: []
-					}));
 				case FUNCTION:
 					// function literal started with "function"
 					advance(FUNCTION);
@@ -666,80 +665,12 @@
 				return callExpression();
 			}
 		};
-	/*
-		var operating = function(){
-			var g = function(operators, lower){
-				var tbl = {};
-				for(var i = 0; i < operators.length; i += 1)
-					tbl[operators[i]] = true;
-				
-				return function(){
-					var n = lower();
-					while(tokenIs(OPERATOR) && tbl[token_value] === true){
-						var t = advance(OPERATOR);
-						n = new Node(nt[t.value], {
-							left: n,
-							right: lower()
-						});
-					};
-		
-					return n;
-				}
-			};
-			var gr = function(operators, lower){
-				var tbl = {};
-				for(var i = 0; i < operators.length; i += 1)
-					tbl[operators[i]] = true;
-				var opt = function(){
-					var n = lower();
-					if(tokenIs(OPERATOR) && tbl[token_value] === true){
-						var t = advance(OPERATOR);
-						return new Node(nt[t.value], {
-							left: n,
-							right: opt()
-						});
-					};
-					return n;
-				};
-				return opt;
-			};
-			var gu = function(operators, lower){
-				var tbl = {};
-				for(var i = 0; i < operators.length; i += 1)
-					tbl[operators[i]] = true;
-				return function(){
-					var n = lower();
-					if(tokenIs(OPERATOR) && tbl[token_value] === true){
-						var t = advance(OPERATOR);
-						return new Node(nt[t.value], {
-							left: n,
-							right: lower()
-						});
-					};
-					return n;
-				};
-			};
 
-		
-			var l1 = g(['*', '/', '%'], unary);
-			var l2 = g(['+', '-'], l1);
-			var l3 = g(['<<'], l2);
-			var l3r = gr(['>>'], l3);
-			var lsp = gu(['<=>'], l3r);
-			var l4 = gu(['<', '>', '<=', '>='], lsp);
-			var l5 = g(['is', 'in'], l4);
-			var l6 = gu(['==', '!=', '=~', '!~', '===', '!=='], l5);
-			var l7 = g(['and', 'or'], l6);
-			var l8 = g(['as'], l7);
-			var l9 = gr(['->'], l8);
-
-			return l9;
-		}();
-	*/
 
 		var operatorPiece = function(){
 			var L = 0, R = 1, N = 2;
 			var bp = {
+				'of': 5,
 				'*': 10, '/': 10, '%': 10,
 				'+': 20, '-': 20,	
 				'<<': 25, '>>': 25,
@@ -752,6 +683,7 @@
 				'->': 70
 			};
 			var combp = {
+				'of': R,
 				'*': L, '/': L, '%': L,
 				'+': L, '-': L,
 				'<<': L, '>>': R,
@@ -829,6 +761,7 @@
 					case TRY:
 					case CATCH:
 					case FINALLY:
+					case IF:
 						return node;
 					default:
 						var n_ = node;
@@ -871,11 +804,19 @@
 			var right, c = unary();
 			if (tokenIs(OPERATOR, '=')){
 				advance();
-				return new Node(nt['='], { left: c, right: expression(true) });
+				return new Node(nt['='], {
+					left: c,
+					right: expression(true)
+				});
 			} else if (ASSIGNIS()) { //赋值
 				var _v = token.value;
 				advance();
-				return new Node(nt['='], { left: c, right: new Node(nt[_v.slice(0, _v.length - 1)], {left:c, right:expression(true)})});
+				return new Node(nt['='], {
+					left: c,
+					right: new Node(nt[_v.slice(0, _v.length - 1)], {
+						left:c, right:expression(true)
+					})
+				});
 			}
 
 			c = operatorPiece(c, unary);
@@ -886,6 +827,10 @@
 				if (!token) break out;
 				switch (token.type) {
 					case END: case SEMICOLON: case ENDBRACE: case ELSE: case WHEN: case OTHERWISE:
+					case TRY:
+					case CATCH:
+					case FINALLY:
+					case IF:
 						break out;
 					case THEN:
 						advance();
@@ -936,7 +881,18 @@
 				}
 			};
 
-			return new Node(nt.GROUP, {operand: c});
+			// now c is the single expression.
+			if(tokenIs(IF)){
+				advance();
+				c = new Node(nt.CONDITIONAL, {
+					thenPart: c,
+					condition: callItem()
+				});
+				if(tokenIs(ELSE))
+					advance(ELSE), c.elsePart = expression();
+			}
+
+			return new Node(nt.GROUP, { operand: c});
 		};
 		var callItem = operating;
 
@@ -963,11 +919,6 @@
 				case THROW:
 					advance();
 					return new Node(nt.THROW, { expression: expression() });
-				case OPERATOR:
-					if (token.value === '=') {
-						advance();
-						return new Node(nt.RETURN, { expression: expression() });
-					}
 				case IF:
 					return ifstmt();
 				case WHILE:
@@ -1001,6 +952,11 @@
 				case ENDBRACE:
 					if (token.value === 125)
 						return;
+				case OPERATOR:
+					if (token.value === '=') {
+						advance();
+						return new Node(nt.RETURN, { expression: expression() });
+					}
 				default:
 					return expression();
 			};

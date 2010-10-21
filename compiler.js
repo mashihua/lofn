@@ -231,6 +231,7 @@
 	methodoper('>>', 'acceptShiftIn');
 	lmethodoper('<=>', 'compareTo');
 	lmethodoper('<<', 'shiftIn');
+	lmethodoper('of', 'of');
 
 	schemata(nt['->'], function () {
 		return 'LF_CREATERULE(' + transform(this.left) + ',' + transform(this.right) + ')';
@@ -263,6 +264,13 @@
 		env = _e;
 		return s;
 	});
+
+	schemata(nt.CONDITIONAL, function(){
+		return '(' + transform(this.condition) + ')?(' + transform(this.thenPart) + '):' + ( this.elsePart ? transform(this.elsePart) : ' undefined ');
+	});
+
+
+
 
 	schemata(nt.RETURN, function () {
 		return 'return ' + transform(this.expression);
