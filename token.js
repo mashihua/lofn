@@ -89,103 +89,105 @@ var lex = lofn.lex = function () {
 		};
 	}();
 	var nameTypes = {
-	'is': OPERATOR, 'and': OPERATOR, 'not': OPERATOR, 'or': OPERATOR, 'in': OPERATOR,
-	'as': OPERATOR,
-	'if': IF,
-	'for': FOR,
-	'while': WHILE,
-	'repeat': REPEAT,
-	'until': UNTIL,
-	'case': CASE,
-	'piecewise': PIECEWISE,
-	'when': WHEN,
-	'function': FUNCTION,
-	'return': RETURN,
-	'throw': THROW,
-	'break': BREAK,
-	'continue': CONTINUE,
-	'label': LABEL,
-	'end': END,
-	'else': ELSE,
-	'otherwise': OTHERWISE,
-	'then': THEN,
-	'var': VAR,
-	'me': ME,
-	'this': ME,
-	'my': MY,
-	'true': CONSTANT,
-	'false': CONSTANT,
-	'null': CONSTANT,
-	'undefined': CONSTANT,
-	'fallthrough': FALLTHROUGH,
-	'arguments': ARGUMENTS,
-	'callee': CALLEE,
-	'object': OBJECT,
-	'do': DO,
-	'try': TRY,
-	'catch': CATCH,
-	'finally': FINALLY,
-	'Task': TASK
-};
-var nameType = function (m) {
-	if (nameTypes[m] > -65536)
-		return nameTypes[m]
-	else
-		return ID
-};
-var symbolTypes = {
-	'+': OPERATOR,
-	'-': OPERATOR,
-	'*': OPERATOR,
-	'/': OPERATOR,
-	'%': OPERATOR,
-	'<': OPERATOR,
-	'>': OPERATOR,
-	'=': OPERATOR,
-	'+=': OPERATOR,
-	'-=': OPERATOR,
-	'*=': OPERATOR,
-	'/=': OPERATOR,
-	'<<=': OPERATOR,
-	'>>=': OPERATOR,
-	'%=': OPERATOR,
-	'<=': OPERATOR,
-	'>=': OPERATOR,
-	'<<': OPERATOR,
-	'>>': OPERATOR,
-	'<=>': OPERATOR,
-	'==': OPERATOR,
-	'!=': OPERATOR,
-	'===': OPERATOR,
-	'!==': OPERATOR,
-	'=~': OPERATOR,
-	'!~': OPERATOR,
-	'->': OPERATOR,
-	':>': LAMBDA,
-	'#': SHARP,
-	'(': STARTBRACE,
-	'[': STARTBRACE,
-	'{': STARTBRACE,
-	'}': ENDBRACE,
-	']': ENDBRACE,
-	')': ENDBRACE,
-	',': COMMA,
-	':': COLON,
-	'|': THEN,
-	'.': DOT,
-	';': SEMICOLON,
-	'@': MY,
-	'\\': BACKSLASH
-};
-var symbolType = function (m) {
-	if (symbolTypes[m] > -65536)
-		return symbolTypes[m]
-	else
-		throw new Error('Unspecified symbol '+m)
-};
+		'is': OPERATOR, 'and': OPERATOR, 'not': OPERATOR, 'or': OPERATOR, 'in': OPERATOR,
+		'as': OPERATOR,
+		'if': IF,
+		'for': FOR,
+		'while': WHILE,
+		'repeat': REPEAT,
+		'until': UNTIL,
+		'case': CASE,
+		'piecewise': PIECEWISE,
+		'when': WHEN,
+		'function': FUNCTION,
+		'return': RETURN,
+		'throw': THROW,
+		'break': BREAK,
+		'continue': CONTINUE,
+		'label': LABEL,
+		'end': END,
+		'else': ELSE,
+		'otherwise': OTHERWISE,
+		'then': THEN,
+		'var': VAR,
+		'me': ME,
+		'this': ME,
+		'my': MY,
+		'true': CONSTANT,
+		'false': CONSTANT,
+		'null': CONSTANT,
+		'undefined': CONSTANT,
+		'fallthrough': FALLTHROUGH,
+		'arguments': ARGUMENTS,
+		'callee': CALLEE,
+		'object': OBJECT,
+		'do': DO,
+		'try': TRY,
+		'catch': CATCH,
+		'finally': FINALLY,
+		'Task': TASK
+	};
+	var nameType = function (m) {
+		if (nameTypes[m] > -65536)
+			return nameTypes[m]
+		else
+			return ID
+	};
+	var symbolTypes = {
+		'+': OPERATOR,
+		'-': OPERATOR,
+		'*': OPERATOR,
+		'/': OPERATOR,
+		'%': OPERATOR,
+		'<': OPERATOR,
+		'>': OPERATOR,
+		'=': OPERATOR,
+		'+=': OPERATOR,
+		'-=': OPERATOR,
+		'*=': OPERATOR,
+		'/=': OPERATOR,
+		'<<=': OPERATOR,
+		'>>=': OPERATOR,
+		'%=': OPERATOR,
+		'<=': OPERATOR,
+		'>=': OPERATOR,
+		'<<': OPERATOR,
+		'>>': OPERATOR,
+		'<=>': OPERATOR,
+		'==': OPERATOR,
+		'!=': OPERATOR,
+		'===': OPERATOR,
+		'!==': OPERATOR,
+		'=~': OPERATOR,
+		'!~': OPERATOR,
+		'->': OPERATOR,
+		':>': LAMBDA,
+		'#': SHARP,
+		'(': STARTBRACE,
+		'[': STARTBRACE,
+		'{': STARTBRACE,
+		'}': ENDBRACE,
+		']': ENDBRACE,
+		')': ENDBRACE,
+		',': COMMA,
+		':': COLON,
+		'|': THEN,
+		'.': DOT,
+		';': SEMICOLON,
+		'@': MY,
+		'\\': BACKSLASH
+	};
+	var symbolType = function (m) {
+		if (symbolTypes[m] > -65536)
+			return symbolTypes[m]
+		else
+			throw new Error('Unspecified symbol '+m)
+	};
+
 	var token_err = function(message, input, position){
 		return new Error(message + ' at ' + position);
-	}
+	};
+
 	return function (input) {
 		var tokens = [], tokl = 0, line = 0, options = {};
 		var make = function (t, v, p, as, isn) {
