@@ -47,7 +47,7 @@ var NARG = function () {
 
 var noth = void 0;
 
-var LF_M_TOP = this;
+var LF_M_TOP = function(){return this}();
 var SLICE = Array.prototype.slice;
 var LF_MINVOKE = function (p, s) {
 	return p[s].apply(p,SLICE.call(arguments,2))
