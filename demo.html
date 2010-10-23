@@ -81,7 +81,6 @@
 				script.expose('alert', alert);
 				script.expose('exports', {});
 				script.asyncCompile(function(cm){
-					tracel('Generated code:\n' + (' |\t' + cm.generatedSource).replace(/\n/g, '\n |\t'));
 					script.start();
 					tracel('--- DONE  ---');					
 				}, function(t,i,b){tracel('done function #'+i+' (@'+t.id+')')});
