@@ -30,6 +30,11 @@
 				arguments[i].each(function(val, prop){
 					obj[prop] = val
 				});
+			else {
+				for(var each in arguments[i])
+					if(OWNS(arguments[i], each))
+						obj[each] = arguments[i][each];
+			}
 		}
 		return obj;
 	});
