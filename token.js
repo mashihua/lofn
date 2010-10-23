@@ -184,8 +184,15 @@ var lex = lofn.lex = function () {
 			throw new Error('Unspecified symbol '+m)
 	};
 
-	var token_err = function(message, input, position){
-		return new Error(message + ' at ' + position);
+	var token_err = function(message, pos, source){
+		var lineno = ('\n' + source.slice(0, pos)).match(/\n/g).length;
+		var lineno_l = lineno.toString().length;
+		message = '[LFC] ' + message + '\nat line: ' + lineno;
+		message += '\n ' + lineno + ' : ' + (source.split('\n')[lineno - 1]);
+		message += '\n-' + (lineno + '').replace(/./g, '-') + '---' + (source.slice(0, pos).split('\n')[lineno - 1].replace(/./g, '-').replace(/$/, '^'));
+
+		var e = new Error(message);
+		return e;
 	};
 
 	return function (input) {
@@ -270,9 +277,9 @@ var lex = lofn.lex = function () {
 			});
 		var ep;
 		if((ep = ou.indexOf('\'')) >= 0) {
-			throw token_err('Unmatched quotations encountered' ,input,ep)
+			throw token_err('Unmatched quotations encountered' , ep, input)
 		} else if ((ep = ou.indexOf('"')) >= 0) {
-			throw token_err('Unmatched quotations encountered',input,ep)
+			throw token_err('Unmatched quotations encountered', ep, input)
 		}
 
 		return {

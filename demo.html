@@ -15,6 +15,11 @@
 			font-weight: bolder;
 			font-size: 14px;
 		}
+		#err {
+			font-weight: bolder;
+			color: red;
+			font-size: 14px;
+		}
 		h1 {
 			font-family: Arial,NSimSun,sans-serif;
 		}
@@ -29,7 +34,8 @@
 	<textarea id="input"></textarea>
 	<button id="go">Start script</button>
 	<pre id="output"></pre>
-	<pre id="info"></pre>
+	<pre id="err"></pre>
+	<pre id="info"><noscript>The Lofn cannot be enabled because the JavaScript is disabled.</noscript></pre>
 
 	<script type="text/javascript">
 			//<![CDATA[
@@ -53,7 +59,7 @@
 			}
 		}
 		var clrscr = function () {
-			document.getElementById('output').innerHTML = document.getElementById('info').innerHTML = '';
+			document.getElementById('output').innerHTML = document.getElementById('info').innerHTML = document.getElementById('err').innerHTML = '';
 		}
 //]]></script>
 
@@ -64,17 +70,24 @@
 	<script src="stl.js" type="text/javascript"></script>
 
 	<script type="text/javascript">
+		clrscr(), G_TRACE('info').tracel('The Lofn compiler.\n- Version hoejuu -\n\nBy Belleve Invis (aka. infinte)\n\nAmor ex Dessis.\n(From Dess with love)');
 		document.getElementById('go').onclick = function () {
 			clrscr();
 			var tracel = G_TRACE('info').tracel;
-			var script = new lofn.Script(document.getElementById('input').value);
-			script.expose('alert', alert);
-			script.expose('exports', {});
-			script.asyncCompile(function(cm){
-				tracel('Generated code:\n' + (' |\t' + cm.generatedSource).replace(/\n/g, '\n |\t'));
-				script.start();
-				tracel('--- DONE  ---');					
-			}, function(t,i,b){tracel('done function #'+i+' (@'+t.id+')')});
+			var tracex = G_TRACE('err').tracel;
+			// start VM
+			try {
+				var script = new lofn.Script(document.getElementById('input').value);
+				script.expose('alert', alert);
+				script.expose('exports', {});
+				script.asyncCompile(function(cm){
+					tracel('Generated code:\n' + (' |\t' + cm.generatedSource).replace(/\n/g, '\n |\t'));
+					script.start();
+					tracel('--- DONE  ---');					
+				}, function(t,i,b){tracel('done function #'+i+' (@'+t.id+')')});
+			} catch (e) {
+				tracex('! An error occurs \n\n' + e);
+			}
 		};
 	</script>
 

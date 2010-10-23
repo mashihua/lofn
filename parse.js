@@ -63,7 +63,7 @@
 				var pos = p == undefined ? token.position : p;
 				var lineno = ('\n' + source.slice(0, pos)).match(/\n/g).length;
 				var lineno_l = lineno.toString().length;
-				message += '\nat line: ' + lineno;
+				message = '[LFC] ' + message + '\nat line: ' + lineno;
 				message += '\n ' + lineno + ' : ' + (source.split('\n')[lineno - 1]);
 				message += '\n-' + (lineno + '').replace(/./g, '-') + '---' + (source.slice(0, pos).split('\n')[lineno - 1].replace(/./g, '-').replace(/$/, '^'));
 			}
