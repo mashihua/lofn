@@ -141,13 +141,7 @@ Array.prototype.each = function (f) {
 	};
 	return this;
 };
-String.prototype.each = function(f){
-	for(var i = 0; i<this.length; i++){
-		var ch = this.charAt(i);
-		f.call(ch, ch, i)
-	};
-	return this;
-}
+String.prototype.each = null;
 Function.prototype.be = function (b) {
 	return b instanceof this;
 };
