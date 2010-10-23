@@ -95,5 +95,5 @@
 
 	reg('type', { of : function(x){return typeof x} });
 	reg('present', { be : function(x){return x !== undefined && x !== null}});
-	reg('absent', { be : function(x){return x === undefined || n === null }});
+	reg('absent', { be : function(x){return x === undefined || x === null }});
 }();
