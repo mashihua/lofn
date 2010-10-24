@@ -198,4 +198,4 @@ Rule.prototype.each = function (f) {
 
 
 var lofn = {};
-lofn.version = 'hoejuu';
+lofn.version = 'Kirisem';
