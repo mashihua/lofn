@@ -1030,7 +1030,7 @@
 					throw PE('Only COLON bodies can be used due to `!option colononly`');
 				n.thenPart = statement_r();
 				while(tokenIs(SEMICOLON)) advance();
-				if(tokenIs(ELSE)){
+				if(tokenIs(ELSE) && (nextIs(IF) || nextIs(COMMA))){
 					advance(ELSE);
 					if(tokenIs(IF)){
 						n.elsePart = ifstmt();
