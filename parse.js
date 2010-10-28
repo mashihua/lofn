@@ -403,11 +403,18 @@
 			return n;
 		};
 
+		var ISOBJLIT = function(){
+			if((next && next.isName || nextIs(STRING)) && shiftIs(2, COLON) && !(shiftIs(3, WHEN)||shiftIs(3, OTHERWISE))) {
+				if(opt_forfunction)
+					throw PE('Object literal denied due to !option forfunction');
+			}
+		}
+
 		// Lambda Expression content
 		var lambdaCont = function (p) {
 			var right;
 			advance(LAMBDA);
-			if (tokenIs(STARTBRACE, CRSTART) && !((next && next.isName || nextIs(STRING)) && shiftIs(2, COLON))) { // statement lambda
+			if (tokenIs(STARTBRACE, CRSTART) && !ISOBJLIT()) { // statement lambda
 				right = functionBody(p);
 				return right;
 			} else {
@@ -477,9 +484,7 @@
 						advance(ENDBRACE, 41);
 						return n;
 					} else if (token.value === CRSTART) {
-						if((next && next.isName || nextIs(STRING)) && shiftIs(2, COLON) && !(shiftIs(3, WHEN)||shiftIs(3, OTHERWISE))){
-							if(opt_forfunction)
-								throw PE('Object literal denied due to !option forfunction');
+						if((next && next.isName || nextIs(STRING)) && shiftIs(2, COLON) && !ISOBJlIT){
 							// object literal
 							return objinit()
 						}
@@ -586,11 +591,19 @@
 							arglist(m);
 							advance(ENDBRACE, SQEND);
 						} else if (token.value === CRSTART && !token.spaced){
-							m = new Node(nt.CALL, {
-								func: m,
-								args: [functionBody(undefined, true)],
-								names: [null],
-							});
+							if(ISOBJLIT()){
+								m = new Node(nt.CALL, {
+									func: m,
+									args: [objinit()],
+									names: [null],
+								})					
+							} else {
+								m = new Node(nt.CALL, {
+									func: m,
+									args: [functionBody(undefined, true)],
+									names: [null],
+								})
+							}
 						} else {
 							break out;
 						}
