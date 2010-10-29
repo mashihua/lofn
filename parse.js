@@ -404,9 +404,14 @@
 		};
 
 		var ISOBJLIT = function(){
-			if((next && next.isName || nextIs(STRING)) && shiftIs(2, COLON) && !(shiftIs(3, WHEN)||shiftIs(3, OTHERWISE))) {
+			if(
+					(next && next.isName && !(nextIs(TRY)) || nextIs(STRING)) 
+					&& shiftIs(2, COLON) 
+					&& !(shiftIs(3, WHEN) || shiftIs(3, OTHERWISE))
+			) {
 				if(opt_forfunction)
 					throw PE('Object literal denied due to !option forfunction');
+				return true
 			}
 		}
 
@@ -484,7 +489,7 @@
 						advance(ENDBRACE, 41);
 						return n;
 					} else if (token.value === CRSTART) {
-						if((next && next.isName || nextIs(STRING)) && shiftIs(2, COLON) && !ISOBJlIT){
+						if(ISOBJLIT()){
 							// object literal
 							return objinit()
 						}
