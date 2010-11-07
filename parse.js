@@ -931,6 +931,10 @@
 		var statement_r = function () {
 			if (token)
 				switch (token.type) {
+				case PASS:
+					advance();
+					ensure(stover(), "Unexceped PASS")
+					return;
 				case RETURN:
 					advance();
 					return new Node(nt.RETURN, { expression: expression() });
@@ -968,7 +972,7 @@
 				case TRY:
 					return trystmt();
 				case ENDBRACE:
-					if (token.value === 125)
+					if (token.value === CREND)
 						return;
 				case OPERATOR:
 					if (token.value === '=') {
@@ -1199,10 +1203,11 @@
 		}
 		var statements = function (fin, fin2) {
 			var script = new Node(nt.SCRIPT);
-			var _t = endS;
+			var _t = endS, s;
 		//	debugger;
 			stripSemicolons();
-			var a = [statement()];
+			s = statement();
+			var a = s ? [s] : [];
 
 
 			while (endS && token) {
@@ -1210,7 +1215,9 @@
 				endS = false;
 				stripSemicolons();
 				if (token && (tokenIs(fin) || tokenIs(END) || tokenIs(ENDBRACE, CREND) || tokenIs(fin2))) break;
-				a.push(statement());
+				s = statement();
+				if(s)
+					a.push(s);
 			}
 			//ensure(!token || token.type === fin, "Unfinished statement block");
 			script.content = a;

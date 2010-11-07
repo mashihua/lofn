@@ -45,6 +45,7 @@ var
 	FINALLY = 39,
 	TASK = 40,		//reserved for coro
 	LAMBDA = 41,
+	PASS = 42,
 	BACKSLASH = 501;
 
 var lex = lofn.lex = function () {
@@ -125,7 +126,8 @@ var lex = lofn.lex = function () {
 		'try': TRY,
 		'catch': CATCH,
 		'finally': FINALLY,
-		'Task': TASK
+		'Task': TASK,
+		'pass': PASS
 	};
 	var nameType = function (m) {
 		if (nameTypes[m] > -65536)
