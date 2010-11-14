@@ -36,7 +36,7 @@
 	}
 	var SETV = function (node, val, env) {
 		var depth = env.useVar(node.name)
-		return C_NAME(node.name) + '=' + val;
+		return '(' + C_NAME(node.name) + '=' + val + ')';
 	}
 	schemata(nt.SCRIPT, function (n) {
 		var a = [];
