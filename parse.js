@@ -12,15 +12,16 @@
 	var NodeType = lofn.NodeType = function () {
 
 		var types = typename = [
+			// Unknown type
 			'UNKNOWN',
-			'VARIABLE', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT', 'ARGUMENTS', 'CALLEE', 'ARGN', 'GROUP', 'SHARP',
-
+			// Primary
+			'VARIABLE', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT',
+			'ARGUMENTS', 'CALLEE', 'ARGN', 'GROUP', 'SHARP',
+			// Membering
 			'MEMBER', 'ITEM', 'MEMBERREFLECT', 
-
-			'DO',
-
-			'CALL', 'NEW',
-
+			// Invocation
+			'DO', 'CALL', 'NEW',
+			// Operators
 			'NEGATIVE', 'NOT',
 
 			'of',
@@ -30,57 +31,28 @@
 			'<', '>', '<=', '>=', '<=>', 'is', 'in',
 			'==', '!=', '=~', '!~', '===', '!==',
 			'and', 'or',
-			'as',
+			'as', '~~',
 			'->',
-
+			// Lambda
 			':>',
-
+			// Assignment
 			'=',
-
+			// Conditional
 			'CONDITIONAL',
-
-			'IF', 'FOR', 'WHILE', 'REPEAT', 'CASE', 'PIECEWISE', 'VAR', 'BREAK', 'CONTINUE', 'LABEL', 'THROW', 'RETURN', 'TRY',
-
+			// Statements
+			'IF', 'FOR', 'WHILE', 'REPEAT', 'CASE', 'PIECEWISE', 'VAR',
+			'BREAK', 'CONTINUE', 'LABEL', 'THROW', 'RETURN', 'TRY',
+			// Variable
 			'VARDECL',
-
-			'BLOCK',
-
-			'FUNCTION', 'PARAMETERS', 'BODY',
-
-			'SCRIPT',
-			'SCOPE'
+			// Large-scale
+			'BLOCK', 'FUNCTION', 'PARAMETERS', 'BODY', 'SCRIPT', 'SCOPE'
 		];
 		var T = {};
 		for (var i = 0; i < types.length; i++) T[types[i]] = i;
 		return T;
 	} ();
-
-
-
-	return function (input, source) {
-		var PE = function(message, p){
-			if(token || p != undefined){
-				var pos = p == undefined ? token.position : p;
-				var lineno = ('\n' + source.slice(0, pos)).match(/\n/g).length;
-				var lineno_l = lineno.toString().length;
-				message = '[LFC] ' + message + '\nat line: ' + lineno;
-				message += '\n ' + lineno + ' : ' + (source.split('\n')[lineno - 1]);
-				message += '\n-' + (lineno + '').replace(/./g, '-') + '---' + (source.slice(0, pos).split('\n')[lineno - 1].replace(/./g, '-').replace(/$/, '^'));
-			}
-			var e = new Error(message);
-			return e;
-		}
-		var ensure = function(c, m, p){
-			if(!c) throw PE(m, p);
-			return c;
-		}
-		var Node = function (type, props) {
-			var p = props || {};
-			p.type = type, p.bp = p.bp || 0, p.line = curline;
-			return p
-		};
 		var ScopedScript = function (id, env) {
-			this.code = new Node(NodeType.SCRIPT);
+			this.code = {type: NodeType.SCRIPT};
 			this.variables = env ? derive(env.variables) : new Nai;
 			this.varIsArg = new Nai;
 			this.labels = {};
@@ -97,7 +69,7 @@
 			this.sharpNo = 0;
 		};
 		ScopedScript.prototype.newVar = function (name, isarg) {
-			if (this.variables[name] >= 0) return;
+			if (this.variables[name] === this.id) return;
 			this.locals.push(name);
 			this.varIsArg[name] = isarg === true;
 			return this.variables[name] = this.id;
@@ -116,13 +88,13 @@
 		ScopedScript.prototype.useTemp = function (type, id, aspar){
 			this.usedTemps[type+id] = aspar ? 2 : 1;
 		}
-		ScopedScript.prototype.listVar = function () {
+		ScopedScript.prototype.listVar = function (opt_explicit) {
 			for (var each in this.usedVariables) {
 				if (this.usedVariables[each] === true && !(this.variables[each] > 0)){
 					if(!opt_explicit)
 						this.newVar(each);
 					else
-						throw PE('Undeclared variable "' + each + '" when using `!option explicit`.', this.usedVariablesOcc[each])
+						throw new Error('Undeclared variable "' + each + '" when using `!option explicit`. At:', this.usedVariablesOcc[each])
 				}
 			};
 			for (var i = 0; i < this.nest.length; i++)
@@ -155,6 +127,30 @@
 					this.newVar(this.parameters.names[i], true)
 				}
 			}
+		};
+
+
+	return function (input, source) {
+		var PE = function(message, p){
+			if(token || p != undefined){
+				var pos = p == undefined ? token.position : p;
+				var lineno = ('\n' + source.slice(0, pos)).match(/\n/g).length;
+				var lineno_l = lineno.toString().length;
+				message = '[LFC] ' + message + '\nat line: ' + lineno;
+				message += '\n ' + lineno + ' : ' + (source.split('\n')[lineno - 1]);
+				message += '\n-' + (lineno + '').replace(/./g, '-') + '---' + (source.slice(0, pos).split('\n')[lineno - 1].replace(/./g, '-').replace(/$/, '^'));
+			}
+			var e = new Error(message);
+			return e;
+		}
+		var ensure = function(c, m, p){
+			if(!c) throw PE(m, p);
+			return c;
+		}
+		var Node = function (type, props) {
+			var p = props || {};
+			p.type = type, p.bp = p.bp || 0, p.line = curline;
+			return p
 		};
 
 
@@ -698,7 +694,8 @@
 				'==': 40, '!=': 40, '=~': 40, '!~': 40, '===':40, '!==':40,
 				'and': 50, 'or': 55,
 				'as': 60,
-				'->': 70
+				'~~' : 65,
+				'->': 70,
 			};
 			var combp = {
 				'of': R,
@@ -711,6 +708,7 @@
 				'==': N, '!=': N, '=~': N, '!~': N, '===':N, '!==':N,
 				'and': L, 'or': L,
 				'as': L,
+				'~~' : L,
 				'->': R
 			}
 
@@ -1226,6 +1224,8 @@
 		};
 		newScope();
 		workingScope.code = statements();
+
+		scopes.options = input.options
 
 		return scopes;
 	}

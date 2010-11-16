@@ -233,6 +233,10 @@
 	lmethodoper('<<', 'shiftIn');
 	lmethodoper('of', 'of');
 
+	schemata(nt['~~'], function(){
+		return '((' + transform(this.left) + '),(' + transform(this.right) + '))';
+	});
+
 	schemata(nt['->'], function () {
 		return 'LF_CREATERULE(' + transform(this.left) + ',' + transform(this.right) + ')';
 	});
@@ -383,7 +387,6 @@
 			if (!(tree.varIsArg[locals[i]])) vars.push(C_NAME(locals[i]));
 		for (var i = 0; i < temps.length; i++)
 			temps[i] = C_TEMP(temps[i]);
-
 		s = JOIN_STMTS(['var ___$EXCEPTION' + (temps.length ? ',' + temps.join(','): ''), THIS_BIND(tree), ARGN_BIND(tree), (vars.length ? 'var ' + vars.join(', ') : '')]) 
 			+ (hook_enter || '') 
 			+ s 
@@ -459,7 +462,7 @@
 		enter.thisOccurs = true, enter.newVar('__global__', true);
 		var REG_VAR = vmConfig.initGVM.itemly;
 		REG_VAR(enter, inital, inits, initv);
-		enter.listVar();
+		enter.listVar(tree.options.explicit);
 		var body = '', enterText = vmConfig.initGVM.globally() + inits.join('\n') + '\n', exitText = vmConfig.dumpGVM(inital).join('\n');
 		var getFs = function(body){
 			var f_ = Function(body);
