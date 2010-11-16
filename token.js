@@ -163,6 +163,10 @@ var lex = lofn.lex = function () {
 		'=~': OPERATOR,
 		'!~': OPERATOR,
 		'->': OPERATOR,
+<<<<<<< HEAD
+=======
+		'~~' : OPERATOR,
+>>>>>>> ss-detachment
 		':>': LAMBDA,
 		'#': SHARP,
 		'(': STARTBRACE,
@@ -254,7 +258,11 @@ var lex = lofn.lex = function () {
 			}
 		}
 		var ou = input.replace(
+<<<<<<< HEAD
 			(/(\/\/.*)|(?:^![ \t]*option[ \t]+(\w+)[ \t]*$)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$]*)|('[^']*(?:''[^']*)*')|("[^\\"]*(?:\\.[^\\"]*)*")|((?:0[xX][a-fA-F0-9]+)|(?:\d+(?:\.\d+(?:[eE]-?\d+)?)?))|([+\-*\/<>=!:%][<>=~]*|[()\[\]\{\}|@\\;,\.#])|(\n\s*)/mg),
+=======
+			(/(\/\/.*)|(?:^![ \t]*option[ \t]+(\w+)[ \t]*$)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$]*)|('[^']*(?:''[^']*)*')|("[^\\"]*(?:\\.[^\\"]*)*")|((?:0[xX][a-fA-F0-9]+)|(?:\d+(?:\.\d+(?:[eE]-?\d+)?)?))|([+\-*\/<>=!:%~][<>=~]*|[()\[\]\{\}|@\\;,\.#])|(\n\s*)/mg),
+>>>>>>> ss-detachment
 			function (match, comment, optionname, nme, reflects, singles, doubles, number, symbol, newline, n, full) {
 				after_space = false;
 				if(optionname) {
