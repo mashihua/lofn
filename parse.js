@@ -54,7 +54,7 @@
 		return T;
 	} ();
 
-	var ScopedScript = function (id, env) {
+	var ScopedScript = lofn.ScopedScript = function (id, env) {
 			this.code = {type: NodeType.SCRIPT};
 			this.variables = env ? derive(env.variables) : new Nai;
 			this.varIsArg = new Nai;
@@ -88,9 +88,6 @@
 			if(this.usedVariablesOcc[name] === undefined)
 				this.usedVariablesOcc[name] = position;
 		}
-		ScopedScript.prototype.useTemp = function (type, id, aspar){
-			this.usedTemps[type+id] = aspar ? 2 : 1;
-		}
 		ScopedScript.prototype.listVar = function (opt_explicit) {
 			for (var each in this.usedVariables) {
 				if (this.usedVariables[each] === true && !(this.variables[each] > 0)){
@@ -103,17 +100,17 @@
 			for (var i = 0; i < this.nest.length; i++)
 				this.nest[i].listVar();
 		}
-		ScopedScript.prototype.listTemp = function(){
+		ScopedScript.listTemp = function(scope){
 			var l = []
-			for(var each in this.usedTemps)
-				if(this.usedTemps[each] === 1)
+			for(var each in scope.usedTemps)
+				if(scope.usedTemps[each] === 1)
 					l.push(each);
 			return l;
 		}
-		ScopedScript.prototype.listParTemp = function(){
+		ScopedScript.listParTemp = function(scope){
 			var l = []
-			for(var each in this.usedTemps)
-				if(this.usedTemps[each] === 2)
+			for(var each in scope.usedTemps)
+				if(scope.usedTemps[each] === 2)
 					l.push(each);
 			return l;
 		}
@@ -131,6 +128,41 @@
 				}
 			}
 		};
+		ScopedScript.prototype.cleanup = function(){
+			delete this.sharpNo;
+			delete this.labels;
+		}
+	
+	ScopedScript.generateQueue = function(scope, trees, arr){
+		if(!arr) arr = [];
+		for(var i = 0; i < scope.nest.length; i++)
+			ScopedScript.generateQueue(trees[scope.nest[i]], trees, (arr));
+		arr.push(scope);
+		return arr;
+	}
+	ScopedScript.useTemp = function(scope, type, id, aspar){
+		scope.usedTemps[type + id] = aspar ? 2 : 1;
+	}
+	
+	ScopedScript.registerVariable = function(scope, name, argQ) {
+		if (scope.variables[name] === scope.id) return;
+		scope.locals.push(name);
+		scope.varIsArg[name] = argQ === true;
+		return scope.variables[name] = scope.id;
+	}
+	ScopedScript.generateVariableResolver = function(scope, trees, explicitQ) {
+		for (var each in scope.usedVariables) {
+			if (scope.usedVariables[each] === true && !(scope.variables[each] > 0)){
+				if(!explicitQ)
+					ScopedScript.registerVariable(scope, each);
+				else
+					throw new Error('Undeclared variable "' + each + '" when using `!option explicit`. At:',
+						(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0 )
+			}
+		};
+		for (var i = 0; i < scope.nest.length; i++)
+			ScopedScript.generateVariableResolver(trees[scope.nest[i]], trees, explicitQ);
+	}
 
 
 	return function (input, source) {
@@ -152,7 +184,7 @@
 		}
 		var Node = function (type, props) {
 			var p = props || {};
-			p.type = type, p.bp = p.bp || 0, p.line = curline;
+			p.type = type , p.bp = p.bp || 0, p.line = curline;
 			return p
 		};
 
@@ -199,7 +231,7 @@
 			s.rebindThis = isLE;
 			if (workingScope) {
 				workingScope.hasNested = true;
-				workingScope.nest.push(s);
+				workingScope.nest.push(n);
 			}
 			s.upper = workingScopes[workingScopes.length - 1];
 			scopes[n] = s;
@@ -326,7 +358,7 @@
 			}
 			endScope();
 			advance(ENDBRACE, 125);
-			return new Node(nt.FUNCTION, { tree: s });
+			return new Node(nt.FUNCTION, { tree: s.id });
 		};
 		// Function body using
 		//		COLON
@@ -340,7 +372,7 @@
 			workingScope.code = statements(END);
 			endScope();
 			advance(END);
-			return new Node(nt.FUNCTION, { tree: s });
+			return new Node(nt.FUNCTION, { tree: s.id });
 		};
 
 		var curryBody = function (p, rebind) {
@@ -351,7 +383,7 @@
 				content: [new Node(nt.RETURN, { expression: functionLiteral(true) })]
 			});
 			endScope();
-			return new Node(nt.FUNCTION, { tree: s });
+			return new Node(nt.FUNCTION, { tree: s.id });
 		};
 
 
@@ -429,7 +461,7 @@
 				workingScope.code = new Node(nt.RETURN, { expression: right });
 				endScope();
 				return new Node(nt.FUNCTION, {
-					tree: s
+					tree: s.id
 				});
 			}
 		}
@@ -524,7 +556,7 @@
 						if(opt_sharpno)
 							throw PE('Implicit # was disabled due to !option sharpno', p.position + 1);
 						if(workingScope.sharpNo++ >= workingScope.parameters.names.length)
-							workingScope.useTemp('IARG', workingScope.sharpNo, true);
+							ScopedScript.useTemp(workingScope, 'IARG', workingScope.sharpNo, true);
 						return new Node(nt.SHARP, {
 							id :  workingScope.sharpNo
 						});
@@ -1227,8 +1259,7 @@
 		};
 		newScope();
 		workingScope.code = statements();
-		scopes.options = input.options
-		return scopes;
+		return {scopes: scopes, options: input.options};
 	}
 
 

@@ -35,7 +35,6 @@
 		return C_NAME(node.name);
 	}
 	var SETV = function (node, val, env) {
-		var depth = env.useVar(node.name)
 		return '(' + C_NAME(node.name) + '=' + val + ')';
 	}
 	schemata(nt.SCRIPT, function (n) {
@@ -136,7 +135,7 @@
 			} else args.push(transform(node.args[i]));
 		}
 		if (node.pipeline) {
-			env.useTemp('PIPE', env.grDepth);
+			lofn.ScopedScript.useTemp(env, 'PIPE', env.grDepth);
 			var arg0 = args[0];
 			args[0] = C_TEMP('PIPE'+env.grDepth);
 			cbef =  C_TEMP('PIPE'+env.grDepth) + '=' + arg0 + ',';
@@ -256,9 +255,9 @@
 
 	schemata(nt.FUNCTION, function () {
 		var _e = env,
-			f = this.tree;
-		var s = compileFunctionBody(f);
-		var pars = f.parameters.names.slice(0), temppars = f.listParTemp();
+			f = trees[this.tree - 1];
+		var s = compileFunctionBody(f, '', '', trees);
+		var pars = f.parameters.names.slice(0), temppars = lofn.ScopedScript.listParTemp(f);
 		for (var i = 0; i < pars.length; i++)
 			pars[i] = C_NAME(pars[i])
 		for (var i = 0; i < temppars.length; i++)
@@ -366,23 +365,24 @@
 		return s;
 	});
 
-	var env;
+	var env, envs;
 	var transform = function (node) {
 		if (vmSchemata[node.type]) {
-			return vmSchemata[node.type].call(node, node, env);
+			return vmSchemata[node.type].call(node, node, env, envs);
 		} else {
 			return '{!UNKNOWN}';
 		}
 	}
-	var compileFunctionBody = function (tree, hook_enter, hook_exit) {
+	var compileFunctionBody = function (tree, hook_enter, hook_exit, scopes) {
 		if (tree.transformed) return tree.transformed;
 		env = tree;
+		trees = scopes;
 		var s;
 		// SEF processing
 		s = transform(tree.code);
 		var locals = tree.locals,
 			vars = [],
-			temps = tree.listTemp();
+			temps = lofn.ScopedScript.listTemp(tree);
 		for (var i = 0; i < locals.length; i++)
 			if (!(tree.varIsArg[locals[i]])) vars.push(C_NAME(locals[i]));
 		for (var i = 0; i < temps.length; i++)
@@ -441,7 +441,7 @@
 				itemly: function(env, initFunction, aSrc, initv){
 					initFunction(function(n, v){
 						initv[n] = v;
-						env.newVar(n, true);
+						lofn.ScopedScript.registerVariable(env, n, true);
 						aSrc.push('var ' + c.varName(n) + '=(' + c.varName('__global__') + '[' + strize(n) + ']);');
 					});
 				}
@@ -456,14 +456,20 @@
 		}
 	}();
 	//============
-	lofn.Compiler = function (tree, inital, vmConfig) {
+	lofn.Compiler = function (ast, inital, vmConfig) {
 		bindConfig(vmConfig);
-		var inits = [], initv = new Nai, enter = tree[0];
-		enter.thisOccurs = true, enter.newVar('__global__', true);
+		var inits = [], initv = new Nai, trees = ast.scopes, options = ast.options, enter = trees[0];
+		enter.thisOccurs = true, lofn.ScopedScript.registerVariable(enter, '__global__', true);
+		
 		var REG_VAR = vmConfig.initGVM.itemly;
 		REG_VAR(enter, inital, inits, initv);
-		enter.listVar(tree.options.explicit);
-		var body = '', enterText = vmConfig.initGVM.globally() + inits.join('\n') + '\n', exitText = vmConfig.dumpGVM(inital).join('\n');
+
+		lofn.ScopedScript.generateVariableResolver(enter, trees, options.explicit);
+		
+		var body = '',
+			enterText = vmConfig.initGVM.globally() + inits.join('\n') + '\n',
+			exitText = vmConfig.dumpGVM(inital).join('\n');
+		
 		var getFs = function(body){
 			var f_ = Function(body);
 			var f = function () {
@@ -478,16 +484,16 @@
 
 		return {
 			compile: function(){
-				body = compileFunctionBody(enter, enterText, exitText);
+				body = compileFunctionBody(enter, enterText, exitText, trees);
 				return getFs(body);
 			},
 			asyncCompile: function(onSuccess, onStep){
-				var queue = enter.generateQueue([]);
+				var queue = lofn.ScopedScript.generateQueue(enter, trees, []);
 				var onStep = onStep || function(){};
 				var i = 0, body;
 				var step = function(){
 					if(i < queue.length){
-						body = compileFunctionBody(queue[i], queue[i] === enter ? enterText : '', queue[i] === enter ? exitText : '');
+						body = compileFunctionBody(queue[i], queue[i] === enter ? enterText : '', queue[i] === enter ? exitText : '', trees);
 						onStep(queue[i], i, body);
 						i += 1;
 						setTimeout(step, 10);
@@ -501,7 +507,10 @@
 	}
 	lofn.Script = function(source, config, libraries){
 		var tokens = lofn.lex(source);
-		var tree = lofn.parse(tokens, source);
+		var ast = lofn.parse(tokens, source);
+
+		// ast = JSON.parse(JSON.stringify(ast));
+
 		config = config || lofn.standardTransform
 	
 		var specL = new Nai;
@@ -522,11 +531,11 @@
 			},
 			compile: function(){
 				this.setGlobalVariable = null;
-				lfcr = lofn.Compiler(tree, inita, config).compile(); 
+				lfcr = lofn.Compiler(ast, inita, config).compile(); 
 				return lfcr;
 			},
 			asyncCompile: function(onSuccess, onStep){
-				lofn.Compiler(tree, inita, config).asyncCompile(
+				lofn.Compiler(ast, inita, config).asyncCompile(
 					function(cm){
 						lfcr = cm;
 						onSuccess.apply(this, arguments)
