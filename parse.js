@@ -42,7 +42,7 @@
 			'CONDITIONAL',
 			// Statements
 			'IF', 'FOR', 'WHILE', 'REPEAT', 'CASE', 'PIECEWISE', 'VAR',
-			'BREAK', 'CONTINUE', 'LABEL', 'THROW', 'RETURN', 'TRY',
+			'BREAK', 'CONTINUE', 'LABEL', 'THROW', 'RETURN', 'TRY', 'YIELD',
 			// Variable
 			'VARDECL',
 			// Large-scale
@@ -70,6 +70,7 @@
 			this.usedTemps = {};
 			this.grDepth = 0;
 			this.sharpNo = 0;
+			this.corout = false;
 		};
 		ScopedScript.prototype.newVar = function (name, isarg) {
 			if (this.variables[name] === this.id) return;
@@ -971,6 +972,10 @@
 				case RETURN:
 					advance();
 					return new Node(nt.RETURN, { expression: expression() });
+				case YIELD:
+					workingScope.corout = true; // Special processing needed.
+					advance();
+					return new Node(nt.YIELD, { expression: expression() });
 				case THROW:
 					advance();
 					return new Node(nt.THROW, { expression: expression() });

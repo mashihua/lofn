@@ -17,10 +17,13 @@
 	var C_LABELNAME
 	var T_THIS
 	var T_ARGN
+	var T_ARGS
 	var BEFORE_BLOCK
 	var AFTER_BLOCK
 	var JOIN_STMTS
 	var THIS_BIND
+	var ARGS_BIND
+	var ARGN_BIND
 	var C_TEMP
 
 	var CTRLCHR = function (c) {
@@ -115,10 +118,10 @@
 		return T_ARGN();
 	});
 	schemata(nt.ARGUMENTS, function () {
-		return 'arguments';
+		return T_ARGS();
 	});
 	schemata(nt.CALLEE, function () {
-		return '(arguments.callee)';
+		return '(' + T_ARGS() + '.callee)';
 	});
 	schemata(nt.PARAMETERS, function () {
 		throw new Error('Unexpected parameter group');
@@ -250,20 +253,19 @@
 		var n = e;
 		while (n.rebindThis) n = n.upper;
 		n.thisOccurs = true;
-		return '(('+transform(this.operand)+').apply('+T_THIS(e)+', arguments))';
+		return '(('+transform(this.operand)+').apply('+T_THIS(e)+', ' + T_ARGS() + '))';
 	});
 
 	schemata(nt.FUNCTION, function () {
 		var _e = env,
 			f = trees[this.tree - 1];
-		var s = compileFunctionBody(f, '', '', trees);
+		var s = (f.corout ? compileCoroutine : compileFunctionBody) (f, '', '', trees);
 		var pars = f.parameters.names.slice(0), temppars = lofn.ScopedScript.listParTemp(f);
 		for (var i = 0; i < pars.length; i++)
 			pars[i] = C_NAME(pars[i])
 		for (var i = 0; i < temppars.length; i++)
 			temppars[i] = C_TEMP(temppars[i])
 		s = 'function(' + pars.concat(temppars).join(',') + '){\n' + s + '\n}';
-
 		env = _e;
 		return s;
 	});
@@ -292,8 +294,7 @@
 		return s;
 	});
 	schemata(nt.PIECEWISE, function () {
-		var a = [];
-		cond = '';
+		var a = [], cond = '';
 		for (var i = 0; i < this.conditions.length; i++) {
 			if (!this.bodies[i]) { // fallthrough condition
 				cond += '(' + transform(this.conditions[i]) + ') || ';
@@ -374,11 +375,11 @@
 		}
 	}
 	var compileFunctionBody = function (tree, hook_enter, hook_exit, scopes) {
+		if (tree.corout) return compileCoroutine(tree, hook_enter, hook_exit, scopes);
 		if (tree.transformed) return tree.transformed;
 		env = tree;
 		trees = scopes;
 		var s;
-		// SEF processing
 		s = transform(tree.code);
 		var locals = tree.locals,
 			vars = [],
@@ -387,7 +388,8 @@
 			if (!(tree.varIsArg[locals[i]])) vars.push(C_NAME(locals[i]));
 		for (var i = 0; i < temps.length; i++)
 			temps[i] = C_TEMP(temps[i]);
-		s = JOIN_STMTS(['var ___$EXCEPTION' + (temps.length ? ',' + temps.join(','): ''), THIS_BIND(tree), ARGN_BIND(tree), (vars.length ? 'var ' + vars.join(', ') : '')]) 
+		s = JOIN_STMTS(['var ___$EXCEPTION' + (temps.length ? ',' + temps.join(','): ''),
+				THIS_BIND(tree), ARGS_BIND(tree), ARGN_BIND(tree), (vars.length ? 'var ' + vars.join(', ') : '')]) 
 			+ (hook_enter || '') 
 			+ s 
 			+ (hook_exit || '');
@@ -395,6 +397,227 @@
 		tree.transformed = s;
 		return s;
 	};
+
+	var compileCoroutine = function(tree, hook_enter, hook_exit, scopes){
+/*	General schemata:
+ *  while(_PROGRESS){
+ *  	switch(_PROGESS){
+ *  		case ...
+ *  	}
+ *  }
+ * */
+		if(tree.transformed) return tree.transformed;
+		env = tree;
+		trees = scopes;
+		var cSchemata = vmSchemata.slice(0);
+		var ct = function (node) {
+			if (cSchemata[node.type]) {
+				return cSchemata[node.type].call(node, node, env, envs);
+			} else {
+				return '{!UNKNOWN}';
+			}
+		}
+		var labelN = 0;
+		var label = function(){
+			labelN += 1;
+			return labelN
+		};
+		var lNearest = 0;
+		var scopeLabels = {};
+
+		lInital = label();
+
+		lofn.ScopedScript.useTemp(tree, 'PROGRESS', '');
+		lofn.ScopedScript.useTemp(tree, 'EOF', '');
+		var GOTO = function(label){
+			return '{' + C_TEMP('PROGRESS') + '=' + label + '; break MASTERCTRL};\n'
+		}
+		var STOP = function(label){
+			return '\n' + C_TEMP('PROGRESS') + '=' + label + ';\n';
+		}
+		var LABEL = function(label){
+			return '\ncase ' + label + ':\n'
+		}
+		var OVER = function(){
+			return '\n;{ ' + C_TEMP('PROGRESS') + '= 0; ' + C_TEMP('EOF') + '= true };\n'
+		}
+		cSchemata[nt.IF] = function(node){
+			var lElse = label();
+			var lEnd = label();
+			var s = 'if(!(' + ct(this.condition) + '))' + GOTO(lElse);
+			s += ct(this.thenPart);
+			if(this.elsePart){
+				s += GOTO(lEnd);
+				s += LABEL(lElse);
+				s += ct(this.elsePart);
+				s += LABEL(lEnd);
+			} else {
+				s += LABEL(lElse);
+			}
+			return s;			
+		}
+		cSchemata[nt.PIECEWISE] = function () {
+			var a = [], b = [], l = [], cond = '';
+			for (var i = 0; i < this.conditions.length; i++) {
+				if (!this.bodies[i]) { // fallthrough condition
+					cond += '(' + transform(this.conditions[i]) + ') || ';
+				} else {
+					cond += '(' + transform(this.conditions[i]) + ')';
+					var li = label();
+					l.push(li);
+					b.push(this.bodies[i]);
+					a.push('if (' + cond + '){\n' + GOTO(li) + '\n}');
+					cond = '';
+				}
+			};
+
+			var lEnd = label();	
+			var bodies = '';
+			for(var i = 0; i < l.length; i += 1){
+				bodies += LABEL(l[i]) + ct(b[i]) + GOTO(lEnd) + ';\n';
+			}
+
+			var conds = a.join(' else ');
+			if (this.otherwise) {
+				var lElse = label()
+				conds += ' else {\n' + GOTO(lElse) + '\n}';
+				bodies += LABEL(lElse) + ct(this.otherwise) + GOTO(lEnd) + ';\n'
+			} else {
+				cond += GOTO(lEnd);
+			}
+	
+			return conds + bodies + LABEL(lEnd);
+		};
+		cSchemata[nt.CASE] = function(){
+			var b = [], l = [], li;
+			var bk = lNearest;
+			var lEnd = lNearest = label();
+
+			var s = 'switch (' + transform(this.expression) + '){';
+			for (var i = 0; i < this.conditions.length; i++) {
+				s += '\ncase ' + transform(this.conditions[i]) + ' :'
+				if (this.bodies[i]) {
+					l.push(li = label());
+					b.push(this.bodies[i]);
+					s += GOTO(li);
+				}
+			}
+	
+			if (this.otherwise) {
+				l.push(li = label());
+				b.push(this.otherwise);
+				s += '\ndefault:{\n' + GOTO(li) + '\n}';
+			}
+			s += '\n};\n' + GOTO(lEnd);
+			var bodies = '';
+
+			for(var i = 0; i < l.length; i += 1){
+				bodies += LABEL(l[i]) + ct(b[i]) + (this.fallThrough ? '' : GOTO(lEnd))
+			}
+			
+			lNearest = bk;
+			return s + bodies + LABEL(lEnd);
+		};
+
+
+
+		cSchemata[nt.WHILE] = function(){
+			var lLoop = label();
+			var bk = lNearest;
+			var lEnd = lNearest = label();
+			var s = LABEL(lLoop)
+			s += 'if(!(' + ct(this.condition) + '))' + GOTO(lEnd); 
+			s += ct(this.body);
+			s += GOTO(lLoop);
+			s += LABEL(lEnd);
+			lNearest = bk;
+			return s;
+		}
+		cSchemata[nt.FOR] = function () {
+			var lLoop = label();
+			var bk = lNearest;
+			var lEnd = lNearest = label();
+			var s = ct(this.start) + ';\n' + LABEL(lLoop)
+				+ 'if(!(' + ct(this.condition) + '))' + GOTO(lEnd)
+				+ ct(this.body) + ';\n'
+				+ ct(this.step) + ';\n'
+				+ GOTO(lLoop)
+				+ LABEL(lEnd)
+			lNearest = bk;
+			return s;
+		};
+		cSchemata[nt.REPEAT] = function(){
+			var lLoop = label();
+			var bk = lNearest;
+			var lEnd = lNearest = label();
+			var s = LABEL(lLoop)
+				 + ct(this.body)
+				 + 'if(!(' + ct(this.condition) + '))' + GOTO(lLoop)
+				 + LABEL(lEnd);
+			lNearest = bk;
+			return s
+		};
+	
+		cSchemata[nt.YIELD] = function(node){
+			var l = label();
+			return STOP(l) + 'return ' + transform(this.expression) + ';' + LABEL(l);
+		}
+		cSchemata[nt.RETURN] = function() {
+			return OVER() + 'return ' + transform(this.expression)
+		}
+		cSchemata[nt.SCRIPT] = function (n) {
+			var a = [];
+			for (var i = 0; i < n.content.length; i++)
+			if (n.content[i]) {
+				a[i] = ct(n.content[i]);
+			}
+			var joined = JOIN_STMTS(a)
+			return joined;
+		};
+
+		cSchemata[nt.LABEL] =  function () {
+			var l = scopeLabels[this.name] = label();
+			return ct(this.body) + LABEL(l);
+		};
+		cSchemata[nt.BREAK] = function () {
+			return GOTO(this.destination ? scopeLabels[this.destination] : lNearest);
+		};
+		cSchemata[nt.TRY] = function(){
+			throw new Error('Unable to use TRY statement in a coroutine function.');
+		};
+
+
+
+
+		var s = ct(tree.code);
+
+		var locals = tree.locals,
+			vars = [],
+			temps = lofn.ScopedScript.listTemp(tree);
+		for (var i = 0; i < locals.length; i++)
+			if (!(tree.varIsArg[locals[i]])) vars.push(C_NAME(locals[i]));
+		for (var i = 0; i < temps.length; i++)
+			temps[i] = C_TEMP(temps[i]);
+		s = JOIN_STMTS(['var ___$EXCEPTION' + (temps.length ? ',' + temps.join(','): ''),
+				THIS_BIND(tree),
+				ARGS_BIND(tree),
+				ARGN_BIND(tree),
+				(vars.length ? 'var ' + vars.join(', ') : ''),
+				C_TEMP('PROGRESS') + '=' + lInital,
+				C_TEMP('EOF') + '= false'
+			]) 
+				+ (hook_enter || '') 
+				+ 'return function(){\nwhile(' + C_TEMP('PROGRESS') + ') {\n'
+				+ 'MASTERCTRL: switch(' + C_TEMP('PROGRESS') + '){\n'
+					+ LABEL(lInital) + s
+				+ OVER()
+				+ 'return ;'
+				+ '}\n}\n}' 
+				+ (hook_exit || '');
+
+		tree.transformed = s;
+		return s;
+	}
 
 	var bindConfig = function (vmConfig) {
 		config = vmConfig;
@@ -404,7 +627,9 @@
 		JOIN_STMTS = config.joinStatements;
 		THIS_BIND = config.thisBind;
 		ARGN_BIND = config.argnBind;
+		ARGS_BIND = config.argsBind;
 		T_ARGN = config.argnName;
+		T_ARGS = config.argsName;
 		C_TEMP = config.tempName;
 	};
 	// Default Lofn compilation config
@@ -427,11 +652,17 @@
 			argnName: function(){
 				return '_$A_ARGN_'
 			},
+			argsName: function(){
+				return '_$A_ARGS_'
+			},
 			thisBind: function (env) {
 				return (!env.thisOccurs || env.rebindThis) ? '' : 'var _$T_ = (this === LF_M_TOP ? null : this)'
 			},
 			argnBind: function (env) {
 				return env.argnOccurs ? 'var _$A_ARGN_ = LF_CNARG(arguments[arguments.length - 1])' : ''
+			},
+			argsBind: function (env) {
+				return 'var _$A_ARGS_ = arguments'
 			},
 			joinStatements: function (statements) {
 				return statements.join(';\n') + ';\n';
