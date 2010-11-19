@@ -429,6 +429,8 @@
 
 		lofn.ScopedScript.useTemp(tree, 'PROGRESS', '');
 		lofn.ScopedScript.useTemp(tree, 'EOF', '');
+		lofn.ScopedScript.useTemp(tree, 'ISFUN');
+		lofn.ScopedScript.useTemp(tree, 'FUN', '', 1);
 		var GOTO = function(label){
 			return '{' + C_TEMP('PROGRESS') + '=' + label + '; break MASTERCTRL};\n'
 		}
@@ -560,20 +562,16 @@
 	
 		cSchemata[nt.YIELD] = function(node){
 			var l = label();
-			return STOP(l) + 'return ' + transform(this.expression) + ';' + LABEL(l);
+			var e = [];
+			for(var i = 0 ; i < this.args.length; i += 1)
+				e.push(transform(this.args[i]));
+			e = e.join(',');
+			return 'if(' + C_TEMP('ISFUN') + ') ' + C_TEMP('FUN') +'(' + e + 
+					');\n else {' +STOP(l) + 'return new LF_YIELDVALUE(' + e + ')} ;' + LABEL(l);
 		}
 		cSchemata[nt.RETURN] = function() {
-			return OVER() + 'return ' + transform(this.expression)
+			return OVER() + 'return new LF_RETURNVALUE(' + transform(this.expression) + ')'
 		}
-		cSchemata[nt.SCRIPT] = function (n) {
-			var a = [];
-			for (var i = 0; i < n.content.length; i++)
-			if (n.content[i]) {
-				a[i] = ct(n.content[i]);
-			}
-			var joined = JOIN_STMTS(a)
-			return joined;
-		};
 
 		cSchemata[nt.LABEL] =  function () {
 			var l = scopeLabels[this.name] = label();
@@ -586,6 +584,15 @@
 			throw new Error('Unable to use TRY statement in a coroutine function.');
 		};
 
+		cSchemata[nt.SCRIPT] = function (n) {
+			var a = [];
+			for (var i = 0; i < n.content.length; i++)
+			if (n.content[i]) {
+				a[i] = ct(n.content[i]);
+			}
+			var joined = JOIN_STMTS(a)
+			return joined;
+		};
 
 
 
@@ -607,7 +614,9 @@
 				C_TEMP('EOF') + '= false'
 			]) 
 				+ (hook_enter || '') 
-				+ 'return function(){\nwhile(' + C_TEMP('PROGRESS') + ') {\n'
+				+ 'return function(' + C_TEMP('FUN') + '){\n'
+				+ C_TEMP('ISFUN') + ' = typeof ' + C_TEMP('FUN') + ' === "function";\n'
+				+ 'while(' + C_TEMP('PROGRESS') + ') {\n'
 				+ 'MASTERCTRL: switch(' + C_TEMP('PROGRESS') + '){\n'
 					+ LABEL(lInital) + s
 				+ OVER()

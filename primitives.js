@@ -61,6 +61,13 @@ var LF_ITEMSET = function (p, s, v){
 var LF_RMETHOD = function (l, r, m){
 	return r[m](l)
 }
+var LF_YIELDVALUE = function (x){
+	this.value = x;
+	this.values = SLICE(arguments, 0)
+}
+var LF_RETURNVALUE = function (x){
+	this.value = x
+}
 
 var NamedArguments = function(){
 	var _ = new Nai;

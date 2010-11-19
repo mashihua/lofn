@@ -142,7 +142,7 @@
 		return arr;
 	}
 	ScopedScript.useTemp = function(scope, type, id, aspar){
-		scope.usedTemps[type + id] = aspar ? 2 : 1;
+		scope.usedTemps[type + (id || '')] = aspar ? 2 : 1;
 	}
 	
 	ScopedScript.registerVariable = function(scope, name, argQ) {
@@ -700,6 +700,7 @@
 				} while (true);
 
 			nc.args = args;
+			return nc;
 		};
 
 		var unary = function () {
@@ -975,7 +976,7 @@
 				case YIELD:
 					workingScope.corout = true; // Special processing needed.
 					advance();
-					return new Node(nt.YIELD, { expression: expression() });
+					return itemlist(new Node(nt.YIELD));
 				case THROW:
 					advance();
 					return new Node(nt.THROW, { expression: expression() });
