@@ -70,6 +70,9 @@
 			var script = new lofn.Script(document.getElementById('input').value);
 			script.expose('alert', alert);
 			script.expose('exports', {});
+			script.expose('hang', function(f, t){
+					setTimeout(f, t)
+			});
 			script.asyncCompile(function(cm){
 				tracel('Generated code:\n' + (' |\t' + cm.generatedSource).replace(/\n/g, '\n |\t'));
 				script.start();

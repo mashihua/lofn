@@ -562,10 +562,7 @@
 	
 		cSchemata[nt.YIELD] = function(node){
 			var l = label();
-			var e = [];
-			for(var i = 0 ; i < this.args.length; i += 1)
-				e.push(transform(this.args[i]));
-			e = e.join(',');
+			var e = this.args ?  C_ARGS(this).args : '';
 			return 'if(' + C_TEMP('ISFUN') + ') ' + C_TEMP('FUN') +'(' + e + 
 					');\n else {' +STOP(l) + 'return new LF_YIELDVALUE(' + e + ')} ;' + LABEL(l);
 		}

@@ -976,7 +976,7 @@
 				case YIELD:
 					workingScope.corout = true; // Special processing needed.
 					advance();
-					return itemlist(new Node(nt.YIELD));
+					return yieldstmt();
 				case THROW:
 					advance();
 					return new Node(nt.THROW, { expression: expression() });
@@ -1047,6 +1047,12 @@
 				name: v.name
 			});
 		};
+		var yieldstmt = function (){
+			var n = omissionCall(new Node(nt.YIELD));
+			console.log(n);
+			n.type = nt.YIELD;
+			return n;
+		}
 
 		var contBlock = function () {
 			if(tokenIs(COLON)) {
