@@ -48,13 +48,14 @@
 			};
 			return {
 				trace: trace,
-				tracel: tracel,
-				clrscr: clrscr
+				tracel: tracel
 			}
 		}
 		var clrscr = function () {
 			document.getElementById('output').innerHTML = document.getElementById('info').innerHTML = '';
 		}
+		var output = G_TRACE('output');
+
 //]]></script>
 
 	<script src="primitives.js" type="text/javascript"></script>
@@ -67,7 +68,11 @@
 		document.getElementById('go').onclick = function () {
 			clrscr();
 			var tracel = G_TRACE('info').tracel;
-			var script = new lofn.Script(document.getElementById('input').value);
+			var script = new lofn.Script(document.getElementById('input').value, null, {
+				trace: output.trace,
+				tracel: output.tracel,
+				cout: {shiftIn: output.trace}					
+			});
 			script.expose('alert', alert);
 			script.expose('exports', {});
 			script.expose('hang', function(f, t){

@@ -4,63 +4,113 @@
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" /><title></title>
 	<style type="text/css">
-		pre {
+		pre, #cout .error {
 			font-family: Consolas,Courier New,NSimSun,SimSun,monospace;
-			font-size: 12px;
-		}
-		#info {
-			color: #009;
-		}
-		#output {
-			font-weight: bolder;
-			font-size: 14px;
-		}
-		#err {
-			font-weight: bolder;
-			color: red;
-			font-size: 14px;
 		}
 		h1 {
 			font-family: Arial,NSimSun,sans-serif;
 		}
 		#input {
-			width: 99%;
+			width: 100%;
 			display: block;
-			height: 16em;
+			padding: 4px;
+			border: 1px solid #ddd;
+			line-height: 1.2em;
+			height: 2.4em;
+			min-height: 3.2em;
+			margin-top: 1.5em;
+			box-sizing: border-box;
+			-ms-box-sizing: border-box;
+			-moz-box-sizing: border-box;
+			-webkit-box-sizing: border-box;
+			-o-box-sizing: border-box;
+			overflow: auto;
 		}
+		#cout pre{
+			font-size: 1em;
+			border-left: 2px solid #39f;
+			padding: 4px 5px;
+			margin: 2px 0;
+		}
+		#cout .error{
+			font-size: 1em;
+			white-space: pre;
+			color: red;
+		}
+		#cout .info {
+			white-space: pre;
+			font-size: smaller;
+			color: #999;
+			padding:2px 5px;
+			border-left:2px solid #f7f7f7;
+			margin: 2px 0;
+		}
+		#cout .info.product,
+		#cout .info.man {
+			font-size: 1em;
+			color: black;
+		}
+		#cout .info.product {
+			font-size: 2em;
+		}
+		#cout .info.man {
+			color: #039;
+		}
+		#cout .info.brk {
+			border-left-color: transparent;
+			text-align: right;
+			color: #ddd;
+		}
+		body {
+			max-width: 720px;
+			margin: auto;
+		}
+		#go {display: none}
 	</style>
 </head>
-<body>
+<body id="body">
+	<noscript>The Lofn cannot be enabled because JavaScript is disabled.</noscript>
+	<div id="cout"></div>
 	<textarea id="input"></textarea>
 	<button id="go">Start script</button>
-	<pre id="output"></pre>
-	<pre id="err"></pre>
-	<pre id="info"><noscript>The Lofn cannot be enabled because the JavaScript is disabled.</noscript></pre>
 
 	<script type="text/javascript">
-			//<![CDATA[
-		var G_TRACE = function (element) {
-			var _output = document.getElementById(element);
-			function trace(x) {
+//<![CDATA[
+		var output = {
+			last : null,
+	  		trace: function (x) {
 				var s = '';
 				for (var i = 0; i < arguments.length; i++) s += arguments[i];
-				_output.appendChild(document.createTextNode(s));
+				output.last.appendChild(document.createTextNode(s));
+				bottom();
 				return arguments[arguments.length - 1];
-			};
-			function tracel() {
-				var v = trace.apply(this, arguments);
-				trace('\n');
+			},
+			tracel: function(){
+				var v = output.trace.apply(this, arguments);
+				output.trace('\n');
+				bottom();
 				return v;
-			};
-			return {
-				trace: trace,
-				tracel: tracel,
-				clrscr: clrscr
 			}
 		}
-		var clrscr = function () {
-			document.getElementById('output').innerHTML = document.getElementById('info').innerHTML = document.getElementById('err').innerHTML = '';
+		var tinfo = function(s, k){
+			var e = document.createElement('div');
+			e.className = (k || '') + ' info';
+			e.appendChild(document.createTextNode(s));
+			$('cout').appendChild(e);
+			e = null;
+			bottom();
 		}
+		var terr = function(e){
+			var d = document.createElement('div');
+			d.className = 'error';
+			d.appendChild(document.createTextNode(e));
+			$('cout').appendChild(d);
+			d = null;
+		}
+		var bottom = function(){
+			$('body').scrollTop = $('body').scrollHeight;
+		}
+
 //]]></script>
 
 	<script src="primitives.js" type="text/javascript"></script>
@@ -70,24 +120,95 @@
 	<script src="stl.js" type="text/javascript"></script>
 
 	<script type="text/javascript">
-		clrscr(), G_TRACE('info').tracel('The Lofn compiler.\n- Version ' + lofn.version + ' -\n\nBy Belleve Invis (aka. infinte)\n\nAmor ex Dessis.\n(From Dess with love)');
-		document.getElementById('go').onclick = function () {
-			clrscr();
-			var tracel = G_TRACE('info').tracel;
-			var tracex = G_TRACE('err').tracel;
+		var $ = function(e){return document.getElementById(e)}
+		var run = document.getElementById('go').onclick = function () {
+			tinfo('Job started: ' + new Date().toLocaleString(), 'brk');
 			// start VM
 			try {
-				var script = new lofn.Script(document.getElementById('input').value);
-				script.expose('alert', alert);
-				script.expose('exports', {});
+				var pre = document.createElement('pre');
+				pre.className = 'output';
+
+
+				var trace = function (x) {
+					var s = '';
+					for (var i = 0; i < arguments.length; i++) s += arguments[i];
+					pre.appendChild(document.createTextNode(s));
+					bottom();
+					return arguments[arguments.length - 1];
+				}, tracel= function(){
+					var v = trace.apply(this, arguments);
+					trace('\n');
+					bottom();
+					return v;
+				}
+
+				var demolib = {
+					alert: alert,
+					exports: {},
+					setTimeout: setTimeout
+				}
+				var stdio = {
+					trace: trace,
+					tracel: tracel,
+					stdout: { shiftIn: trace }
+				}
+				stdio.stdio = stdio;
+
+				var script = new lofn.Script(
+					document.getElementById('input').value, // source
+					null, // Default Transforming schemata
+					[demolib, stdio] // libraries
+				);
+
+
 				script.asyncCompile(function(cm){
-					script.start();
-					tracel('--- DONE  ---');					
-				}, function(t,i,b){tracel('done function #'+i+' (@'+t.id+')')});
+					try {
+						tinfo('[LFC]\tDone compilation. Starting script...');
+						var starttime = new Date();
+						$('cout').appendChild(pre);
+						script.start();
+						tinfo('Completed in ' + (new Date() - starttime) + 'ms.');
+					} catch (e) {
+						terr(e)
+					}
+				}, function(t,i,b){});
 			} catch (e) {
-				tracex('! An error occurs \n\n' + e);
+				terr(e)
 			}
+			setTimeout(function(){$('input').focus();bottom();});
 		};
+		var resizeInput = function(){
+			$('input').style.height = ($('input').scrollHeight + 2) + 'px';
+		}
+		$('input').addEventListener('keydown', function(e){
+			if(e.shiftKey && (e.key === 'Enter' || e.keyCode === 13)){
+				e.preventDefault();
+				return setTimeout(function(){run();},0);
+			} else if(e.ctrlKey && (e.key === 'Enter' || e.keyCode === 13)){
+				return setTimeout(function(){
+					run();
+					$('input').value = '';
+					resizeInput();
+				},0);
+			}
+		}, false);
+		$('input').addEventListener('keyup',function(){
+			var len = 0;
+			return function(e){
+				var l = $('input').value.length;
+				if(l <= len)
+					$('input').style.height = 0;
+				len = l;
+				resizeInput();
+				bottom();
+			}
+		}(), false)
+		window.onload = function(){
+			tinfo('Lofn', 'product');
+			tinfo('ver. Patchouli (r3) @ web.\tAmor ex Dessis.', 'ver');
+			tinfo('Type code and press <Shift-Enter>.', 'man');
+			$('input').focus();
+		}
 	</script>
 
 </body>

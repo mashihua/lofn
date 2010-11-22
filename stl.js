@@ -6,15 +6,6 @@
 		lofn.stl[n] = x
 	}
 
-	0, function () {
-		var output = G_TRACE('output');
-		reg('trace', output.trace);
-		reg('tracel', output.tracel);
-		reg('cout', {
-			shiftIn: function (item) { output.trace(item); return this }
-		});
-	} ();
-
 	// special hack
 	Date['new'] = function () { return new Date() };
 	Function['new'] = function (args, body) { return new Function(args, body) };

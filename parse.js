@@ -168,14 +168,12 @@
 
 	return function (input, source) {
 		var PE = function(message, p){
-			if(token || p != undefined){
-				var pos = p == undefined ? token.position : p;
-				var lineno = ('\n' + source.slice(0, pos)).match(/\n/g).length;
-				var lineno_l = lineno.toString().length;
-				message = '[LFC] ' + message + '\nat line: ' + lineno;
-				message += '\n ' + lineno + ' : ' + (source.split('\n')[lineno - 1]);
-				message += '\n-' + (lineno + '').replace(/./g, '-') + '---' + (source.slice(0, pos).split('\n')[lineno - 1].replace(/./g, '-').replace(/$/, '^'));
-			}
+			var pos = p == undefined ? (token ? token.position : source.length) : p;
+			var lineno = ('\n' + source.slice(0, pos)).match(/\n/g).length;
+			var lineno_l = lineno.toString().length;
+			message = '[LFC] ' + message + '\nat line: ' + lineno;
+			message += '\n ' + lineno + ' : ' + (source.split('\n')[lineno - 1]);
+			message += '\n-' + (lineno + '').replace(/./g, '-') + '---' + (source.slice(0, pos).split('\n')[lineno - 1].replace(/./g, '-').replace(/$/, '^'));
 			var e = new Error(message);
 			return e;
 		}
@@ -1049,7 +1047,6 @@
 		};
 		var yieldstmt = function (){
 			var n = omissionCall(new Node(nt.YIELD));
-			console.log(n);
 			n.type = nt.YIELD;
 			return n;
 		}
