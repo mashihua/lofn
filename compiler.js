@@ -336,7 +336,32 @@
 	schemata(nt.WHILE, function () {
 		return 'while(' + transform(this.condition) + '){\n' + transform(this.body) + '\n}';
 	});
-	schemata(nt.FOR, function () {
+	schemata(nt.FORIN, function (nd, e) {
+		lofn.ScopedScript.useTemp(e, 'ENUMERATOR', this.no);
+		lofn.ScopedScript.useTemp(e, 'YV');
+		lofn.ScopedScript.useTemp(e, 'YVC');
+		var s_enum = '';
+		s_enum += C_TEMP('YV') + '=(' + C_TEMP('ENUMERATOR' + this.no) + ')()'
+		s_enum += ',' + C_TEMP('YVC') + '=' + C_TEMP('YV') + ' instanceof LF_YIELDVALUE';
+		s_enum += ',' + C_TEMP('YVC') + '?('
+		s_enum += C_NAME(this.vars[0].name) + '=' + C_TEMP('YV') + '.value' ; // v[0] = enumerator.value
+		for(var i = 1; i < this.vars.length; i += 1){
+			s_enum += ', ' + C_NAME(this.vars[i].name) + '=' + C_TEMP('YV') + '.values[' + i + ']' ; // v[i] = enumerator.values[i]
+		}
+		s_enum = '(' + s_enum + '):undefined)';
+		var s = 'for(';
+		s += '(' + C_TEMP('ENUMERATOR' + this.no) + '=' + transform(this.range) + ')'; // get enumerator;
+		s += ',' + s_enum
+		s += ';\n' + C_TEMP('YVC')
+		s += ';' + s_enum;
+		if (this.step) {
+			s += transform(this.step);
+		};
+
+		s += '){\n' + transform(this.body) + '\n}';
+		return s;
+	});
+	schemata(nt.FOR, function(){
 		var s = 'for(';
 		if (this.start) {
 			s += transform(this.start);
@@ -547,6 +572,33 @@
 				+ LABEL(lEnd)
 			lNearest = bk;
 			return s;
+		};
+		cSchemata[nt.FORIN] = function(){
+			lofn.ScopedScript.useTemp(env, 'ENUMERATOR', this.no);
+			lofn.ScopedScript.useTemp(env, 'YV');
+			lofn.ScopedScript.useTemp(env, 'YVC');
+			var s_enum = '';
+			s_enum += C_TEMP('YV') + '=(' + C_TEMP('ENUMERATOR' + this.no) + ')()'
+			s_enum += ',' + C_TEMP('YVC') + '=' + C_TEMP('YV') + ' instanceof LF_YIELDVALUE';
+			s_enum += ',' + C_TEMP('YVC') + '?('
+			s_enum += C_NAME(this.vars[0].name) + '=' + C_TEMP('YV') + '.value' ; // v[0] = enumerator.value
+			for(var i = 1; i < this.vars.length; i += 1){
+				s_enum += ', ' + C_NAME(this.vars[i].name) + '=' + C_TEMP('YV') + '.values[' + i + ']' ; // v[i] = enumerator.values[i]
+			}
+			s_enum = '(' + s_enum + '):undefined)';
+			var lLoop = label();
+			var bk = lNearest;
+			var lEnd = lNearest = label();
+			var s = C_TEMP('ENUMERATOR' + this.no) + '=' + ct(this.range) + ';\n'
+				+ s_enum + ';\n' + LABEL(lLoop)
+				+ 'if(!(' + C_TEMP('YVC') + '))' + GOTO(lEnd)
+				+ ct(this.body) + ';\n'
+				+ s_enum + ';\n'
+				+ GOTO(lLoop)
+				+ LABEL(lEnd)
+			lNearest = bk;
+			return s;
+	
 		};
 		cSchemata[nt.REPEAT] = function(){
 			var lLoop = label();

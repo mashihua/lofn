@@ -32,7 +32,7 @@ var COPYSTRING = function(s,n){
 var YES = {};
 var NUSED = {};
 var SLICE = function () {
-	var s = [].slice;
+	var s = Array.prototype.slice;
 	return function (x, n) {
 		return s.call(x, n);
 	};
@@ -48,7 +48,6 @@ var NARG = function () {
 var noth = void 0;
 
 var LF_M_TOP = function(){return this}();
-var SLICE = Array.prototype.slice;
 var LF_MINVOKE = function (p, s) {
 	return p[s].apply(p,SLICE.call(arguments,2))
 }
@@ -63,7 +62,7 @@ var LF_RMETHOD = function (l, r, m){
 }
 var LF_YIELDVALUE = function (x){
 	this.value = x;
-	this.values = SLICE(arguments, 0)
+	this.values = SLICE(arguments, 0);
 }
 var LF_RETURNVALUE = function (x){
 	this.value = x

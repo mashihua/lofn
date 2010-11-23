@@ -41,7 +41,7 @@
 			// Conditional
 			'CONDITIONAL',
 			// Statements
-			'IF', 'FOR', 'WHILE', 'REPEAT', 'CASE', 'PIECEWISE', 'VAR',
+			'IF', 'FOR', 'FORIN', 'WHILE', 'REPEAT', 'CASE', 'PIECEWISE', 'VAR',
 			'BREAK', 'CONTINUE', 'LABEL', 'THROW', 'RETURN', 'TRY', 'YIELD',
 			// Variable
 			'VARDECL',
@@ -70,6 +70,7 @@
 			this.usedTemps = {};
 			this.grDepth = 0;
 			this.sharpNo = 0;
+			this.finNo = 0;
 			this.corout = false;
 		};
 		ScopedScript.prototype.newVar = function (name, isarg) {
@@ -1045,6 +1046,14 @@
 				name: v.name
 			});
 		};
+		var fivardecl = function (c) {
+			var v = variable();
+			if(c) workingScope.newVar(v.name);
+			return new Node(nt.VARDECL, {
+				name: v.name
+			});
+		};
+
 		var yieldstmt = function (){
 			var n = omissionCall(new Node(nt.YIELD));
 			n.type = nt.YIELD;
@@ -1169,30 +1178,49 @@
 			return n;
 		};
 		var forstmt = function () {
-			var node = new Node(nt.FOR);
+			var node;
 			advance(FOR);
-			advance(STARTBRACE, RDSTART);
-			ensure(token);
-			if (token.type !== SEMICOLON) {
-				if (token.type === VAR) {
-					advance(VAR);
-					node.start = vardecls();
+			if(tokenIs(STARTBRACE, RDSTART)){
+				node = new Node(nt.FOR);
+				advance(STARTBRACE, RDSTART);
+				ensure(token);
+				if (token.type !== SEMICOLON) {
+					if (token.type === VAR) {
+						advance(VAR);
+						node.start = vardecls();
+					} else {
+						node.start = expression();
+					}
+				};
+				advance(SEMICOLON);
+				if (token.type !== SEMICOLON) {
+					node.condition = expression();
 				} else {
-					node.start = expression();
+					throw PE('The condition of a FOR loop mustn\'t be empty.');
 				}
-			};
-			advance(SEMICOLON);
-			if (token.type !== SEMICOLON) {
-				node.condition = expression();
-			} else {
-				throw PE('The condition of a FOR loop mustn\'t be empty.');
-			}
-			advance(SEMICOLON);
-			if (token.type !== ENDBRACE && token.value !== RDEND) {
-				node.step = expression();
-			};
+				advance(SEMICOLON);
+				if (token.type !== ENDBRACE && token.value !== RDEND) {
+					node.step = expression();
+				};
 
-			advance(ENDBRACE, RDEND);
+				advance(ENDBRACE, RDEND);
+			} else {
+				node = new Node(nt.FORIN);
+				node.no = ++ workingScope.finNo
+				var declQ = false
+				if(tokenIs(VAR)){
+					advance(VAR);
+					declQ = true;
+				}
+				var decls = [fivardecl(declQ)];
+				while(tokenIs(COMMA)){
+					advance(COMMA);
+					decls.push(fivardecl(declQ));
+				}
+				node.vars = decls;
+				advance(OPERATOR, 'in');
+				node.range = callItem();
+			}
 			node.body = contBlock();
 			return node;
 		};
