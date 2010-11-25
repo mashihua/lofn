@@ -125,29 +125,9 @@ Object.prototype.contains = function (b) {
 ISARRAIOID = function(a){
 	return 'length' in this && (typeof this.length === 'number') && (this["length"] - 1) in this
 };
-Object.prototype.each = function(f){
-	var i, l;
-	if(ISARRAIOID){
-		// array like
-		for(i = 0,l = this.length; i<l; i++){
-			f.call(this[i],this[i],i)
-		}
-	} else {
-		for(var each in this)
-			if(OWNS(this,each))
-				f.call(this[each],this[each],each);
-	}
-};
 Object.prototype.of = function(v){
 	return v[this];
 }
-Array.prototype.each = function (f) {
-	for (var i = 0; i < this.length; i++) {
-		f.call(this[i], this[i], i)
-	};
-	return this;
-};
-String.prototype.each = null;
 Function.prototype.be = function (b) {
 	return b instanceof this;
 };

@@ -127,7 +127,7 @@ var lex = lofn.lex = function () {
 		'try': TRY,
 		'catch': CATCH,
 		'finally': FINALLY,
-		'Task': TASK,
+		'TASK': TASK,
 		'pass': PASS,
 		'yield': YIELD
 	};
