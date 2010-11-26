@@ -516,7 +516,7 @@
 							advance();
 							return new Node(nt.LITERAL, {value: void 0})
 						}
-						var n = expression(true);
+						var n = expression();
 						advance(ENDBRACE, 41);
 						return n;
 					} else if (token.value === CRSTART) {
@@ -799,7 +799,7 @@
 			return operatorPiece(start, unary);
 		}
 
-		var omissionCall = function (node) {
+		var omissionCall = function (node, small) {
 			while (true) {
 				if (!token) return node;
 				switch (token.type) {
@@ -848,7 +848,7 @@
 
 		}();
 
-		var expression = function () {
+		var expression = function (small) {
 			// expression.
 			// following specifics are supported:
 			// - Omissioned calls
@@ -858,7 +858,7 @@
 				advance();
 				return new Node(nt['='], {
 					left: c,
-					right: expression(true)
+					right: expression()
 				});
 			} else if (ASSIGNIS()) { //赋值
 				var _v = token.value;
@@ -866,14 +866,16 @@
 				return new Node(nt['='], {
 					left: c,
 					right: new Node(nt[_v.slice(0, _v.length - 1)], {
-						left:c, right:expression(true)
+						left:c, right:expression()
 					})
 				});
 			}
 
-			c = operatorPiece(c, unary);
-		
 			var method, isOmission = true, curry = false;
+			if(tokenIs(OPERATOR)){
+				c = operatorPiece(c, unary);
+				isOmission = false
+			}
 
 			out: while (true) {
 				if (!token) break out;
@@ -885,6 +887,7 @@
 					case IF:
 						break out;
 					case THEN:
+						if (small) break out;
 						advance();
 						if (tokenIs(DOT)) {
 							// |.name chaining
@@ -924,7 +927,7 @@
 							arglist(c);
 							curry = true
 						} else if (isOmission) {
-							c = omissionCall(c);
+							c = omissionCall(c, small);
 							isOmission = false;
 							curry = false;
 						} else {
@@ -941,7 +944,7 @@
 					condition: callItem()
 				});
 				if(tokenIs(ELSE))
-					advance(ELSE), c.elsePart = expression();
+					advance(ELSE), c.elsePart = expression(small);
 			}
 
 			return new Node(nt.GROUP, { operand: c});
