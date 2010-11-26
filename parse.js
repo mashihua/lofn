@@ -652,7 +652,7 @@
 			};
 			return m;
 		};
-		var arglist = function (nc) {
+		var arglist = function (nc, omit) {
 			var args = [], names = [], pivot, name, sname, nameused;
 			do {
 				if ((token.isName || tokenIs(STRING)) && nextIs(COLON)) {
@@ -665,7 +665,7 @@
 				// callItem is the "most strict" expression.
 				// without omissioned calls and implicit calls.
 				// so you cannot write `f(1, 2, a:3)` like `f 1, 2, a:3`.
-				pivot = callItem();
+				pivot = callItem(omit);
 				args.push(pivot);
 				if (sname) {
 					names[args.length - 1] = name;
@@ -742,7 +742,7 @@
 				'<': N, '>': N, '<=': N, '>=': N,
 				'is': L, 'in': L,
 				'==': N, '!=': N, '=~': N, '!~': N, '===':N, '!==':N,
-				'and': L, 'or': L,
+				'and': R, 'or': R,
 				'as': L,
 				'~~' : L,
 				'->': R
@@ -755,7 +755,6 @@
 				var uber = { right: start, bp: 65536 }, t, tv, operand, nbp, combining, n, node, p;
 				while (tokenIs(OPERATOR) && ensure(bp[token.value] > 0, "Invalid Operator")) { 
 					// if is a valid operator, then...
-		
 					t = advance(OPERATOR), tv = t.value, p = t.position;
 					operand = progress();
 					nbp = bp[tv], combining = combp[tv];
@@ -791,6 +790,7 @@
 						n.right = node;
 					}
 				};
+				uber.right.bp = 0;
 				return uber.right;
 			};
 		}();
@@ -818,11 +818,11 @@
 					default:
 						var n_ = node;
 						node = new Node(nt.CALL, { func: n_ });
-						arglist(node);
+						arglist(node, true);
 						if (node.args.length === 1 && node.names[0] == null) {
 							return new Node(nt.CALL, {
 								func: n_,
-								args: [omissionCall(node.args[0])],
+								args: [omissionCall(node.args[0], small)],
 								names: [null]
 							})
 						} else {
@@ -949,7 +949,38 @@
 
 			return new Node(nt.GROUP, { operand: c});
 		};
-		var callItem = operating;
+		var callItem = function(omit){
+			var node = unary();
+			while (true) {
+				if (!token) return node;
+				switch (token.type) {
+					case END:
+					case ELSE:
+					case WHEN:
+					case OTHERWISE:
+					case SEMICOLON:
+					case ENDBRACE:
+					case THEN:
+					case TRY:
+					case CATCH:
+					case FINALLY:
+					case IF:
+					case COLON:
+					case COMMA:
+					case DOT:
+						return node;
+					case OPERATOR:
+						return operatorPiece(node, unary);
+					default:
+						if(omit) return node;
+						return new Node(nt.CALL, {
+							func: node,
+							args: [callItem()],
+							names: [null]
+						})
+				}
+			}
+		};
 
 
 		var stover = function () {
