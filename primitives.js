@@ -4,7 +4,8 @@ Nai.prototype = {
 	constructor: undefined,
 //	toString: undefined, // comment this line for debug.
 	valueOf: undefined,
-	hasOwnProperty: undefined
+	hasOwnProperty: undefined,
+	propertyIsEnumerable: undefined
 }
 
 var derive = Object.create ? Object.create : function(){
@@ -31,7 +32,7 @@ var COPYSTRING = function(s,n){
 
 var YES = {};
 var NUSED = {};
-var SLICE = function () {
+var LF_SLICE = function () {
 	var s = Array.prototype.slice;
 	return function (x, n) {
 		return s.call(x, n);
@@ -49,10 +50,10 @@ var noth = void 0;
 
 var LF_M_TOP = function(){return this}();
 var LF_MINVOKE = function (p, s) {
-	return p[s].apply(p,SLICE.call(arguments,2))
+	return p[s].apply(p,LF_SLICE(arguments,2))
 }
 var LF_IINVOKE = function (p, s) {
-	return p.item.apply(p, s).apply(p,SLICE.call(arguments,2))
+	return p.item.apply(p, s).apply(p,LF_SLICE(arguments,2))
 }
 var LF_ITEMSET = function (p, s, v){
 	return p.itemset.apply(p, [v].concat(s));
@@ -62,7 +63,7 @@ var LF_RMETHOD = function (l, r, m){
 }
 var LF_YIELDVALUE = function (x){
 	this.value = x;
-	this.values = SLICE(arguments, 0);
+	this.values = LF_SLICE(arguments, 0);
 }
 var LF_RETURNVALUE = function (x){
 	this.value = x
@@ -99,15 +100,6 @@ var LF_CNARG = function(a){
 
 
 Object.prototype.item = function (i) {
-	if('length' in this
-			&&	(typeof this.length === 'number')
-			&&	(this.length - 1) in this
-			&&	(typeof i === 'number')
-			&&	i < 0 
-			) {
-		// arraioid and negative indexing
-		return this[this.length + (i|0)]
-	}
 	return this[i];
 };
 Object.prototype.itemset = function (i, v) {
@@ -121,9 +113,6 @@ Object.prototype.be = function (b) {
 };
 Object.prototype.contains = function (b) {
 	return b in this;
-};
-ISARRAIOID = function(a){
-	return 'length' in this && (typeof this.length === 'number') && (this["length"] - 1) in this
 };
 Object.prototype.of = function(v){
 	return v[this];

@@ -41,6 +41,7 @@
 			// Conditional
 			'CONDITIONAL',
 			// Statements
+			'EXPRSTMT', 
 			'IF', 'FOR', 'FORIN', 'WHILE', 'REPEAT', 'CASE', 'PIECEWISE', 'VAR',
 			'BREAK', 'CONTINUE', 'LABEL', 'THROW', 'RETURN', 'TRY', 'YIELD',
 			// Variable
@@ -233,7 +234,7 @@
 				workingScope.hasNested = true;
 				workingScope.nest.push(n);
 			}
-			s.upper = workingScopes[workingScopes.length - 1];
+			if(workingScope) s.upper = workingScope.id;
 			scopes[n] = s;
 			workingScopes.push(s);
 			workingScope = s;
@@ -241,7 +242,7 @@
 			return n;
 		};
 		var endScope = function () {
-			var s = workingScopes.pop();
+			workingScopes.pop();
 			workingScope = workingScopes[workingScopes.length - 1];
 		}
 		var advance = function (type, test) {
@@ -352,7 +353,7 @@
 			workingScope.parameters = p || new Node(nt.PARAMETERS, { names: [], anames: [] });
 			workingScope.ready();
 			workingScope.code = code = statements();
-			if(code.content.length === 1 && code.content[0].type === nt.GROUP){
+			if(code.content.length === 1 && code.content[0].type === nt.EXPRSTMT){
 				// SEF processing.
 				code.content[0] = new Node(nt.RETURN, {expression: code.content[0]});
 			}
@@ -518,7 +519,7 @@
 						}
 						var n = expression();
 						advance(ENDBRACE, 41);
-						return n;
+						return new Node(nt.GROUP, {operand: n});
 					} else if (token.value === CRSTART) {
 						if(ISOBJLIT()){
 							// object literal
@@ -947,7 +948,7 @@
 					advance(ELSE), c.elsePart = expression(small);
 			}
 
-			return new Node(nt.GROUP, { operand: c});
+			return c;
 		};
 		var callItem = function(omit){
 			var node = unary();
@@ -1052,7 +1053,7 @@
 						return new Node(nt.RETURN, { expression: expression() });
 					}
 				default:
-					return expression();
+					return new Node(nt.EXPRSTMT, {expression: expression()});
 			};
 		};
 		var vardecls = function () {

@@ -82,7 +82,7 @@
 	};
 	schemata(nt.MEMBER, function () {
 		var memberName = this.right.name;
-		if (SPECIALNAMES[memberName] === 1) return '(' + transform(this.left) + ')["' + memberName + '"]';
+		if (/[^\w$]/.test(memberName) || SPECIALNAMES[memberName] === 1) return '(' + transform(this.left) + ')["' + memberName + '"]';
 		return '(' + transform(this.left) + ').' + memberName;
 	});
 	schemata(nt.MEMBERREFLECT, function () {
@@ -109,15 +109,19 @@
 	});
 	schemata(nt.THIS, function (nd, e) {
 		var n = e;
-		while (n.rebindThis) n = n.upper;
+		while (n.rebindThis) n = trees[n.upper - 1];
 		n.thisOccurs = true;
 		return T_THIS(e);
 	});
 	schemata(nt.ARGN, function (nd, e){
+		while(e.rebindThis) e = trees[e.upper - 1];
 		e.argnOccurs = true;
+		e.argsOccurs = true;
 		return T_ARGN();
 	});
-	schemata(nt.ARGUMENTS, function () {
+	schemata(nt.ARGUMENTS, function (n, e) {
+		while(e.rebindThis) e = trees[e.upper - 1];
+		e.argsOccurs = true;
 		return T_ARGS();
 	});
 	schemata(nt.CALLEE, function () {
@@ -251,8 +255,9 @@
 
 	schemata(nt.DO, function(nd, e){
 		var n = e;
-		while (n.rebindThis) n = n.upper;
+		while (n.rebindThis) n = trees[n.upper - 1];
 		n.thisOccurs = true;
+		n.argsOccurs = true;
 		return '(('+transform(this.operand)+').apply('+T_THIS(e)+', ' + T_ARGS() + '))';
 	});
 
@@ -276,7 +281,9 @@
 
 
 
-
+	schemata(nt.EXPRSTMT, function(){
+		return transform(this.expression)
+	});
 	schemata(nt.RETURN, function () {
 		return 'return ' + transform(this.expression);
 	});
@@ -717,10 +724,10 @@
 				return (!env.thisOccurs || env.rebindThis) ? '' : 'var _$T_ = (this === LF_M_TOP ? null : this)'
 			},
 			argnBind: function (env) {
-				return env.argnOccurs ? 'var _$A_ARGN_ = LF_CNARG(arguments[arguments.length - 1])' : ''
+				return (env.argnOccurs && !env.rebindThis) ? 'var _$A_ARGN_ = LF_CNARG(arguments[arguments.length - 1])' : ''
 			},
 			argsBind: function (env) {
-				return 'var _$A_ARGS_ = arguments'
+				return (!env.argsOccurs || env.rebindThis) ? '' : 'var _$A_ARGS_ = LF_SLICE(arguments, 0)'
 			},
 			joinStatements: function (statements) {
 				return statements.join(';\n') + ';\n';
