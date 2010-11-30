@@ -451,20 +451,15 @@
 		var lambdaCont = function (p) {
 			var right;
 			advance(LAMBDA);
-			if (tokenIs(STARTBRACE, CRSTART) && !ISOBJLIT()) { // statement lambda
-				right = functionBody(p);
-				return right;
-			} else {
-				var r = newScope(true), s = workingScope;
-				right = expression();
-				workingScope.parameters = p;
-				workingScope.ready();
-				workingScope.code = new Node(nt.RETURN, { expression: right });
-				endScope();
-				return new Node(nt.FUNCTION, {
-					tree: s.id
-				});
-			}
+			var r = newScope(true), s = workingScope;
+			right = expression();
+			workingScope.parameters = p;
+			workingScope.ready();
+			workingScope.code = new Node(nt.RETURN, { expression: right });
+			endScope();
+			return new Node(nt.FUNCTION, {
+				tree: s.id
+			});
 		}
 		var isLambdaPar = function () {
 			return (
