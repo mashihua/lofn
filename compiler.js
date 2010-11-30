@@ -767,14 +767,21 @@
 			exitText = vmConfig.dumpGVM(inital).join('\n');
 		
 		var getFs = function(body){
-			var f_ = Function(body);
+
+			var pars = enter.parameters.names.slice(0),
+				temppars = lofn.ScopedScript.listParTemp(enter);
+			for (var i = 0; i < pars.length; i++) pars[i] = C_NAME(pars[i])
+			for (var i = 0; i < temppars.length; i++) temppars[i] = C_TEMP(temppars[i])
+
+			var f_ = Function('return function(' + pars.concat(temppars).join() + '){' + body + '}')();
 			var f = function () {
 				return f_.apply(initv, arguments)
 			};
 			return {
 				wrappedF: f,
 				rawF: f_,
-				generatedSource: body
+				generatedSource: body,
+				joinedParameters: pars.concat(temppars)
 			}
 		}
 

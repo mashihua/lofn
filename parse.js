@@ -449,13 +449,12 @@
 
 		// Lambda Expression content
 		var lambdaCont = function (p) {
-			var right;
 			advance(LAMBDA);
-			var r = newScope(true), s = workingScope;
-			right = expression();
+			var r = newScope(true);
+			var s = workingScope;
 			workingScope.parameters = p;
 			workingScope.ready();
-			workingScope.code = new Node(nt.RETURN, { expression: right });
+			workingScope.code = new Node(nt.RETURN, { expression: expression() });
 			endScope();
 			return new Node(nt.FUNCTION, {
 				tree: s.id
@@ -551,10 +550,12 @@
 						// implicit SHARPs
 						if(opt_sharpno)
 							throw PE('Implicit # was disabled due to !option sharpno', p.position + 1);
-						if(workingScope.sharpNo++ >= workingScope.parameters.names.length)
-							ScopedScript.useTemp(workingScope, 'IARG', workingScope.sharpNo, true);
+						var s = workingScope;
+						while(s && s.rebindThis) s = scopes[s.upper - 1];
+						if(s.sharpNo++ >= s.parameters.names.length)
+							ScopedScript.useTemp(s, 'IARG', s.sharpNo, true);
 						return new Node(nt.SHARP, {
-							id :  workingScope.sharpNo
+							id :  s.sharpNo
 						});
 					};
 				case FUNCTION:
@@ -1325,6 +1326,10 @@
 			return script;
 		};
 		newScope();
+		workingScope.parameters = new Node(nt.PARAMETERS, {
+			names: [],
+			anames: []
+		});
 		workingScope.code = statements();
 		return {scopes: scopes, options: input.options};
 	}
