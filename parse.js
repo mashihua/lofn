@@ -347,9 +347,9 @@
 
 		// Function body: 
 		//		"{" statements "}"
-		var functionBody = function (p, rebind) {
+		var functionBody = function (p) {
 			advance(STARTBRACE, 123);
-			var n = newScope(rebind), s = workingScope, code;
+			var n = newScope(), s = workingScope, code;
 			workingScope.parameters = p || new Node(nt.PARAMETERS, { names: [], anames: [] });
 			workingScope.ready();
 			workingScope.code = code = statements();
@@ -365,9 +365,9 @@
 		//		COLON
 		//			statements
 		//		"end"
-		var colonBody = function (p, rebind) {
+		var colonBody = function (p) {
 			advance(COLON);
-			var n = newScope(rebind), s = workingScope;
+			var n = newScope(), s = workingScope;
 			workingScope.parameters = p || new Node(nt.PARAMETERS, { names: [], anames: [] });
 			workingScope.ready();
 			workingScope.code = statements(END);
@@ -376,8 +376,8 @@
 			return new Node(nt.FUNCTION, { tree: s.id });
 		};
 
-		var curryBody = function (p, rebind) {
-			var n = newScope(rebind), s = workingScope;
+		var curryBody = function (p) {
+			var n = newScope(), s = workingScope;
 			workingScope.parameters = p;
 			workingScope.ready();
 			workingScope.code = new Node(nt.SCRIPT, {
@@ -633,7 +633,7 @@
 							} else {
 								m = new Node(nt.CALL, {
 									func: m,
-									args: [functionBody(undefined, true)],
+									args: [functionBody(undefined)],
 									names: [null],
 								})
 							}

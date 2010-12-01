@@ -120,8 +120,9 @@
 		return T_ARGN();
 	});
 	schemata(nt.ARGUMENTS, function (n, e) {
-		while(e.rebindThis) e = trees[e.upper - 1];
-		e.argsOccurs = true;
+		var s = e;
+		while(s.rebindThis) s = trees[s.upper - 1];
+		s.argsOccurs = true;
 		return T_ARGS();
 	});
 	schemata(nt.CALLEE, function () {
