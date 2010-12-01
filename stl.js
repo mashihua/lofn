@@ -1,4 +1,7 @@
-﻿lofn.stl = new Nai;
+﻿//:module: lib:standard
+//	:author:		infinte (aka. be5invis)
+//	:info:			The standard library for Lofn.
+lofn.stl = new Nai;
 
 0, function(){
 	// Lofn standard linrary

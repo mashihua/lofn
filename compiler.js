@@ -1,4 +1,6 @@
-﻿// The backend.
+﻿//:module: compiler
+//	:author:		infinte (aka. be5invis)
+//	:info:			The code generator for Lofn
 
 0, function () {
 	var TO_ENCCD = function (name) {
@@ -271,7 +273,7 @@
 			pars[i] = C_NAME(pars[i])
 		for (var i = 0; i < temppars.length; i++)
 			temppars[i] = C_TEMP(temppars[i])
-		s = 'function(' + pars.concat(temppars).join(',') + '){\n' + s + '\n}';
+		s = '(function(' + pars.concat(temppars).join(',') + '){\n' + s + '\n})';
 		env = _e;
 		return s;
 	});

@@ -1,3 +1,7 @@
+//:module: primitives
+//	:author:		infinte (aka. be5invis)
+//	:info:			The smallest runtime for Lifn.
+
 // The smallest Runtime environment for Lofn.
 var Nai = function(){};
 Nai.prototype = {

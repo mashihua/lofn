@@ -1,4 +1,7 @@
-﻿lofn.parse = function(){
+﻿//:module: parse
+//	:author:		infinte (aka. be5invis)
+//	:info:			Parser for lofn
+lofn.parse = function(){
 
 	var HAS_DUPL = function (arr) {
 		var b = arr.slice(0).sort();
@@ -352,6 +355,11 @@
 			var n = newScope(), s = workingScope, code;
 			workingScope.parameters = p || new Node(nt.PARAMETERS, { names: [], anames: [] });
 			workingScope.ready();
+			if(!p) { // {|args| } form
+				advance(THEN);
+				workingScope.parameters.names = parlist();
+				advance(THEN);
+			}
 			workingScope.code = code = statements();
 			if(code.content.length === 1 && code.content[0].type === nt.EXPRSTMT){
 				// SEF processing.
@@ -410,15 +418,20 @@
 		// Identifier
 
 		// Only parameters explicitly defined names can be a named parameter
+		var parlist = function(){
+			var arr = [];
+			arr[0] = name().name;
+			while (tokenIs(COMMA)) {
+				advance(COMMA);
+				arr[arr.length] = name().name;
+			};
+			return arr;
+		}
 		var parameters = function () {
 			var arr = [];
 			advance(STARTBRACE, 40);
 			if (!tokenIs(ENDBRACE, RDEND)) {
-				arr[0] = name().name;
-				while (tokenIs(COMMA)) {
-					advance(COMMA);
-					arr[arr.length] = name().name;
-				};
+				arr = parlist();
 			};
 			advance(ENDBRACE, RDEND);
 			ensure(!HAS_DUPL(arr), 'Parameter list contains duplicate');
