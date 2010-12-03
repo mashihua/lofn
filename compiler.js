@@ -287,6 +287,15 @@
 	schemata(nt.EXPRSTMT, function(){
 		return transform(this.expression)
 	});
+	schemata(nt.VARDECLS, function(){
+		var a = this.items;
+		var ans = []
+		for(var i = 0; i < a.length; i += 1){
+			if(a[i].initalizer)
+				ans.push( '(' + C_NAME(a[i].name) + '=(' + transform(a[i].initalizer) + '))')
+		}
+		return ans.join(',');
+	});
 	schemata(nt.RETURN, function () {
 		return 'return ' + transform(this.expression);
 	});

@@ -355,7 +355,9 @@ lofn.parse = function(){
 			var n = newScope(), s = workingScope, code;
 			workingScope.parameters = p || new Node(nt.PARAMETERS, { names: [], anames: [] });
 			workingScope.ready();
-			if(!p) { // {|args| } form
+			if(nextIs(THEN)) { // {|args| } form
+				if(p)
+					throw PE('Attempting to add parameters to a parameter-given function');
 				advance(THEN);
 				workingScope.parameters.names = parlist();
 				advance(THEN);
