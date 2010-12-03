@@ -47,6 +47,7 @@ var
 	LAMBDA = 41,
 	PASS = 42,
 	YIELD = 43,
+	AWAIT = 44,
 	BACKSLASH = 501;
 
 var lex = lofn.lex = function () {
@@ -129,7 +130,8 @@ var lex = lofn.lex = function () {
 		'finally': FINALLY,
 		'TASK': TASK,
 		'pass': PASS,
-		'yield': YIELD
+		'yield': YIELD,
+		'wait': AWAIT
 	};
 	var nameType = function (m) {
 		if (nameTypes[m] > -65536)

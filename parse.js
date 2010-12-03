@@ -1022,6 +1022,11 @@ lofn.parse = function(){
 					workingScope.corout = true; // Special processing needed.
 					advance();
 					return yieldstmt();
+				case AWAIT:
+					workingScope.corout = true; // Special processing needed.
+					advance();
+					advance(COLON);
+					return awaitstmt();
 				case THROW:
 					advance();
 					return new Node(nt.THROW, { expression: expression() });
@@ -1104,6 +1109,14 @@ lofn.parse = function(){
 			var n = omissionCall(new Node(nt.YIELD));
 			n.type = nt.YIELD;
 			return n;
+		}
+		var awaitstmt = function (){
+			var n = omissionCall(new Node(nt.YIELD));
+			n.func = new Node(nt.MEMBER, {
+				left: new Node(nt.THIS),
+				right: {name: 'wait'}
+			});
+			return new Node(nt.YIELD, {args: [n], names: [null]});
 		}
 
 		var contBlock = function () {
