@@ -268,6 +268,8 @@ lofn.parse = function(){
 			return tokens[i + n] && tokens[i + n].type === t && (v ? tokens[i + n].value === v : true);
 		}
 
+		// Here we go!
+
 		// Identifier: like the javascript
 		var variable = function () {
 			var t = advance(ID);
@@ -386,6 +388,21 @@ lofn.parse = function(){
 			return new Node(nt.FUNCTION, { tree: s.id });
 		};
 
+		// Expressional function body
+		// COMMA expression(ALAP)
+
+		var expressionalBody = function(p){
+			advance(COMMA);
+			var n = newScope(true), s = workingScope;
+			s.parameters = p || new Node(nt.PARAMETERS, { names: [], anames: [] });
+			s.ready();
+			s.code = new Node(nt.RETURN, {expression: expression()});
+			endScope();
+			return new Node(nt.FUNCTION, {
+				tree: s.id
+			});
+		}
+
 		var curryBody = function (p) {
 			var n = newScope(), s = workingScope;
 			workingScope.parameters = p;
@@ -397,7 +414,7 @@ lofn.parse = function(){
 			return new Node(nt.FUNCTION, { tree: s.id });
 		};
 
-
+		//@functionLiteral
 		// Function literal
 		// "function" [Parameters] FunctionBody
 		var functionLiteral = function (rebind) {
@@ -407,9 +424,13 @@ lofn.parse = function(){
 			};
 			if (tokenIs(STARTBRACE, RDSTART)) { // currying arguments
 				f = curryBody(p, rebind);
-			} else if (tokenIs(COLON))
+			} else if (tokenIs(COLON)) {
 				f = colonBody(p, rebind)
-			else
+			} else if (tokenIs(COMMA)) {
+				if(opt_colononly)
+					throw PE('Only COLON bodies can be used due to `!option colononly`');
+				f = expressionalBody(p, rebind);
+			} else
 				f = functionBody(p, rebind);
 			return f;
 		};
@@ -452,7 +473,7 @@ lofn.parse = function(){
 
 		var ISOBJLIT = function(){
 			if(
-					(next && next.isName && !(nextIs(TRY)) || nextIs(STRING)) 
+					(next && next.isName && !(nextIs(TRY) || nextIs(AWAIT)) || nextIs(STRING)) 
 					&& shiftIs(2, COLON) 
 					&& !(shiftIs(3, WHEN) || shiftIs(3, OTHERWISE))
 			) {
@@ -511,6 +532,9 @@ lofn.parse = function(){
 				case OBJECT:
 					advance(OBJECT);
 					return objinit();
+				case DO:
+					advance();
+					return new Node(nt.DO);
 				case STARTBRACE:
 					if (token.value === SQSTART) {
 						// array
@@ -720,9 +744,6 @@ lofn.parse = function(){
 				var t = advance(OPERATOR);
 				var n = callExpression();
 				return new Node(t.value === '-' ? nt.NEGATIVE : nt.NOT, { operand: n });
-			} else if (tokenIs(DO)){
-				advance();
-				return new Node(nt.DO, {operand: callExpression()});
 			} else {
 				return callExpression();
 			}

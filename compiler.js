@@ -27,6 +27,7 @@
 	var ARGS_BIND
 	var ARGN_BIND
 	var C_TEMP
+	var BIND_TEMP
 
 	var CTRLCHR = function (c) {
 		var n = c.charCodeAt(0);
@@ -257,11 +258,12 @@
 	});
 
 	schemata(nt.DO, function(nd, e){
-		var n = e;
-		while (n.rebindThis) n = trees[n.upper - 1];
-		n.thisOccurs = true;
-		n.argsOccurs = true;
-		return '(('+transform(this.operand)+').apply('+T_THIS(e)+', ' + T_ARGS() + '))';
+		var s = e;
+		while(s.rebindThis) s = trees[s.upper - 1];
+		lofn.ScopedScript.useTemp(s, 'DOF');
+		s.thisOccurs = true;
+		s.argsOccurs = true;
+		return C_TEMP('DOF');
 	});
 
 	schemata(nt.FUNCTION, function () {
@@ -405,7 +407,8 @@
 		if(this.catchvar){
 			s += 'catch('+C_NAME(this.catchvar.name)+'){'+transform(this.catchstmts)+'};'
 		} else {
-			s += 'catch(___$EXCEPTION){}'
+			lofn.ScopedScript.useTemp(e, 'IGNOREDEXCEPTION');
+			s += 'catch(' + C_TEMP('IGNOREDEXCEPTION') + '){}'
 		}
 		return s;
 	});
@@ -431,9 +434,14 @@
 		for (var i = 0; i < locals.length; i++)
 			if (!(tree.varIsArg[locals[i]])) vars.push(C_NAME(locals[i]));
 		for (var i = 0; i < temps.length; i++)
-			temps[i] = C_TEMP(temps[i]);
-		s = JOIN_STMTS(['var ___$EXCEPTION' + (temps.length ? ',' + temps.join(','): ''),
-				THIS_BIND(tree), ARGS_BIND(tree), ARGN_BIND(tree), (vars.length ? 'var ' + vars.join(', ') : '')]) 
+			temps[i] = BIND_TEMP(tree, temps[i]);
+		s = JOIN_STMTS([
+				THIS_BIND(tree),
+				ARGS_BIND(tree),
+				ARGN_BIND(tree),
+				(temps.length ? 'var ' + temps.join(','): ''),
+				(vars.length ? 'var ' + vars.join(', ') : '')
+			]) 
 			+ (hook_enter || '') 
 			+ s 
 			+ (hook_exit || '');
@@ -672,11 +680,12 @@
 		for (var i = 0; i < locals.length; i++)
 			if (!(tree.varIsArg[locals[i]])) vars.push(C_NAME(locals[i]));
 		for (var i = 0; i < temps.length; i++)
-			temps[i] = C_TEMP(temps[i]);
-		s = JOIN_STMTS(['var ___$EXCEPTION' + (temps.length ? ',' + temps.join(','): ''),
+			temps[i] = BIND_TEMP(tree, temps[i]);
+		s = JOIN_STMTS([
 				THIS_BIND(tree),
 				ARGS_BIND(tree),
 				ARGN_BIND(tree),
+				(temps.length ? 'var ' + temps.join(','): ''),
 				(vars.length ? 'var ' + vars.join(', ') : ''),
 				C_TEMP('PROGRESS') + '=' + lInital,
 				C_TEMP('EOF') + '= false'
@@ -708,6 +717,7 @@
 		T_ARGN = config.argnName;
 		T_ARGS = config.argsName;
 		C_TEMP = config.tempName;
+		BIND_TEMP = config.bindTemp;
 	};
 	// Default Lofn compilation config
 	lofn.standardTransform = function () {
@@ -740,6 +750,13 @@
 			},
 			argsBind: function (env) {
 				return (!env.argsOccurs || env.rebindThis) ? '' : 'var _$A_ARGS_ = LF_SLICE(arguments, 0)'
+			},
+			bindTemp: function (env, tempName) {
+				if(tempName === 'DOF')
+					return c.tempName('DOF') + ' = (function(t, a){ return function(f){ return f.apply(t, a)}})('
+							+ c.thisName(env) + ',' + c.argsName(env) + ')';
+				else
+					return c.tempName(tempName);
 			},
 			joinStatements: function (statements) {
 				return statements.join(';\n') + ';\n';
