@@ -147,7 +147,7 @@ lofn.parse = function(){
 		return arr;
 	}
 	ScopedScript.useTemp = function(scope, type, id, aspar){
-		scope.usedTemps[type + (id || '')] = aspar ? 2 : 1;
+		scope.usedTemps[type + (id == null ? '' : id)] = aspar ? 2 : 1;
 	}
 	
 	ScopedScript.registerVariable = function(scope, name, argQ) {
@@ -552,7 +552,8 @@ lofn.parse = function(){
 						}
 						var n = expression();
 						advance(ENDBRACE, 41);
-						return new Node(nt.GROUP, {operand: n});
+						// return new Node(nt.GROUP, {operand: n});
+						return n;
 					} else if (token.value === CRSTART) {
 						if(ISOBJLIT()){
 							// object literal
@@ -831,37 +832,40 @@ lofn.parse = function(){
 			var start = unary();
 			return operatorPiece(start, unary);
 		}
+		var isExpFin = function(){
+			var check = [];
+			check[END] = 1;
+			check[ELSE] = 1;
+			check[WHEN] = 1;
+			check[OTHERWISE] = 1;
+			check[SEMICOLON] = 1;
+			check[ENDBRACE] = 1;
+			check[THEN] = 1;
+			check[TRY] = 1;
+			check[CATCH] = 1;
+			check[FINALLY] = 1;
+			check[IF] = 1;
+			check[COMMA] = 1;
+			check[COLON] = 1;
+			check[DOT] = 1;
+			return function(){
+				return !token || check[token.type] === 1;
+			}
+		}();
 
-		var omissionCall = function (node, small) {
-			while (true) {
-				if (!token) return node;
-				switch (token.type) {
-					case END:
-					case ELSE:
-					case WHEN:
-					case OTHERWISE:
-					case SEMICOLON:
-					case ENDBRACE:
-					case THEN:
-					case TRY:
-					case CATCH:
-					case FINALLY:
-					case IF:
-						return node;
-					default:
-						var n_ = node;
-						node = new Node(nt.CALL, { func: n_ });
-						arglist(node, true);
-						if (node.args.length === 1 && node.names[0] == null) {
-							return new Node(nt.CALL, {
-								func: n_,
-								args: [omissionCall(node.args[0], small)],
-								names: [null]
-							})
-						} else {
-							return node;
-						}
-				}
+		var omissionCall = function (node) {
+			if (isExpFin()) return node;
+			var n_ = node;
+			node = new Node(nt.CALL, { func: n_ });
+			arglist(node, true);
+			if (node.args.length === 1 && node.names[0] == null) {
+				return new Node(nt.CALL, {
+					func: n_,
+					args: [omissionCall(node.args[0])],
+					names: [null]
+				})
+			} else {
+				return node;
 			}
 		};
 
@@ -881,7 +885,7 @@ lofn.parse = function(){
 
 		}();
 
-		var expression = function (small) {
+		var expression = function () {
 			// expression.
 			// following specifics are supported:
 			// - Omissioned calls
@@ -904,70 +908,49 @@ lofn.parse = function(){
 				});
 			}
 
-			var method, isOmission = true, curry = false;
+			var method, isOmission = false, curry = false, pipelike = false;
 			if(tokenIs(OPERATOR)){
 				c = operatorPiece(c, unary);
 				isOmission = false
+			} else {
+				c = omissionCall(c);
 			}
 
-			out: while (true) {
-				if (!token) break out;
-				switch (token.type) {
-					case END: case SEMICOLON: case ENDBRACE: case ELSE: case WHEN: case OTHERWISE:
-					case TRY:
-					case CATCH:
-					case FINALLY:
-					case IF:
-						break out;
-					case THEN:
-						if (small) break out;
-						advance();
-						if (tokenIs(DOT)) {
-							// |.name chaining
-							advance(DOT);
-							ensure(token && token.isName, 'Missing identifier for Chain invocation');
-							method = name();
-							c = new Node(nt.CALL, {
-								func: new Node(nt.MEMBER, {
-									left: c,
-									right: method
-								}),
-								args: [],
-								pipelike: true
-							});
-						} else {
-							// pipeline
-							method = callExpression();
-							c = new Node(nt.CALL, {
-								func: method,
-								args: [c],
-								names: [null],
-								pipelike: true,
-								pipeline: true
-							});
-						};
-						curry = false;
-						break;
-					default:
-						if (curry & c.type === nt.CALL && c.pipelike) {
-							c = new Node(nt.CALL, {
-								func: c,
-								args: [],
-								pipelike: true
-							});
-							arglist(c);
-						} else if (c.type === nt.CALL && c.pipelike) {
-							arglist(c);
-							curry = true
-						} else if (isOmission) {
-							c = omissionCall(c, small);
-							isOmission = false;
-							curry = false;
-						} else {
-							throw PE('Invalid Omission Call');
-						}
-				}
+			// possible pipelines
+
+			while(tokenIs(THEN)){
+				advance();
+				isOmission = false;
+				if (tokenIs(DOT)) {
+					// |.name chaining
+					advance(DOT);
+					ensure(token && token.isName, 'Missing identifier for Chain invocation');
+					method = name();
+					c = new Node(nt.CALL, {
+						func: new Node(nt.MEMBER, {
+							left: c,
+							right: method
+						}),
+						args: [],
+					  	names: [],
+					});
+				} else if (tokenIs(COLON)){
+
+				} else {
+					// pipeline
+					method = callExpression();
+					c = new Node(nt.CALL, {
+						func: method,
+						args: [c],
+						names: [null],
+						pipeline: true
+					});
+				};
+				if(isExpFin()) break;
+				arglist(c, true);
 			};
+			
+			c.pipelike = false;
 
 			// now c is the single expression.
 			if(tokenIs(IF)){
@@ -977,42 +960,25 @@ lofn.parse = function(){
 					condition: callItem()
 				});
 				if(tokenIs(ELSE))
-					advance(ELSE), c.elsePart = expression(small);
+					advance(ELSE), c.elsePart = expression();
 			}
-
+			
 			return c;
 		};
 		var callItem = function(omit){
 			var node = unary();
-			while (true) {
-				if (!token) return node;
-				switch (token.type) {
-					case END:
-					case ELSE:
-					case WHEN:
-					case OTHERWISE:
-					case SEMICOLON:
-					case ENDBRACE:
-					case THEN:
-					case TRY:
-					case CATCH:
-					case FINALLY:
-					case IF:
-					case COLON:
-					case COMMA:
-					case DOT:
-						return node;
-					case OPERATOR:
-						return operatorPiece(node, unary);
-					default:
-						if(omit) return node;
-						return new Node(nt.CALL, {
-							func: node,
-							args: [callItem()],
-							names: [null]
-						})
-				}
+			if (isExpFin()) return node;
+			if(tokenIs(OPERATOR)){
+				return operatorPiece(node, unary);
+			} else {
+				if(omit) return node;
+				return new Node(nt.CALL, {
+					func: node,
+					args: [callItem()],
+					names: [null]
+				})
 			}
+			return node;
 		};
 
 
@@ -1127,6 +1093,13 @@ lofn.parse = function(){
 		};
 
 		var yieldstmt = function (){
+			if(tokenIs(PASS)){
+				advance();
+				return new Node(nt.YIELD, {
+					pass: true,
+					passExpr: expression()
+				});
+			}
 			var n = omissionCall(new Node(nt.YIELD));
 			n.type = nt.YIELD;
 			return n;
@@ -1286,16 +1259,26 @@ lofn.parse = function(){
 				advance(ENDBRACE, RDEND);
 			} else {
 				node = new Node(nt.FORIN);
-				node.no = ++ workingScope.finNo
-				var declQ = false
-				if(tokenIs(VAR)){
-					advance(VAR);
-					declQ = true;
-				}
-				var decls = [fivardecl(declQ)];
-				while(tokenIs(COMMA)){
-					advance(COMMA);
-					decls.push(fivardecl(declQ));
+				node.no = ++ workingScope.finNo;
+				var declQ = false;
+				if(tokenIs(PASS)){
+					advance(PASS);
+					if(tokenIs(VAR)){
+						advance(VAR);
+						declQ = true;
+					};
+					node.pass = true;
+					node.passVar = fivardecl(declQ);
+				} else {
+					if(tokenIs(VAR)){
+						advance(VAR);
+						declQ = true;
+					};
+					var decls = [fivardecl(declQ)];
+					while(tokenIs(COMMA)){
+						advance(COMMA);
+						decls.push(fivardecl(declQ));
+					};
 				}
 				node.vars = decls;
 				advance(OPERATOR, 'in');
