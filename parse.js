@@ -1006,10 +1006,14 @@ lofn.parse = function(){
 					advance();
 					return new Node(nt.RETURN, { expression: expression() });
 				case YIELD:
+					if(workingScope.noCoroutine)
+						throw PE('Unable to use YIELD in a un-couroutine-able function');
 					workingScope.corout = true; // Special processing needed.
 					advance();
 					return yieldstmt();
 				case AWAIT:
+					if(workingScope.noCoroutine)
+						throw PE('Unable to use YIELD in a un-couroutine-able function');
 					workingScope.corout = true; // Special processing needed.
 					advance();
 					advance(COLON);
@@ -1358,6 +1362,7 @@ lofn.parse = function(){
 			return script;
 		};
 		newScope();
+		workingScope.noCoroutine = true;
 		workingScope.parameters = new Node(nt.PARAMETERS, {
 			names: [],
 			anames: []
