@@ -223,11 +223,15 @@ function getCurrentLineBlanks(obj) {
 					stdout: { shiftIn: trace }
 				}
 				stdio.stdio = stdio;
-
 				var script = new lofn.Script(
 					document.getElementById('input').value, // source
 					null, // Default Transforming schemata
-					[demolib, stdio, asynclib] // libraries
+					[
+						lofn.dev.lib.fromObject(demolib),
+						lofn.dev.lib.fromObject(stdio),
+						lofn.libl.acquire('mod'),
+						lofn.libl.acquire('async')
+					] // libraries
 				);
 
 

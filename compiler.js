@@ -172,8 +172,9 @@
 					lofn.ScopedScript.useTemp(s, 'DOF1');
 					s.thisOccurs = true;
 					s.argsOccurs = true;
-					head = C_TEMP('DOF1');
-				}
+					head = C_TEMP('DOF1') + '(';
+					break;
+				};
 			default:
 				head = transform(this.func) + '(';
 		};
@@ -445,11 +446,17 @@
 		g_envs = scopes;
 		var s;
 		s = transform(tree.code);
-		var locals = tree.locals,
+		var locals = LF_UNIQ(tree.locals),
 			vars = [],
 			temps = lofn.ScopedScript.listTemp(tree);
+
 		for (var i = 0; i < locals.length; i++)
-			if (!(tree.varIsArg[locals[i]])) vars.push(C_NAME(locals[i]));
+			if (!(tree.varIsArg[locals[i]])){
+				if(typeof tree.initHooks[locals[i]] === 'string')
+					vars.push(C_NAME(locals[i]) + '=' + tree.initHooks[locals[i]])
+				else
+				vars.push(C_NAME(locals[i]));
+			}
 		for (var i = 0; i < temps.length; i++)
 			temps[i] = BIND_TEMP(tree, temps[i]);
 		s = JOIN_STMTS([
@@ -701,11 +708,16 @@
 
 		var s = ct(tree.code);
 
-		var locals = tree.locals,
+		var locals = LF_UNIQ(tree.locals),
 			vars = [],
 			temps = lofn.ScopedScript.listTemp(tree);
 		for (var i = 0; i < locals.length; i++)
-			if (!(tree.varIsArg[locals[i]])) vars.push(C_NAME(locals[i]));
+			if (!(tree.varIsArg[locals[i]])){
+				if(typeof tree.initHooks[locals[i]] === 'string')
+					vars.push(C_NAME(locals[i]) + '=' + tree.initHooks[locals[i]])
+				else
+				vars.push(C_NAME(locals[i]));
+			}
 		for (var i = 0; i < temps.length; i++)
 			temps[i] = BIND_TEMP(tree, temps[i]);
 		s = JOIN_STMTS([
@@ -793,53 +805,69 @@
 			},
 			initGVM: {
 				globally: function(){return 'var ' + c.varName('__global__') + ' = ' + c.thisName()+ ';\n'},
-				itemly: function(env, initFunction, aSrc, initv){
-					initFunction(function(n, v){
+				itemly: function(env, initInterator, aSrc, initv, libsAcquired){
+					initInterator(function(v, n){
 						initv[n] = v;
-						lofn.ScopedScript.registerVariable(env, n, true);
-						aSrc.push('var ' + c.varName(n) + '=(' + c.varName('__global__') + '[' + strize(n) + ']);');
+						lofn.ScopedScript.registerVariable(env, n, false);
+						aSrc[n] = '(' + c.thisName() + '[' + strize(n) + '])';
+					}, function(lib){
+						if(lib.identity)
+							libsAcquired.push(lib.identity)	
 					});
 				}
 			},
 			dumpGVM: function(initFunction){
 				var aSrc = [];
-				initFunction(function(n, v){
-					aSrc.push(c.varName('__global__') + '[' + strize(n) + '] = ' + c.varName(n)+';');
+				initFunction(function(v, n){
+					aSrc.push(c.thisName() + '[' + strize(n) + '] = ' + c.varName(n)+';');
 				});	
 				return aSrc;
 			}
 		}
 	}();
 	//============
-	lofn.Compiler = function (ast, inital, vmConfig) {
+	lofn.Compiler = function (ast, initInterator, vmConfig) {
 		bindConfig(vmConfig);
-		var inits = [], initv = new Nai, trees = ast.scopes, options = ast.options, enter = trees[0];
-		enter.thisOccurs = true, lofn.ScopedScript.registerVariable(enter, '__global__', true);
+		var inits = {},
+			initv = new Nai,
+			trees = ast.scopes,
+			options = ast.options,
+			enter = trees[0],
+			libsAcquired = [];
+		
+		enter.thisOccurs = true;
+		lofn.ScopedScript.registerVariable(enter, '__global__');
 		
 		var REG_VAR = vmConfig.initGVM.itemly;
-		REG_VAR(enter, inital, inits, initv);
+		REG_VAR(enter, initInterator, inits, initv, libsAcquired);
+		
+		inits.__global__ = vmConfig.thisName();
+		enter.initHooks = inits;
 
 		lofn.ScopedScript.generateVariableResolver(enter, trees, options.explicit);
 		
-		var body = '',
-			enterText = vmConfig.initGVM.globally() + inits.join('\n') + '\n',
-			exitText = vmConfig.dumpGVM(inital).join('\n');
-		
+		var body = '';
+		var enterText //= vmConfig.initGVM.globally() + inits.join('\n') + '\n';
+		var exitText //= vmConfig.dumpGVM(initInterator).join('\n');
+
 		var getFs = function(body){
 
 			var pars = enter.parameters.names.slice(0),
 				temppars = lofn.ScopedScript.listParTemp(enter);
 			for (var i = 0; i < pars.length; i++) pars[i] = C_NAME(pars[i])
 			for (var i = 0; i < temppars.length; i++) temppars[i] = C_TEMP(temppars[i])
+			
+			var generatedSource = '(function(' + pars.concat(temppars).join() + '){' + body + '})'
 
-			var f_ = Function('return function(' + pars.concat(temppars).join() + '){' + body + '}')();
+			var f_ = Function('return ' + generatedSource)();
 			var f = function () {
 				return f_.apply(initv, arguments)
 			};
 			return {
 				wrappedF: f,
 				rawF: f_,
-				generatedSource: body,
+				generatedBody: body,
+				generatedSource: generatedSource,
 				joinedParameters: pars.concat(temppars)
 			}
 		}
@@ -866,7 +894,8 @@
 				setTimeout(step, 0);
 			}
 		}
-	}
+	};
+
 	lofn.Script = function(source, config, libraries){
 		var tokens = lofn.lex(source);
 		var ast = lofn.parse(tokens, source);
@@ -875,22 +904,12 @@
 
 		config = config || lofn.standardTransform
 	
-		var specL = new Nai;
 		var vm;
-		var inita = function(libs){
-			return function(r){
-				for(var i = 0; i<libs.length;i++) for(var each in libs[i])
-					if(OWNS(libs[i], each))
-						r(each, libs[i][each])
-			}
-		}([lofn.stl].concat(libraries || [], [specL]));
+		var inita = lofn.forLibraries([lofn.stl].concat(libraries || []));
 	
 		tokens = null;
 	
 		return {
-			expose: function(name, value){
-				specL[name] = value
-			},
 			compile: function(){
 				this.setGlobalVariable = null;
 				lfcr = lofn.Compiler(ast, inita, config).compile(); 

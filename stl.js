@@ -1,14 +1,7 @@
 ﻿//:module: lib:standard
 //	:author:		infinte (aka. be5invis)
 //	:info:			The standard library for Lofn.
-lofn.stl = new Nai;
-
-0, function(){
-	// Lofn standard linrary
-	var reg = function (n, x) {
-		lofn.stl[n] = x
-	}
-
+lofn.stl = lofn.dev.lib.register(lofn.dev.lib.define('std', function(reg){
 	// special hack
 	Date['new'] = function () { return new Date() };
 	Function['new'] = function (args, body) { return new Function(args, body) };
@@ -155,6 +148,5 @@ lofn.stl = new Nai;
 		return function(){
 			return f(g.apply(this, arguments))
 		}
-	}
-
-}();
+	};
+}));

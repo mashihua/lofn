@@ -1,0 +1,27 @@
+lib.register lib.define("enum") {|export|
+	var upto = function(m, n):
+		for(var i = m; i <= n; i += 1),
+			yield i
+	end;
+	var downto = function(m, n):
+		for(var i = m; i >= n; i -= 1),
+			yield i
+	end;
+	var takeWhile = function(I, condition):
+		for pass var a in I:
+			if not condition.apply(null, a), return undefined;
+			yield pass a
+		end
+	end;
+	var select = function(I, condition):
+		for pass var a in I,
+			if condition.apply(null, a),
+				yield pass a
+	end;
+
+	export \
+		upto: upto,
+		downto: downto,
+		takeWhile: takeWhile,
+		select: select
+}

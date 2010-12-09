@@ -19,7 +19,7 @@ var derive = Object.create ? Object.create : function(){
 		return new F;
 	}
 }();
-var OWNS = function(){
+var LF_OWNS = function(){
 	var hop = {}.hasOwnProperty;
 	return function(o,p){
 		return hop.call(o,p)
@@ -42,6 +42,15 @@ var LF_SLICE = function () {
 		return s.call(x, n);
 	};
 } ();
+var LF_UNIQ = function (arr) {
+	var b = arr.slice(0).sort();
+	if(b.length === 0) return [];
+	var t = [b[0]], tn = 1;
+	for (var i = 1; i < b.length; i++)
+		if (b[i] && b[i] != b[i - 1])
+			t[tn++] = b[i];
+	return t;
+}
 var NARG = function () {
 	var o = new Nai, i = 0, argn = arguments.length;
 	for (; i < argn; i += 2) {
@@ -91,11 +100,11 @@ NamedArguments.prototype.itemset = function(p, v){return this._[p] = v}
 NamedArguments.prototype.each = function(f){
 	var _ = this._;
 	for(var each in _)
-		if(OWNS(_,each))
+		if(LF_OWNS(_,each))
 			f.call(_[each],_[each],each);
 }
 NamedArguments.prototype.contains = function(name){
-	return OWNS(this._, name);
+	return LF_OWNS(this._, name);
 }
 NamedArguments.prototype.toString = function(){
 	return '[lfMRT NamedArguments]'
@@ -183,3 +192,100 @@ Rule.prototype.each = function (f) {
 
 var lofn = {};
 lofn.version = 'hoejuu';
+
+
+// lofn/dijbris library system.
+0, function(){
+	var libl = new Nai;
+	var YES = {};
+	var libraries = new Nai,
+		obtained = new Nai;
+
+	var lib_m = lofn.libary_m = {
+		enumerate: function(f){}
+	}
+
+	var register = function(lib, libname){
+		var name = lib.identity || libname;
+		obtained[name] = YES;
+		libraries[name] = lib;
+		return lib;
+	};
+
+	var stdlib_m = derive(lib_m);
+
+	var define = function(libname, definition){
+		if(arguments.length < 2) {
+			return function(definition){
+				return define(libname, definition)
+			}
+		}
+		var lib = derive(stdlib_m);
+		var traits = [];
+		var vals = {};
+		lib.enumerate = function(f){
+			for(var i = 0; i < traits.length; i++)
+				f(vals[traits[i]], traits[i]);
+		};
+		var export = function(name, val){
+			if(name instanceof LF_NamedArguments){
+				name.each(function(val, name){
+					export(name, val)
+				});
+			} else if (name instanceof LF_Rule){
+				export(name.left, name.right)
+			} else {
+				traits.push(name);
+				vals[name] = val;
+			}
+		}
+		definition(export);
+		lib.identity = libname;
+		return lib;
+	}
+
+	var acquire = function(name){
+		return obtained[name] === YES ? libraries[name] : null;
+	};
+
+	lofn.libmod = {
+		acquire: acquire
+	}
+	lofn.dev = {
+		lib: {
+			define: define,
+			register: register,
+			fromObject: function(obj){
+				var lib = derive(lib_m);
+				var traits = [], vals = {};
+				for(var each in obj)
+					if(LF_OWNS(obj, each)){
+						traits.push(each);
+						vals[each] = obj[each]
+					};
+				lib.enumerate = function(r){
+					for(var i = 0; i < traits.length; i++)
+						r(vals[traits[i]], traits[i]);
+				};
+				return lib;
+			}
+		}
+	}
+	register(lofn.dev.lib.fromObject(lofn.libmod), 'mod');
+	register(lofn.dev.lib.fromObject(lofn.dev), 'dev');
+}();
+
+lofn.forLibraries = function(libs){
+	return function(r, fl){
+		fl = fl || function(){};
+		for(var i = 0; i<libs.length;i++){
+			fl(libs[i]);
+			libs[i].enumerate(r);
+		}
+	}
+};
+lofn.squashLibs = function(libs){
+	var squashed = {};
+	lofn.forLibraries(libs)(function(v, n){ squashed[n] = v });
+	return squashed;
+}

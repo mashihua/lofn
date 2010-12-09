@@ -384,12 +384,10 @@
 				this.sharpNo = 0;
 				this.finNo = 0;
 				this.corout = false;
+				this.initHooks = {};
 			};
 			ScopedScript.prototype.newVar = function (name, isarg) {
-				if (this.variables[name] === this.id) return;
-				this.locals.push(name);
-				this.varIsArg[name] = isarg === true;
-				return this.variables[name] = this.id;
+				return ScopedScript.registerVariable(this, name, isarg);
 			};
 			ScopedScript.prototype.resolveVar = function (name) {
 				if (this.variables[name] >= 0)
@@ -401,18 +399,6 @@
 				this.usedVariables[name] = true;
 				if(this.usedVariablesOcc[name] === undefined)
 					this.usedVariablesOcc[name] = position;
-			}
-			ScopedScript.prototype.listVar = function (opt_explicit) {
-				for (var each in this.usedVariables) {
-					if (this.usedVariables[each] === true && !(this.variables[each] > 0)){
-						if(!opt_explicit)
-							this.newVar(each);
-						else
-							throw new Error('Undeclared variable "' + each + '" when using `!option explicit`. At:', this.usedVariablesOcc[each])
-					}
-				};
-				for (var i = 0; i < this.nest.length; i++)
-					this.nest[i].listVar();
 			}
 			ScopedScript.listTemp = function(scope){
 				var l = []
@@ -458,20 +444,27 @@
 			scope.usedTemps[type + (id == null ? '' : id)] = aspar ? 2 : 1;
 		}
 		
-		ScopedScript.registerVariable = function(scope, name, argQ) {
+		ScopedScript.registerVariable = function(scope, name, argQ, useQ) {
 			if (scope.variables[name] === scope.id) return;
-			scope.locals.push(name);
+			// scope.locals.push(name);
 			scope.varIsArg[name] = argQ === true;
+			if(useQ){
+				scope.usedVariables[name] = true;
+			}
 			return scope.variables[name] = scope.id;
 		}
 		ScopedScript.generateVariableResolver = function(scope, trees, explicitQ) {
 			for (var each in scope.usedVariables) {
-				if (scope.usedVariables[each] === true && !(scope.variables[each] > 0)){
-					if(!explicitQ)
-						ScopedScript.registerVariable(scope, each);
-					else
-						throw new Error('Undeclared variable "' + each + '" when using `!option explicit`. At:',
-							(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0 )
+				if (scope.usedVariables[each] === true) {
+					if(!(scope.variables[each] > 0)){
+						if(!explicitQ)
+							ScopedScript.registerVariable(scope, each);
+						else
+							throw new Error('Undeclared variable "' + each + '" when using `!option explicit`. At:',
+								(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0 )
+					} else {
+						trees[scope.variables[each] - 1].locals.push(each);
+					}
 				}
 			};
 			for (var i = 0; i < scope.nest.length; i++)
