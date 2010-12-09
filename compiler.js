@@ -34,7 +34,7 @@
 		return '\\x' + (n > 15 ? n.toString(16) : '0' + n.toString(16));
 	}
 	var strize = function (s) {
-		return '"' + (s || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\x00-\x1f\x7f]/g, CTRLCHR).replace(/<\/script>/g, '<\/\x73crip\x74>') + '"';
+		return '"' + (s || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\x00-\x1f\x7f]/g, CTRLCHR).replace(/<\/(script)>/ig, '<\x2f$1\x3e') + '"';
 	};
 
 	var GETV = function (node, env) {
