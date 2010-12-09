@@ -969,13 +969,13 @@
 									m = new Node(nt.CALL, {
 										func: m,
 										args: [objinit()],
-										names: [null],
+										names: [null]
 									})					
 								} else {
 									m = new Node(nt.CALL, {
 										func: m,
 										args: [functionBody(undefined)],
-										names: [null],
+										names: [null]
 									})
 								}
 							} else {
@@ -1066,7 +1066,7 @@
 					'and': 50, 'or': 55,
 					'as': 60,
 					'~~' : 65,
-					'->': 70,
+					'->': 70
 				};
 				var combp = {
 					'of': R,
@@ -1233,7 +1233,7 @@
 								right: method
 							}),
 							args: [],
-							names: [],
+							names: []
 						});
 					} else if (tokenIs(COLON)){
 

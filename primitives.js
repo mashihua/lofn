@@ -227,19 +227,19 @@ lofn.version = 'hoejuu';
 			for(var i = 0; i < traits.length; i++)
 				f(vals[traits[i]], traits[i]);
 		};
-		var export = function(name, val){
+		var xport = function(name, val){
 			if(name instanceof LF_NamedArguments){
 				name.each(function(val, name){
-					export(name, val)
+					xport(name, val)
 				});
 			} else if (name instanceof LF_Rule){
-				export(name.left, name.right)
+				xport(name.left, name.right)
 			} else {
 				traits.push(name);
 				vals[name] = val;
 			}
 		}
-		definition(export);
+		definition(xport);
 		lib.identity = libname;
 		return lib;
 	}
