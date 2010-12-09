@@ -34,7 +34,7 @@
 		return '\\x' + (n > 15 ? n.toString(16) : '0' + n.toString(16));
 	}
 	var strize = function (s) {
-		return '"' + (s || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\x00-\x1f\x7f]/g, CTRLCHR) + '"';
+		return '"' + (s || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\x00-\x1f\x7f]/g, CTRLCHR).replace(/<\/script>/g, '<\/\x73crip\x74>') + '"';
 	};
 
 	var GETV = function (node, env) {
@@ -906,6 +906,7 @@
 	
 		var vm;
 		var inita = lofn.forLibraries([lofn.stl].concat(libraries || []));
+		var lfcr;
 	
 		tokens = null;
 	
