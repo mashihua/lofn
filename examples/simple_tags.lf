@@ -1,6 +1,6 @@
 var gettags = do {
 
-	var entify = s :> s.replace('[&"<>]' as RegExp.g, ch :> {
+	var entify = s :> s.replace('[&"<>]' as RegExp.g, {|ch|
 		if ch == '&', return '&amp;'
 		else if ch == '"', return '&quod;'
 		else if ch == '<', return '&lt;'
@@ -10,17 +10,17 @@ var gettags = do {
 		var obj = derive this;
 		var props = '';
 		obj.result = '';
-		arguments.each item :> {
+		arguments.each {|item|
 			if item is String, obj.result += entify(item)
 			else if item is Function, item.call obj
-			else if item is NamedArguments, item.each (value, prop) :> {
+			else if item is NamedArguments, item.each {|value, prop|
 				props += ' ' + prop + '="' + entify(value) + '"'
 			}
 		}
 		this.result += '<' + tag + props + '>' + obj.result + '</' + tag + '>';
 	end
 
-	var text = s :> {this.result += entify(s)};
+	var text = s :> this.result += entify(s);
 
 
 	var gen = object{result:'', text:text};
@@ -32,7 +32,7 @@ var gettags = do {
 	gen.li = gen_tag(`li)
 
 
-	return f :> {
+	return function(f){
 		var obj = derive gen;
 		obj.result = "";
 		f.call obj;

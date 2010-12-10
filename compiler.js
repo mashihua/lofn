@@ -223,12 +223,12 @@
 	};
 	var methodoper = function (operator, method) {
 		schemata(nt[operator], function () {
-			return '(' + transform(this.right) + '.' + method + transform(this.left) + ')'
+			return '(' + transform(this.right) + '.' + method + '(' + transform(this.left) + '))'
 		});
 	};
 	var lmethodoper = function (operator, method) {
 		schemata(nt[operator], function () {
-			return '(' + transform(this.left) + '.' + method + transform(this.right) + ')';
+			return '(' + transform(this.left) + '.' + method + '(' + transform(this.right) + '))';
 		});
 	};
 
