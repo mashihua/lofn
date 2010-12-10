@@ -54,6 +54,7 @@
 		PASS = 42,
 		YIELD = 43,
 		AWAIT = 44,
+		USING = 45,
 		BACKSLASH = 501;
 
 	var lex = lofn.lex = function () {

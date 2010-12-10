@@ -269,18 +269,19 @@ lofn.version = 'hoejuu';
 				};
 				return lib;
 			}
-		}
+		},
+		compileTime: false
 	}
 	register(lofn.dev.lib.fromObject(lofn.libmod), 'mod');
 	register(lofn.dev.lib.fromObject(lofn.dev), 'dev');
 }();
 
 lofn.forLibraries = function(libs){
-	return function(r, fl){
+	return function(r, fl, compileTime){
 		fl = fl || function(){};
 		for(var i = 0; i<libs.length;i++){
 			fl(libs[i]);
-			libs[i].enumerate(r);
+			libs[i].enumerate(r, compileTime);
 		}
 	}
 };

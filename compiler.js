@@ -813,7 +813,7 @@
 					}, function(lib){
 						if(lib.identity)
 							libsAcquired.push(lib.identity)	
-					});
+					}, true);
 				}
 			},
 			dumpGVM: function(initFunction){
@@ -838,8 +838,7 @@
 		enter.thisOccurs = true;
 		lofn.ScopedScript.registerVariable(enter, '__global__');
 		
-		var REG_VAR = vmConfig.initGVM.itemly;
-		REG_VAR(enter, initInterator, inits, initv, libsAcquired);
+		vmConfig.initGVM.itemly(enter, initInterator, inits, initv, libsAcquired);
 		
 		inits.__global__ = vmConfig.thisName();
 		enter.initHooks = inits;
