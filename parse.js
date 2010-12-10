@@ -143,7 +143,8 @@
 			'TASK': TASK,
 			'pass': PASS,
 			'yield': YIELD,
-			'wait': AWAIT
+			'wait': AWAIT,
+			'using': USING
 		};
 		var nameType = function (m) {
 			if (nameTypes[m] > -65536)
@@ -355,7 +356,9 @@
 				// Statements
 				'EXPRSTMT', 
 				'IF', 'FOR', 'FORIN', 'WHILE', 'REPEAT', 'CASE', 'PIECEWISE', 'VAR',
-				'BREAK', 'CONTINUE', 'LABEL', 'THROW', 'RETURN', 'TRY', 'YIELD',
+				'BREAK', 'CONTINUE', 'LABEL', 'THROW', 'RETURN', 'TRY', 'YIELD', 
+				// modular
+				'USING', 'IMPORT',
 				// Variable
 				'VARDECL',
 				// Large-scale
@@ -1351,6 +1354,8 @@
 					case VAR:
 						advance();
 						return vardecls();
+					case USING:
+						return usingstmt();
 					case TRY:
 						return trystmt();
 					case ENDBRACE:
@@ -1397,6 +1402,26 @@
 					name: v.name
 				});
 			};
+			var usingstmt = function(){
+				advance(USING);
+				var n = new Node(nt.USING);
+				var a = [fivardecl(true)];
+				if(tokenIs(OPERATOR, 'as')){
+					advance();
+					return new Node(nt.IMPORT,{
+						importVar: a[0],
+						expression: expression()
+					});
+				}
+				while(tokenIs(COMMA)){
+					advance();
+					a.push(fivardecl(true));
+				};
+				advance(OPERATOR, 'in');
+				n.names = a;
+				n.expression = expression();
+				return n;
+			}
 
 			var yieldstmt = function (){
 				if(tokenIs(PASS)){

@@ -430,7 +430,17 @@
 		}
 		return s;
 	});
-
+	schemata(nt.USING, function(n, e){
+		lofn.ScopedScript.useTemp(e, 'USINGSCOPE');
+		var s = [];
+		s.push( C_TEMP('USINGSCOPE') + '=' + transform(this.expression));
+		for(var i = 0; i < this.names.length; i ++)
+			s.push( C_NAME(this.names[i].name) + '=' + C_TEMP('USINGSCOPE') + '[' + strize(this.names[i].name) + ']' )
+		return JOIN_STMTS(s);
+	});
+	schemata(nt.IMPORT, function(n, e){
+		return C_NAME(this.importVar.name) + '=' + transform(this.expression);
+	});
 	var env, g_envs;
 	var transform = function (node, aux) {
 		if (vmSchemata[node.type]) {
