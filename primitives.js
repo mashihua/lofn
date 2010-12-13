@@ -249,7 +249,8 @@ lofn.version = 'hoejuu';
 	};
 
 	lofn.libmod = {
-		acquire: acquire
+		acquire: acquire,
+		library: acquire
 	}
 	lofn.dev = {
 		lib: {

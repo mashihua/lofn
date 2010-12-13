@@ -693,7 +693,7 @@
 			return OVER() + 'return new LF_RETURNVALUE(' + transform(this.expression) + ')'
 		}
 
-		cSchemata[nt.LABEL] =  function () {
+		cSchemata[nt.LABEL] = function () {
 			var l = scopeLabels[this.name] = label();
 			return ct(this.body) + LABEL(l);
 		};

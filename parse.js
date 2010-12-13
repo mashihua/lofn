@@ -1239,8 +1239,6 @@
 							args: [],
 							names: []
 						});
-					} else if (tokenIs(COLON)){
-
 					} else {
 						// pipeline
 						method = callExpression();
@@ -1251,6 +1249,7 @@
 							pipeline: true
 						});
 					};
+					if(tokenIs(THEN)) continue;
 					if(isExpFin()) break;
 					arglist(c, true);
 				};
