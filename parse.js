@@ -461,9 +461,10 @@
 			for (var each in scope.usedVariables) {
 				if (scope.usedVariables[each] === true) {
 					if(!(scope.variables[each] > 0)){
-						if(!explicitQ)
+						if(!explicitQ) {
 							ScopedScript.registerVariable(scope, each);
-						else
+							trees[scope.variables[each] - 1].locals.push(each);
+						} else
 							throw new Error('Undeclared variable "' + each + '" when using `!option explicit`. At:',
 								(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0 )
 					} else {
@@ -515,7 +516,8 @@
 				opt_colononly = !!input.options.colononly,
 				opt_sharpno = !!input.options.sharpno,
 				opt_forfunction = !!input.options.forfunction,
-				opt_filledbrace = !!input.options.filledbrace
+				opt_filledbrace = !!input.options.filledbrace,
+				opt_notcolony = !!input.options.notcolony
 			;
 			if (token) curline = token.line;
 			function acquire(){};
@@ -1214,7 +1216,16 @@
 				}
 
 				var method, isOmission = false, curry = false, pipelike = false;
-				if(tokenIs(OPERATOR)){
+				if(tokenIs(COLON)){
+					if(opt_notcolony)
+						throw new PE('Direct "colony" block syntax was disabled due to `!option notcolony`');
+
+					return new Node(nt.CALL, {
+						func: c,
+						args: [colonBody()],
+						names: [null]
+					});
+				} else if(tokenIs(OPERATOR)){
 					c = operatorPiece(c, unary);
 					isOmission = false
 				} else {
@@ -1226,7 +1237,13 @@
 				while(tokenIs(THEN)){
 					advance();
 					isOmission = false;
-					if (tokenIs(DOT)) {
+					if (tokenIs(COLON)) {
+						return new Node(nt.CALL, {
+							func: c,
+							args: [colonBody()],
+							names: [null]
+						});
+					} else if (tokenIs(DOT)) {
 						// |.name chaining
 						advance(DOT);
 						ensure(token && token.isName, 'Missing identifier for Chain invocation');

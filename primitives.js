@@ -88,23 +88,26 @@ var LF_RETURNVALUE = function (x){
 }
 
 var NamedArguments = function(){
-	var _ = new Nai;
 	for(var i=arguments.length-2;i>=0;i-=2)
-		_[arguments[i]]=arguments[i+1];
-	this._ = _;
+		this[arguments[i]]=arguments[i+1];
 };
 var LF_NamedArguments = NamedArguments;
 NamedArguments.prototype = {};
-NamedArguments.prototype.item = function(p){return this._[p]}
-NamedArguments.prototype.itemset = function(p, v){return this._[p] = v}
+NamedArguments.prototype.item = function(p){
+	if(LF_OWNS(this, p)) return this[p]
+}
+NamedArguments.prototype.itemset = function(){} // readonly
 NamedArguments.prototype.each = function(f){
-	var _ = this._;
+	var _ = this;
 	for(var each in _)
-		if(LF_OWNS(_,each))
-			f.call(_[each],_[each],each);
+		if(LF_OWNS(_, each))
+			f.call(_[each], _[each], each);
+}
+NamedArguments.enumerate = function(o, f){
+	return NamedArguments.prototype.each.call(o, f)
 }
 NamedArguments.prototype.contains = function(name){
-	return LF_OWNS(this._, name);
+	return LF_OWNS(this, name);
 }
 NamedArguments.prototype.toString = function(){
 	return '[lfMRT NamedArguments]'
