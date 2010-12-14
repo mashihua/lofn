@@ -557,6 +557,8 @@
 			}
 			var advance = function (type, test) {
 				var nt, value, t, node;
+				if (!token)
+					throw PE('Requires token type#' + type);
 				if (type !== undefined && token.type !== type)
 					throw PE('Unexpected token: got' + token);
 				if (test !== undefined && token.value !== test)

@@ -1,8 +1,11 @@
-lib.register lib.define("bi.animation.simple") {|export|
-	using async, sleep in library "async";
+using register, define in lib;
+using async, sleep in library "async";
+
+register define("bi.animation.simple") {|export|
+
 	var move = async function(e, startp, endp, duration):
 		var start = now();
-		var t = start;
+		var t;
 		var delta = 0;
 		repeat:
 			e.style.left = startp.x + (delta / duration) * (endp.x - startp.x) + 'px';
@@ -12,7 +15,7 @@ lib.register lib.define("bi.animation.simple") {|export|
 			delta = t - start
 		until delta >= duration;
 		e.style.top = endp.y;
-		e.style.left = endp.x;
+		e.style.left = endp.x
 	end
 
 	export move: move

@@ -5,6 +5,14 @@ Amor ex Dessis.
 
 Lofn is a new language on JavaScript. It's aimed to create the new experience of web programming.
 
+Build
+---------------
+Nowdays, to build my first example in examples/ongi, use this powershell command:
+
+	ls .\examples\ongi\*.lf |%{ .\lfc "$_" |tee "$_.js" }
+
+If there is any syntax error, the .lf.js won't be written.
+
 Naming of versions
 ---------------
 Names of the versions are character names from Toho series. And the developing version is named 'hoejuu'.
