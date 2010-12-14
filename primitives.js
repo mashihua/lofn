@@ -253,7 +253,12 @@ lofn.version = 'hoejuu';
 
 	lofn.libmod = {
 		acquire: acquire,
-		library: acquire
+		library: function(){
+			var a = [];
+			for(var i = 0; i < arguments.length; i += 1)
+				a[i] = acquire(arguments[i]);
+			return lofn.squashLibs(a)
+		}
 	}
 	lofn.dev = {
 		lib: {

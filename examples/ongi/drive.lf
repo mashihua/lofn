@@ -1,0 +1,10 @@
+using async in library "async";
+using page in library "domport";
+using move in library "bi.animation.simple";
+
+var flow = async {
+	var box = page "box";
+	wait: move box, {x: 200, y: 200}, {x: 300, y: 300}, 1000;
+};
+
+flow().start();

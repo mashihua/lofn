@@ -62,6 +62,7 @@ lofn.stl = lofn.dev.lib.register(lofn.dev.lib.define('std', function(reg){
 		return R;
 	}());
 	reg('Date', Date);
+	reg('now', function(){ return new Date() });
 	
 	reg('operator', {
 		add: function (a, b) { return a + b },
