@@ -526,20 +526,23 @@
 		var OVER = function(){
 			return '\n;{ ' + C_TEMP('PROGRESS') + '= 0; ' + C_TEMP('EOF') + '= true };\n'
 		}
+		var ps = function(s){ currentBlock.push(s) }
+		var pct = function(node){ return ps(ct(node))} 
+		cSchemata[nt.EXPRSTMT] = function(){ ps(ct(this.expression)) }
 		cSchemata[nt.IF] = function(node){
 			var lElse = label();
 			var lEnd = label();
-			var s = 'if(!(' + ct(this.condition) + '))' + GOTO(lElse);
-			s += ct(this.thenPart);
+			ps('if(!(' + ct(this.condition) + '))' + GOTO(lElse));
+			pct(this.thenPart);
 			if(this.elsePart){
-				s += GOTO(lEnd);
-				s += LABEL(lElse);
-				s += ct(this.elsePart);
-				s += LABEL(lEnd);
+				ps(GOTO(lEnd));
+				ps(LABEL(lElse));
+				pct(this.elsePart);
+				ps(LABEL(lEnd));
 			} else {
-				s += LABEL(lElse);
+				ps(LABEL(lElse));
 			}
-			return s;			
+			return '';
 		}
 		cSchemata[nt.PIECEWISE] = function () {
 			var a = [], b = [], l = [], cond = '';
@@ -610,26 +613,27 @@
 			var lLoop = label();
 			var bk = lNearest;
 			var lEnd = lNearest = label();
-			var s = LABEL(lLoop)
-			s += 'if(!(' + ct(this.condition) + '))' + GOTO(lEnd); 
-			s += ct(this.body);
-			s += GOTO(lLoop);
-			s += LABEL(lEnd);
+			ps(LABEL(lLoop));
+			ps('if(!(' + ct(this.condition) + '))' + GOTO(lEnd)); 
+			pct(this.body);
+			ps(GOTO(lLoop));
+			ps(LABEL(lEnd));
 			lNearest = bk;
-			return s;
+			return '';
 		}
 		cSchemata[nt.FOR] = function () {
 			var lLoop = label();
 			var bk = lNearest;
 			var lEnd = lNearest = label();
-			var s = ct(this.start) + ';\n' + LABEL(lLoop)
-				+ 'if(!(' + ct(this.condition) + '))' + GOTO(lEnd)
-				+ ct(this.body) + ';\n'
-				+ ct(this.step) + ';\n'
-				+ GOTO(lLoop)
-				+ LABEL(lEnd)
+			ps(ct(this.start));
+			ps(LABEL(lLoop));
+			ps('if(!(' + ct(this.condition) + '))' + GOTO(lEnd));
+			pct(this.body);
+			ps(ct(this.step));
+			ps(GOTO(lLoop));
+			ps(LABEL(lEnd));
 			lNearest = bk;
-			return s;
+			return '';
 		};
 		cSchemata[nt.FORIN] = function(){
 			lofn.ScopedScript.useTemp(env, 'ENUMERATOR', this.no);
@@ -651,27 +655,28 @@
 			var lLoop = label();
 			var bk = lNearest;
 			var lEnd = lNearest = label();
-			var s = C_TEMP('ENUMERATOR' + this.no) + '=' + ct(this.range) + ';\n'
-				+ s_enum + ';\n' + LABEL(lLoop)
-				+ 'if(!(' + C_TEMP('YVC') + '))' + GOTO(lEnd)
-				+ ct(this.body) + ';\n'
-				+ s_enum + ';\n'
-				+ GOTO(lLoop)
-				+ LABEL(lEnd)
+			ps(C_TEMP('ENUMERATOR' + this.no) + '=' + ct(this.range));
+			ps(s_enum);
+			ps(LABEL(lLoop));
+			ps('if(!(' + C_TEMP('YVC') + '))' + GOTO(lEnd));
+			pct(this.body)
+			ps(s_enum)
+			ps(GOTO(lLoop))
+			ps(LABEL(lEnd))
 			lNearest = bk;
-			return s;
+			return '';
 	
 		};
 		cSchemata[nt.REPEAT] = function(){
 			var lLoop = label();
 			var bk = lNearest;
 			var lEnd = lNearest = label();
-			var s = LABEL(lLoop)
-				 + ct(this.body)
-				 + 'if(!(' + ct(this.condition) + '))' + GOTO(lLoop)
-				 + LABEL(lEnd);
+			ps(LABEL(lLoop));
+			pct(this.body);
+			ps('if(!(' + ct(this.condition) + '))' + GOTO(lLoop));
+			ps(LABEL(lEnd));
 			lNearest = bk;
-			return s
+			return ''
 		};
 	
 		cSchemata[nt.YIELD] = function(node, env){

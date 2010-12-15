@@ -1,19 +1,16 @@
 using register, define in lib;
-using async, sleep in library "async";
+using async, Timer in library "async";
 
 register define("bi.animation.simple") {|export|
 
 	var move = async function(e, startp, endp, duration):
 		var start = now();
-		var t;
-		var delta = 0;
-		repeat:
-			e.style.left = startp.x + (delta / duration) * (endp.x - startp.x) + 'px';
-			e.style.top = startp.y + (delta / duration) * (endp.y - startp.y) + 'px';
-			await: sleep 10;
-			t = now();
-			delta = t - start
-		until delta >= duration;
+		var timer = Timer(10, duration);
+		var r = 0;
+		while (r = await(timer)) < 1:
+			e.style.left = startp.x + r * (endp.x - startp.x) + 'px';
+			e.style.top = startp.y + r * (endp.y - startp.y) + 'px';
+		end
 		e.style.top = endp.y;
 		e.style.left = endp.x
 	end
