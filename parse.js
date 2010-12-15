@@ -143,7 +143,7 @@
 			'TASK': TASK,
 			'pass': PASS,
 			'yield': YIELD,
-			'wait': AWAIT,
+			'await': AWAIT,
 			'using': USING
 		};
 		var nameType = function (m) {
@@ -353,6 +353,8 @@
 				'=',
 				// Conditional
 				'CONDITIONAL',
+				// Coroutine
+				'AWAIT',
 				// Statements
 				'EXPRSTMT', 
 				'IF', 'FOR', 'FORIN', 'WHILE', 'REPEAT', 'CASE', 'PIECEWISE', 'VAR',
@@ -674,9 +676,13 @@
 					advance(THEN);
 				}
 				workingScope.code = code = statements();
-				if(code.content.length === 1 && code.content[0].type === nt.EXPRSTMT){
-					// SEF processing.
-					code.content[0] = new Node(nt.RETURN, {expression: code.content[0]});
+				if(code.content.length === 1 && code.content[0] && code.content[0].exprStmtQ){
+					if(code.content[0].type === nt.EXPRSTMT){
+						// SEF processing.
+						code.content[0] = new Node(nt.RETURN, {expression: code.content[0]});
+					} else if (code.content[0].type === nt.IF){
+						code.content[0].thenPart = new Node(nt.RETURN, {expression: code.content[0].thenPart});
+					}
 				}
 				endScope();
 				advance(ENDBRACE, 125);
@@ -911,6 +917,17 @@
 						// function literal started with "function"
 						advance(FUNCTION);
 						return functionLiteral();
+					case AWAIT:
+						if(workingScope.noCoroutine)
+							throw PE('Unable to use YIELD in a un-couroutine-able function');
+						workingScope.corout = true; // Special processing needed.
+						advance();
+						advance(STARTBRACE, RDSTART);
+						var n = new Node(nt.AWAIT, {
+							expression: expression()
+						});
+						advance(ENDBRACE, RDEND);
+						return n;
 					default:
 						throw PE('Unexpected token' + token);
 				};
@@ -1198,7 +1215,8 @@
 				// expression.
 				// following specifics are supported:
 				// - Omissioned calls
-				// - "then" syntax for chained calls.
+				// - "then" syntax for chained calls
+
 				var right, c = unary();
 				if (tokenIs(OPERATOR, '=')){
 					advance();
@@ -1216,6 +1234,7 @@
 						})
 					});
 				}
+
 
 				var method, isOmission = false, curry = false, pipelike = false;
 				if(tokenIs(COLON)){
@@ -1275,17 +1294,6 @@
 				
 				c.pipelike = false;
 
-				// now c is the single expression.
-				if(tokenIs(IF)){
-					advance();
-					c = new Node(nt.CONDITIONAL, {
-						thenPart: c,
-						condition: callItem()
-					});
-					if(tokenIs(ELSE))
-						advance(ELSE), c.elsePart = expression();
-				}
-				
 				return c;
 			};
 			var callItem = function(omit){
@@ -1327,20 +1335,13 @@
 						return;
 					case RETURN:
 						advance();
-						return new Node(nt.RETURN, { expression: expression() });
+						return ifaffix(new Node(nt.RETURN, { expression: expression() }));
 					case YIELD:
 						if(workingScope.noCoroutine)
 							throw PE('Unable to use YIELD in a un-couroutine-able function');
 						workingScope.corout = true; // Special processing needed.
 						advance();
 						return yieldstmt();
-					case AWAIT:
-						if(workingScope.noCoroutine)
-							throw PE('Unable to use YIELD in a un-couroutine-able function');
-						workingScope.corout = true; // Special processing needed.
-						advance();
-						advance(COLON);
-						return awaitstmt();
 					case THROW:
 						advance();
 						return new Node(nt.THROW, { expression: expression() });
@@ -1379,13 +1380,22 @@
 					case ENDBRACE:
 						if (token.value === CREND)
 							return;
-					case OPERATOR:
-						if (token.value === '=') {
+					case AWAIT:
+						if(nextIs(COLON)){
+							if(workingScope.noCoroutine)
+								throw PE('Unable to use YIELD in a un-couroutine-able function');
+							workingScope.corout = true; // Special processing needed.
 							advance();
-							return new Node(nt.RETURN, { expression: expression() });
+							advance();
+							return ifaffix(new Node(nt.AWAIT, {expression: expression(), bare: true}));
+						}
+					case OPERATOR:
+						if(tokenIs(OPERATOR)) if (token.value === '=') {
+							advance();
+							return ifaffix(new Node(nt.RETURN, { expression: expression() }));
 						}
 					default:
-						return new Node(nt.EXPRSTMT, {expression: expression()});
+						return ifaffix(new Node(nt.EXPRSTMT, {expression: expression(), exprStmtQ : true}));
 				};
 			};
 			var vardecls = function () {
@@ -1453,14 +1463,6 @@
 				n.type = nt.YIELD;
 				return n;
 			}
-			var awaitstmt = function (){
-				var n = omissionCall(new Node(nt.YIELD));
-				n.func = new Node(nt.MEMBER, {
-					left: new Node(nt.THIS),
-					right: {name: 'wait'}
-				});
-				return new Node(nt.YIELD, {args: [n], names: [null]});
-			}
 
 			var contBlock = function () {
 				if(tokenIs(COLON)) {
@@ -1518,6 +1520,16 @@
 					throw PE('Flow control body not started with COMMA or COLON');
 				}
 				return n;
+			};
+			var ifaffix = function(given){
+				if(tokenIs(IF)){
+					advance(IF);
+					return new Node(nt.IF, {
+						condition: callItem(), 
+						thenPart: given,
+						exprStmtQ: given.exprStmtQ
+					});
+				} else return given;
 			};
 			var whilestmt = function () {
 				advance(WHILE);

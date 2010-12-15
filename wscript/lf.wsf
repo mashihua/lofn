@@ -1,0 +1,20 @@
+<job id="execute">
+	<script src="../primitives.js" type="text/javascript"></script>
+	<script src="../stl.js" type="text/javascript"></script>
+	<script src="../lib/stdenum.lf.js" type="text/javascript"></script>
+	<script type="text/javascript">
+		(function(){var _$T_ = (this === LF_M_TOP ? null : this);
+		var _$$_downto=(_$T_["downto"]), _$$_tracel=(_$T_["tracel"]);
+		((_$$_downto((3),(1)))((function(___$IARG1){
+		return (_$$_tracel(___$IARG1 + ','));
+		
+		})));
+		}).call(lofn.squashLibs([
+			lofn.libmod.acquire('std'),
+			lofn.libmod.acquire('enum'),
+			lofn.dev.lib.fromObject({
+				tracel: function(s){WScript.Echo(s)}
+			})
+		]));
+	</script>
+</job>

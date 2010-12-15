@@ -28,6 +28,7 @@
 	var ARGN_BIND
 	var C_TEMP
 	var BIND_TEMP
+	var currentBlock
 
 	var CTRLCHR = function (c) {
 		var n = c.charCodeAt(0);
@@ -45,9 +46,9 @@
 	}
 	schemata(nt.SCRIPT, function (n) {
 		var a = [];
-		for (var i = 0; i < n.content.length; i++)
-		if (n.content[i]) {
-			a[i] = transform(n.content[i]);
+		for (var i = 0; i < n.content.length; i++) {
+			if (n.content[i])
+				a.push(transform(n.content[i]));
 		}
 		var joined = JOIN_STMTS(a)
 		return joined;
@@ -292,10 +293,6 @@
 		s = '(function(' + pars.concat(temppars).join(',') + '){\n' + s + '\n})';
 		env = _e;
 		return s;
-	});
-
-	schemata(nt.CONDITIONAL, function(){
-		return '(' + transform(this.condition) + '?' + transform(this.thenPart) + ':' + ( this.elsePart ? transform(this.elsePart) : ' undefined ') + ')';
 	});
 
 
@@ -689,6 +686,25 @@
 						');\n else {' +STOP(l) + 'return new LF_YIELDVALUE(' + e + ')} ;' + LABEL(l);
 			}
 		}
+		cSchemata[nt.AWAIT] = function(node, env){
+			env.thisOccurs = true;
+			if(this.bare){
+				var l = label();
+				var e = T_THIS() + '.wait(' +  ct(this.expression) + ', function(){})';
+				return ('if(' + C_TEMP('ISFUN') + ') ' + C_TEMP('FUN') +'(' + e + 
+							');\n else {' +STOP(l) + 'return new LF_YIELDVALUE(' + e + ')} ;' + LABEL(l));
+
+			} else {
+				var l = label();
+				var id = ++waitid;
+				lofn.ScopedScript.useTemp(env, 'AWAITR', id);
+				var e = T_THIS() + '.wait(' +  ct(this.expression) + ', function(x){' + C_TEMP('AWAITR' + id) + ' = x })';
+				currentBlock.push('if(' + C_TEMP('ISFUN') + ') ' + C_TEMP('FUN') +'(' + e + 
+							');\n else {' +STOP(l) + 'return new LF_YIELDVALUE(' + e + ')} ;' + LABEL(l));
+				return C_TEMP('AWAITR' + id);
+			}
+		}
+
 		cSchemata[nt.RETURN] = function() {
 			return OVER() + 'return new LF_RETURNVALUE(' + transform(this.expression) + ')'
 		}
@@ -705,15 +721,23 @@
 		};
 
 		cSchemata[nt.SCRIPT] = function (n) {
+			var b = currentBlock;
 			var a = [];
-			for (var i = 0; i < n.content.length; i++)
-			if (n.content[i]) {
-				a[i] = ct(n.content[i]);
+			currentBlock = a;
+			for (var i = 0; i < n.content.length; i++){
+				if (n.content[i])
+					a.push(ct(n.content[i]));
 			}
-			var joined = JOIN_STMTS(a)
+			var joined = JOIN_STMTS(a);
+			currentBlock = b;
 			return joined;
 		};
 
+		schemata(nt.AWAIT, cSchemata[nt.AWAIT]);
+
+		var currentBlock = [];
+		var waitid = 0;
+		var condid = 0;
 
 
 		var s = ct(tree.code);
@@ -767,6 +791,7 @@
 		T_ARGS = config.argsName;
 		C_TEMP = config.tempName;
 		BIND_TEMP = config.bindTemp;
+		currentBlock = null;
 	};
 	// Default Lofn compilation config
 	lofn.standardTransform = function () {

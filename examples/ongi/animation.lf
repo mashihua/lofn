@@ -10,7 +10,7 @@ register define("bi.animation.simple") {|export|
 		repeat:
 			e.style.left = startp.x + (delta / duration) * (endp.x - startp.x) + 'px';
 			e.style.top = startp.y + (delta / duration) * (endp.y - startp.y) + 'px';
-			wait: sleep 10;
+			await: sleep 10;
 			t = now();
 			delta = t - start
 		until delta >= duration;

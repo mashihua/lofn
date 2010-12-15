@@ -4,8 +4,8 @@ using move in library "bi.animation.simple";
 
 var flow = async {
 	var box = page "box";
-	wait: move box, {x: 200, y: 200}, {x: 300, y: 300}, 500;
-	wait: move box, {x: 300, y: 300}, {x: 500, y: 200}, 1000;
+	await: move box, {x: 200, y: 200}, {x: 300, y: 300}, 500;
+	await: move box, {x: 300, y: 300}, {x: 500, y: 200}, 1000;
 };
 
 flow().start();
