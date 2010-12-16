@@ -1,11 +1,35 @@
-using async in library "async";
-using page in library "domport";
+using async, Timer in library "async";
+using document, element in library "domport";
 using move in library "bi.animation.simple";
 
-var flow = async {
-	var box = page "box";
-	await: move box, {x: 200, y: 200}, {x: 300, y: 300}, 500;
-	await: move box, {x: 300, y: 300}, {x: 500, y: 200}, 1000;
-};
+var et = (x, y) :> x and y;
 
-flow().start();
+var stage = element "stage"
+var number = 100
+var practles = []
+var rhos = []
+var thetas = []
+var speeds = []
+
+for var i in (0 |upto 99):
+	var practle = document.createElement "div";
+	stage.appendChild(practle);
+	practle.className = 'practle';
+	practles[i] = practle;
+	rhos[i] = Math.sqrt(Math.random()) * 200;
+	thetas[i] = Math.random() * Math.PI * 2
+	speeds[i] = Math.random() * 3 + 1
+end;
+
+var flow = async |:
+	var timer = Timer(20, 3000);
+	while true:
+		var time = await(timer);
+		for var practle, index in practles.each():
+			practle.style.top = rhos[index] * Math.sin(thetas[index] + speeds[index] * time) + 'px'
+			practle.style.left = rhos[index] * Math.cos(thetas[index] + speeds[index] * time) + 'px'
+		end
+	end;
+end
+
+flow().resume();

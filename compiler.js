@@ -602,11 +602,18 @@
 				comp = '',
 				cbef = '';
 
+			// if skip is 1, the first item is not named.
+
 			for (var i = (skip || 0); i < node.args.length; i++) {
 				if (node.names[i]) {
-					names.push(strize(node.names[i]), otransform(node.args[i]));
-				} else args.push(otransform(node.args[i]));
+					names.push(strize(node.names[i]), node.args[i]);
+				} else args.push(node.args[i]);
 			}
+
+			for(var i = (skip || 0); i < args.length; i++)
+				args[i] = otransform(args[i]);
+			for(var i = 1; i < names.length; i += 2)
+				names[i] = otransform(names[i]);
 
 			comp += (skip ? skips.concat(args) : args).join(',');
 			if (node.nameused) comp += (args.length ? ',' : '') + '(new NamedArguments(' + names.join(',') + '))';

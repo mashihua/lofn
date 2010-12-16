@@ -3,10 +3,24 @@
 <head>
 	<meta charset="UTF-8">
 	<title>Demo</title>
+	<style>
+		.practle {
+			width: 4px;
+			height: 4px;
+			background: red;
+			position: absolute;
+			border-radius: 2px;
+		}
+		#stage {
+			position: absolute;
+			top: 200px;
+			left: 200px;
+		}
+	</style>
 </head>
 <body>
 	<h1> This is a lofn demo </h1>
-	<div id="box" style="width: 30px; height: 30px; background:red; position: absolute; top: 200px; left: 100px;"></div>
+	<div id="stage"></div>
 	<script src="../../primitives.js"></script>
 	<script src="../../stl.js"></script>
 	<script src="../../lib/async.js"></script>
@@ -14,9 +28,10 @@
 	<script src="animation.lf.js"></script>
 	<script>
 		lofn.dev.lib.register(lofn.dev.lib.define("domport")(function(x){
-			x('page', function(s){
+			x('element', function(s){
 				return document.getElementById(s)
 			});
+			x('document', document);
 		}));
 	</script>
 	<script src="drive.lf.js"></script>

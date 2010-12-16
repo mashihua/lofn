@@ -3,14 +3,16 @@ using async, Timer in library "async";
 
 register define("bi.animation.simple") {|export|
 
-	var move = async function(e, startp, endp, duration):
+	var move = async function(e, startp, endp, duration, interpolation):
+		interpolation = interpolation or (x :> x);
 		var start = now();
 		var timer = Timer(10, duration);
 		var r = 0;
 		while (r = await(timer)) < 1:
-			e.style.left = startp.x + r * (endp.x - startp.x) + 'px';
-			e.style.top = startp.y + r * (endp.y - startp.y) + 'px';
-		end
+			e.style.left = startp.x + interpolation(r) * (endp.x - startp.x) + 'px';
+			e.style.top = startp.y + interpolation(r) * (endp.y - startp.y) + 'px';
+		end;
+		timer.stop();
 		e.style.top = endp.y;
 		e.style.left = endp.x
 	end

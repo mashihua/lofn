@@ -123,7 +123,7 @@ var LF_CNARG = function(a){
 Object.prototype.item = function (i) {
 	return this[i];
 };
-Object.prototype.itemset = function (i, v) {
+Object.prototype.itemset = function (v, i) {
 	return this[i] = v;
 };
 Object.prototype.compareTo = function (b) {

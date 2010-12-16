@@ -279,7 +279,12 @@
 					if(optionname) {
 						option(optionname);
 					} if (nme) {
-						make(nameType(match), match, n, false, true)
+						var nty = nameType(match);
+						if(nty === OPERATOR)
+							noImplicits();
+						make(nty, match, n, false, true)
+						if(nty === OPERATOR)
+							contt = true;
 					} else if (reflects) {
 						make(STRING, match.slice(1), n);
 					} else if (singles) {
