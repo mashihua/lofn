@@ -526,9 +526,251 @@
 		var OVER = function(){
 			return '\n;{ ' + C_TEMP('PROGRESS') + '= 0; ' + C_TEMP('EOF') + '= true };\n'
 		}
-		var ps = function(s){ currentBlock.push(s) }
-		var pct = function(node){ return ps(ct(node))} 
-		cSchemata[nt.EXPRSTMT] = function(){ ps(ct(this.expression)) }
+		var ps = function(s){ currentBlock.push(s) };
+		var pct = function(node){ return ps(ct(node))};
+
+		// get obstructiveness information
+		(function(){
+			var process = function(node){
+				if(!node || !node.type) return false;
+				var obs = false;
+				if(node.type === nt.AWAIT){
+					node.obstructive = true;
+					obs = true
+				};
+				out: for(var each in node) if(node[each]){
+					if(node[each].length){
+						for(var i = 0; i < node[each].length; i++)
+							if(node[each][i] && node[each][i].type && process(node[each][i])){
+								obs = node.obstructive = true;
+							}
+					} else {
+						if(node[each].type && process(node[each])){
+							obs = node.obstructive = true;
+						}
+					}
+				}
+				return obs && node.type !== nt.EXPRSTMT;
+			}
+			return process
+		})()(tree.code);
+
+		var oschemata = function(type, func){
+			var vmp = vmSchemata[type];
+			cSchemata[type] = function(node){
+				if(!node.obstructive)
+					return vmp.apply(this, arguments)
+				else
+					return func.apply(this, arguments);
+			}
+		};
+		var obstID = function(n){
+			return function(){
+				lofn.ScopedScript.useTemp(env, 'OBSTR', ++n);
+				return C_TEMP('OBSTR' + n);
+			}
+		}(0);
+		var otransform = function(node){
+			var id = obstID();
+			ps(id + ' = (' + ct(node) + ')');
+			return id;
+		}
+
+		cSchemata[nt.EXPRSTMT] = function(){ ps(this.obstructive ? ct(this.expression) : transform(this.expression)) }
+
+
+		// obstructive expressions
+
+		oschemata(nt['='], function (n, env) {
+			switch (this.left.type) {
+				case nt.ITEM:
+					return '(LF_ITEMSET(' + otransform(this.left.left) + ',[' + oC_ARGS(this.left, env).args + '],' + otransform(this.right) + '))';
+				case nt.MEMBER:
+					return '((' + otransform(this.left.left) + ')[' + strize(this.left.right.name) + ']=' + otransform(this.right) + ')';
+				case nt.MEMBERREFLECT:
+					return '((' + otransform(this.left.left) + ')[' + otransform(this.left.right) + ']=' + otransform(this.right) + ')';
+				case nt.VARIABLE:
+					return SETV(this.left, otransform(this.right), env);
+				default:
+					throw new Error('Invalid assignment left value: only VARIABLE, MEMBER, MEMBERREFLECT or ITEM avaliable');
+			}
+		});
+
+		var oC_ARGS = function(node, env, skip, skips){
+			var args = [],
+				names = [],
+				comp = '',
+				cbef = '';
+
+			for (var i = (skip || 0); i < node.args.length; i++) {
+				if (node.names[i]) {
+					names.push(strize(node.names[i]), otransform(node.args[i]));
+				} else args.push(otransform(node.args[i]));
+			}
+
+			comp += (skip ? skips.concat(args) : args).join(',');
+			if (node.nameused) comp += (args.length ? ',' : '') + '(new NamedArguments(' + names.join(',') + '))';
+			return {before: cbef, args: comp};
+		};
+
+		oschemata(nt.CALL, function (node, env) {
+			var comp, head;
+			var pipelineQ = node.pipeline && node.func // pipe line invocation...
+				&& !(node.func.type === nt.VARIABLE || node.func.type === nt.THIS || node.func.type === nt.DO) 
+				// and side-effective.
+			var skip = 0;
+			var skips = [];
+			if(pipelineQ){
+				skip = 1;
+				skips = [otransform(this.args[0])];
+			}
+
+			switch (this.func.type) {
+				case nt.ITEM:
+					head = 'LF_IINVOKE(' + otransform(this.func.left) + ',[' + oC_ARGS(this.func, env).args + ']' + (this.args.length ? ',' : '');
+					break;
+				case nt.DO:
+					if(this.args.length === 1) {
+						var s = env; while(s.rebindThis) s = trees[s.upper - 1];
+						lofn.ScopedScript.useTemp(s, 'DOF1');
+						s.thisOccurs = true;
+						s.argsOccurs = true;
+						head = C_TEMP('DOF1') + '(';
+						break;
+					};
+				default:
+					head = otransform(this.func) + '(';
+			};
+			var ca = oC_ARGS(this, env, skip, skips)
+			comp = ca.args + ')'
+			return '(' + ca.before + head + comp + ')';
+		});
+		oschemata(nt.OBJECT, function () {
+			var comp = '{';
+			var inits = [],
+				x = 0;
+			for (var i = 0; i < this.args.length; i++) {
+				if (this.names[i]) {
+					inits.push(strize(this.names[i]) + ':' + otransform(this.args[i]));
+				} else {
+					inits.push(strize('' + x) + ':' + otransform(this.args[i]));
+					x++;
+				}
+			}
+			comp += inits.join(',');
+			comp += '}'
+			return '(' + comp + ')';
+		});
+		oschemata(nt.ARRAY, function () {
+			var comp = '(',
+				args = [],
+				names = [];
+			for (var i = 0; i < this.args.length; i++) {
+				args[i] = otransform(this.args[i]);
+			};
+			comp += '[' + args.join(',') + '])';
+			return comp;
+		});
+		oschemata(nt.MEMBER, function () {
+			var memberName = this.right.name;
+			if (/[^\w$]/.test(memberName) || SPECIALNAMES[memberName] === 1)
+				return '(' + otransform(this.left) + ')["' + memberName + '"]';
+			else
+				return '(' + otransform(this.left) + '.' + memberName + ')';
+		});
+		oschemata(nt.MEMBERREFLECT, function () {
+			return '(' + otransform(this.left) + '[' + otransform(this.right) + '])';
+		});
+		oschemata(nt.ITEM, function () {
+			return '(' + otransform(this.left) + ').item(' + oC_ARGS(this, env).args + ')';
+		});
+
+		var binoper = function (operator, tfoper) {
+			oschemata(nt[operator], function () {
+				return '(' + otransform(this.left) + tfoper + otransform(this.right) + ')';
+			});
+		};
+		var methodoper = function (operator, method) {
+			oschemata(nt[operator], function () {
+				return '(' + otransform(this.right) + '.' + method + '(' + otransform(this.left) + '))'
+			});
+		};
+		var lmethodoper = function (operator, method) {
+			oschemata(nt[operator], function () {
+				return '(' + otransform(this.left) + '.' + method + '(' + otransform(this.right) + '))';
+			});
+		};
+
+		binoper('+', '+');
+		binoper('-', '-');
+		binoper('*', '*');
+		binoper('/', '/');
+		binoper('%', '%');
+		binoper('<', '<');
+		binoper('>', '>');
+		binoper('<=', '<=');
+		binoper('>=', '>=');
+		binoper('==', '===');
+		binoper('=~', '==');
+		binoper('===', '===');
+		binoper('!==', '!==');
+		binoper('!=', '!==');
+		binoper('!~', '!=');
+		methodoper('in', 'contains');
+		methodoper('is', 'be');
+		methodoper('as', 'convertFrom');
+		methodoper('>>', 'acceptShiftIn');
+		lmethodoper('<=>', 'compareTo');
+		lmethodoper('<<', 'shiftIn');
+		lmethodoper('of', 'of');
+
+		oschemata(nt['~~'], function(){
+			return '(' + otransform(this.left) + ',' + otransform(this.right) + ')';
+		});
+
+		oschemata(nt['->'], function () {
+			return '(LF_CREATERULE(' + otransform(this.left) + ',' + otransform(this.right) + '))';
+		});
+		oschemata(nt.NEGATIVE, function () {
+			return '(-(' + otransform(this.operand) + '))';
+		});
+		oschemata(nt.NOT, function () {
+			return '(!(' + otransform(this.operand) + '))';
+		});
+
+		oschemata(nt['and'], function(){
+			var left = otransform(this.left);
+			var lElse = label();
+			ps('if(!(' + left + '))' + GOTO(lElse));
+			var right = otransform(this.right);
+			var lEnd = label();
+			ps(GOTO(lEnd));
+			ps(LABEL(lElse));
+			ps(right + '= false');
+			ps(LABEL(lEnd));
+			return left + '&&' + right;
+		});
+
+		oschemata(nt['or'], function(){
+			var left = otransform(this.left);
+			var lElse = label();
+			ps('if(' + left + ')' + GOTO(lElse));
+			var right = otransform(this.right);
+			var lEnd = label();
+			ps(GOTO(lEnd));
+			ps(LABEL(lElse));
+			ps(right + '= true');
+			ps(LABEL(lEnd));
+			return left + '||' + right;
+		});
+
+
+
+
+
+
+
+		// statements
 		cSchemata[nt.IF] = function(node){
 			var lElse = label();
 			var lEnd = label();
@@ -545,69 +787,84 @@
 			return '';
 		}
 		cSchemata[nt.PIECEWISE] = function () {
-			var a = [], b = [], l = [], cond = '';
-			for (var i = 0; i < this.conditions.length; i++) {
+			var b = [], l = [], cond = '', lElse;
+			for (var i = this.conditions.length-1; i >= 0; i--) {
 				if (!this.bodies[i]) { // fallthrough condition
-					cond += '(' + transform(this.conditions[i]) + ') || ';
+					l[i] = l[i+1]
 				} else {
-					cond += '(' + transform(this.conditions[i]) + ')';
 					var li = label();
-					l.push(li);
-					b.push(this.bodies[i]);
-					a.push('if (' + cond + '){\n' + GOTO(li) + '\n}');
-					cond = '';
+					l[i] = li;
+					b[i] = this.bodies[i];
 				}
 			};
 
-			var lEnd = label();	
-			var bodies = '';
-			for(var i = 0; i < l.length; i += 1){
-				bodies += LABEL(l[i]) + ct(b[i]) + GOTO(lEnd) + ';\n';
-			}
+			for (var i = 0; i < this.conditions.length; i++) {
+				ps('if (' + ct(this.conditions[i]) + '){\n' + GOTO(li) + '\n}');
+			};
 
-			var conds = a.join(' else ');
+			var lEnd = label();	
 			if (this.otherwise) {
 				var lElse = label()
-				conds += ' else {\n' + GOTO(lElse) + '\n}';
-				bodies += LABEL(lElse) + ct(this.otherwise) + GOTO(lEnd) + ';\n'
+				ps(GOTO(lElse));
 			} else {
-				cond += GOTO(lEnd);
+				ps(GOTO(lEnd));
+			}
+
+			for(var i = 0; i < b.length; i += 1) if(b[i]) {
+				ps(LABEL(l[i]))
+				pct(b[i])
+				ps(GOTO(lEnd))
+			}
+
+			if (this.otherwise) {
+				ps(LABEL(lElse));
+				pct(this.otherwise);
+				ps(GOTO(lEnd));
 			}
 	
-			return conds + bodies + LABEL(lEnd);
+			ps(LABEL(lEnd));
+			return lEnd;
 		};
 		cSchemata[nt.CASE] = function(){
-			var b = [], l = [], li;
-			var bk = lNearest;
-			var lEnd = lNearest = label();
-
-			var s = 'switch (' + transform(this.expression) + '){';
-			for (var i = 0; i < this.conditions.length; i++) {
-				s += '\ncase ' + transform(this.conditions[i]) + ' :'
-				if (this.bodies[i]) {
-					l.push(li = label());
-					b.push(this.bodies[i]);
-					s += GOTO(li);
+			var b = [], l = [], cond = '', lElse, expr = otransform(this.expression);
+			ps(expr);
+			for (var i = this.conditions.length-1; i >= 0; i--) {
+				if (!this.bodies[i]) { // fallthrough condition
+					l[i] = l[i+1]
+				} else {
+					var li = label();
+					l[i] = li;
+					b[i] = this.bodies[i];
 				}
+			};
+			
+			for (var i = 0; i < this.conditions.length; i++) {
+				ps('if (' + expr + '=== (' + ct(this.conditions[i]) + ')){\n' + GOTO(li) + '\n}');
+			};
+
+			var lEnd = label();	
+			if (this.otherwise) {
+				var lElse = label()
+				ps(GOTO(lElse));
+			} else {
+				ps(GOTO(lEnd));
+			}
+
+			for(var i = 0; i < b.length; i += 1) if(b[i]) {
+				ps(LABEL(l[i]))
+				pct(b[i])
+				if(!this.fallThrough) ps(GOTO(lEnd))
+			}
+
+			if (this.otherwise) {
+				ps(LABEL(lElse));
+				pct(this.otherwise);
+				ps(GOTO(lEnd));
 			}
 	
-			if (this.otherwise) {
-				l.push(li = label());
-				b.push(this.otherwise);
-				s += '\ndefault:{\n' + GOTO(li) + '\n}';
-			}
-			s += '\n};\n' + GOTO(lEnd);
-			var bodies = '';
-
-			for(var i = 0; i < l.length; i += 1){
-				bodies += LABEL(l[i]) + ct(b[i]) + (this.fallThrough ? '' : GOTO(lEnd))
-			}
-			
-			lNearest = bk;
-			return s + bodies + LABEL(lEnd);
+			ps(LABEL(lEnd));
+			return lEnd;
 		};
-
-
 
 		cSchemata[nt.WHILE] = function(){
 			var lLoop = label();
@@ -686,32 +943,32 @@
 				return 'if(' + C_TEMP('ISFUN') + ') ' + C_TEMP('FUN') +'.apply(null, ' + ep + 
 						');\n else {' +STOP(l) + 'return new LF_YIELDVALUE_P(' + ep + ')} ;' + LABEL(l);
 			} else {
-				var e = this.args ?  C_ARGS(this, env).args : '';
+				var e = this.args ?  oC_ARGS(this, env).args : '';
 				return 'if(' + C_TEMP('ISFUN') + ') ' + C_TEMP('FUN') +'(' + e + 
 						');\n else {' +STOP(l) + 'return new LF_YIELDVALUE(' + e + ')} ;' + LABEL(l);
 			}
 		}
 		cSchemata[nt.AWAIT] = function(node, env){
 			env.thisOccurs = true;
+			var l = label();
 			if(this.bare){
-				var l = label();
 				var e = T_THIS() + '.wait(' +  ct(this.expression) + ', function(){})';
 				return ('if(' + C_TEMP('ISFUN') + ') ' + C_TEMP('FUN') +'(' + e + 
 							');\n else {' +STOP(l) + 'return new LF_YIELDVALUE(' + e + ')} ;' + LABEL(l));
 
 			} else {
-				var l = label();
-				var id = ++waitid;
-				lofn.ScopedScript.useTemp(env, 'AWAITR', id);
-				var e = T_THIS() + '.wait(' +  ct(this.expression) + ', function(x){' + C_TEMP('AWAITR' + id) + ' = x })';
-				currentBlock.push('if(' + C_TEMP('ISFUN') + ') ' + C_TEMP('FUN') +'(' + e + 
+				var id = obstID();
+				var e = T_THIS() + '.wait(' +  ct(this.expression) + ', function(x){' +id + ' = x })';
+				ps('if(' + C_TEMP('ISFUN') + ') ' + C_TEMP('FUN') +'(' + e + 
 							');\n else {' +STOP(l) + 'return new LF_YIELDVALUE(' + e + ')} ;' + LABEL(l));
-				return C_TEMP('AWAITR' + id);
+				return id;
 			}
 		}
 
 		cSchemata[nt.RETURN] = function() {
-			return OVER() + 'return new LF_RETURNVALUE(' + transform(this.expression) + ')'
+			ps(OVER());
+			ps('return new LF_RETURNVALUE(' + ct(this.expression) + ')');
+			return '';
 		}
 
 		cSchemata[nt.LABEL] = function () {
@@ -741,9 +998,6 @@
 		schemata(nt.AWAIT, cSchemata[nt.AWAIT]);
 
 		var currentBlock = [];
-		var waitid = 0;
-		var condid = 0;
-
 
 		var s = ct(tree.code);
 
