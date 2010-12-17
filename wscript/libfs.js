@@ -9,7 +9,7 @@
 		var text = fi.readText(-1);
 		fi.Close();
 		fi = null;
-		return text;
+		return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 	};
 
 //	xport('getText', getText);
