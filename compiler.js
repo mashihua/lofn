@@ -90,7 +90,6 @@
 		return '(' + transform(this.left) + '.' + memberName + ')';
 	});
 	schemata(nt.MEMBERREFLECT, function () {
-		var memberName = this.right.name;
 		return '(' + transform(this.left) + '[' + transform(this.right) + '])';
 	});
 	schemata(nt.SHARP, function(n, env){
@@ -284,13 +283,7 @@
 	schemata(nt.FUNCTION, function (n, e, trees) {
 		var _e = env,
 			f = trees[this.tree - 1];
-		var s = (f.corout ? compileCoroutine : compileFunctionBody) (f, '', '', trees);
-		var pars = f.parameters.names.slice(0), temppars = lofn.ScopedScript.listParTemp(f);
-		for (var i = 0; i < pars.length; i++)
-			pars[i] = C_NAME(pars[i])
-		for (var i = 0; i < temppars.length; i++)
-			temppars[i] = C_TEMP(temppars[i])
-		s = '(function(' + pars.concat(temppars).join(',') + '){\n' + s + '\n})';
+		var s = (f.coroid ? compileCoroid : compileFunctionBody) (f, '', '', trees);
 		env = _e;
 		return s;
 	});
@@ -447,7 +440,7 @@
 		}
 	}
 	var compileFunctionBody = function (tree, hook_enter, hook_exit, scopes) {
-		if (tree.corout) return compileCoroutine(tree, hook_enter, hook_exit, scopes);
+		if (tree.coroid) return compileCoroid(tree, hook_enter, hook_exit, scopes);
 		if (tree.transformed) return tree.transformed;
 		env = tree;
 		g_envs = scopes;
@@ -477,11 +470,18 @@
 			+ s 
 			+ (hook_exit || '');
 
+		var pars = tree.parameters.names.slice(0), temppars = lofn.ScopedScript.listParTemp(tree);
+		for (var i = 0; i < pars.length; i++)
+			pars[i] = C_NAME(pars[i])
+		for (var i = 0; i < temppars.length; i++)
+			temppars[i] = C_TEMP(temppars[i])
+		s = '(function(' + pars.concat(temppars).join(',') + '){\n' + s + '\n})';
+	
 		tree.transformed = s;
 		return s;
 	};
 
-	var compileCoroutine = function(tree, hook_enter, hook_exit, scopes){
+	var compileCoroid = function(tree, hook_enter, hook_exit, scopes){
 /*	General schemata:
  *  while(_PROGRESS){
  *  	switch(_PROGESS){
@@ -510,10 +510,6 @@
 
 		lInital = label();
 
-		lofn.ScopedScript.useTemp(tree, 'PROGRESS', '');
-		lofn.ScopedScript.useTemp(tree, 'EOF', '');
-		lofn.ScopedScript.useTemp(tree, 'ISFUN');
-		lofn.ScopedScript.useTemp(tree, 'FUN', '', 1);
 		var GOTO = function(label){
 			return '{' + C_TEMP('PROGRESS') + '=' + label + '; break MASTERCTRL};\n'
 		}
@@ -599,9 +595,7 @@
 		var oC_ARGS = function(node, env, skip, skips){
 			var args = [],
 				names = [],
-				comp = '',
-				cbef = '';
-
+				comp = '';
 			// if skip is 1, the first item is not named.
 
 			for (var i = (skip || 0); i < node.args.length; i++) {
@@ -617,16 +611,19 @@
 
 			comp += (skip ? skips.concat(args) : args).join(',');
 			if (node.nameused) comp += (args.length ? ',' : '') + '(new NamedArguments(' + names.join(',') + '))';
-			return {before: cbef, args: comp};
+			return {args: comp};
 		};
 
 		oschemata(nt.CALL, function (node, env) {
+			if(this.func && this.func.type === nt.AWAIT)
+				return awaitCall.apply(this, arguments);
 			var comp, head;
 			var pipelineQ = node.pipeline && node.func // pipe line invocation...
 				&& !(node.func.type === nt.VARIABLE || node.func.type === nt.THIS || node.func.type === nt.DO) 
 				// and side-effective.
 			var skip = 0;
 			var skips = [];
+			var obstructive;
 			if(pipelineQ){
 				skip = 1;
 				skips = [otransform(this.args[0])];
@@ -650,7 +647,41 @@
 			};
 			var ca = oC_ARGS(this, env, skip, skips)
 			comp = ca.args + ')'
-			return '(' + ca.before + head + comp + ')';
+			return '(' + head + comp + ')';
+		});
+
+		var awaitCall = function(node, env){
+			env.argsOccurs = true;
+			env.thisOccurs = true;
+			var head = C_TEMP('SCHEMATA') + '[' + strize(this.func.pattern) + ']';
+			var callbody = oC_ARGS(this, env).args;
+			var id = obstID();
+			var l = label();
+			ps(STOP(l));
+			ps('return ' + head + '(' 
+					+ T_THIS() + ',' 
+					+ T_ARGS() + ',' 
+					+ '[' + callbody + ']' + ','
+					+ 'function(x){' + id + ' = x;' + C_TEMP('COROFUN') + '.apply(this, arguments) }'
+				+ ')');
+			ps(LABEL(l));
+			return id;
+		};
+		oschemata(nt.AWAIT, function (n, e) {
+			env.argsOccurs = true;
+			env.thisOccurs = true;
+			var head = C_TEMP('SCHEMATA') + '[' + strize(this.pattern) + ']';
+			var id = obstID();
+			var l = label();
+			ps(STOP(l));
+			ps('return ' + head + '(' 
+					+ T_THIS() + ',' 
+					+ T_ARGS() + ',' 
+					+ '[]' + ','
+					+ 'function(x){' + id + ' = x;' + C_TEMP('COROFUN') + '.apply(this, arguments) }'
+				+ ')');
+			ps(LABEL(l));
+			return id;
 		});
 		oschemata(nt.OBJECT, function () {
 			var comp = '{';
@@ -943,34 +974,6 @@
 			return ''
 		};
 	
-		cSchemata[nt.YIELD] = function(node, env){
-			var l = label();
-			if(this.pass){
-				var ep = ct(this.passExpr);
-				return 'if(' + C_TEMP('ISFUN') + ') ' + C_TEMP('FUN') +'.apply(null, ' + ep + 
-						');\n else {' +STOP(l) + 'return new LF_YIELDVALUE_P(' + ep + ')} ;' + LABEL(l);
-			} else {
-				var e = this.args ?  oC_ARGS(this, env).args : '';
-				return 'if(' + C_TEMP('ISFUN') + ') ' + C_TEMP('FUN') +'(' + e + 
-						');\n else {' +STOP(l) + 'return new LF_YIELDVALUE(' + e + ')} ;' + LABEL(l);
-			}
-		}
-		cSchemata[nt.AWAIT] = function(node, env){
-			env.thisOccurs = true;
-			var l = label();
-			if(this.bare){
-				var e = T_THIS() + '.wait(' +  ct(this.expression) + ', function(){})';
-				return ('if(' + C_TEMP('ISFUN') + ') ' + C_TEMP('FUN') +'(' + e + 
-							');\n else {' +STOP(l) + 'return new LF_YIELDVALUE(' + e + ')} ;' + LABEL(l));
-
-			} else {
-				var id = obstID();
-				var e = T_THIS() + '.wait(' +  ct(this.expression) + ', function(x){' +id + ' = x })';
-				ps('if(' + C_TEMP('ISFUN') + ') ' + C_TEMP('FUN') +'(' + e + 
-							');\n else {' +STOP(l) + 'return new LF_YIELDVALUE(' + e + ')} ;' + LABEL(l));
-				return id;
-			}
-		}
 
 		cSchemata[nt.RETURN] = function() {
 			ps(OVER());
@@ -1008,6 +1011,14 @@
 
 		var s = ct(tree.code);
 
+		lofn.ScopedScript.useTemp(tree, 'PROGRESS');
+		lofn.ScopedScript.useTemp(tree, 'SCHEMATA', '', 2);
+		lofn.ScopedScript.useTemp(tree, 'EOF');
+		lofn.ScopedScript.useTemp(tree, 'ISFUN');
+		lofn.ScopedScript.useTemp(tree, 'COROFUN');
+		lofn.ScopedScript.useTemp(tree, 'FUN', '', 2);
+
+
 		var locals = LF_UNIQ(tree.locals),
 			vars = [],
 			temps = lofn.ScopedScript.listTemp(tree);
@@ -1020,7 +1031,14 @@
 			}
 		for (var i = 0; i < temps.length; i++)
 			temps[i] = BIND_TEMP(tree, temps[i]);
-		s = JOIN_STMTS([
+
+		var pars = tree.parameters.names.slice(0), temppars = lofn.ScopedScript.listParTemp(tree);
+		for (var i = 0; i < pars.length; i++)
+			pars[i] = C_NAME(pars[i])
+		for (var i = 0; i < temppars.length; i++)
+			temppars[i] = C_TEMP(temppars[i])
+
+		s = '(function(' + C_TEMP('SCHEMATA') + '){ return function(' + pars.concat(temppars).join(',') + '){\n' + JOIN_STMTS([
 				THIS_BIND(tree),
 				ARGS_BIND(tree),
 				ARGN_BIND(tree),
@@ -1030,7 +1048,7 @@
 				C_TEMP('EOF') + '= false'
 			]) 
 				+ (hook_enter || '') 
-				+ 'return function(' + C_TEMP('FUN') + '){\n'
+				+ 'return ' + C_TEMP('COROFUN') + ' = function(' + C_TEMP('FUN') + '){\n'
 				+ C_TEMP('ISFUN') + ' = typeof ' + C_TEMP('FUN') + ' === "function";\n'
 				+ 'while(' + C_TEMP('PROGRESS') + ') {\n'
 				+ 'MASTERCTRL: switch(' + C_TEMP('PROGRESS') + '){\n'
@@ -1038,7 +1056,8 @@
 				+ OVER()
 				+ 'return ;'
 				+ '}\n}\n}' 
-				+ (hook_exit || '');
+				+ (hook_exit || '')
+			+ '}})'
 
 		tree.transformed = s;
 		return s;
@@ -1150,25 +1169,16 @@
 		var enterText //= vmConfig.initGVM.globally() + inits.join('\n') + '\n';
 		var exitText //= vmConfig.dumpGVM(initInterator).join('\n');
 
-		var getFs = function(body){
-
-			var pars = enter.parameters.names.slice(0),
-				temppars = lofn.ScopedScript.listParTemp(enter);
-			for (var i = 0; i < pars.length; i++) pars[i] = C_NAME(pars[i])
-			for (var i = 0; i < temppars.length; i++) temppars[i] = C_TEMP(temppars[i])
-			
-			var generatedSource = '(function(' + pars.concat(temppars).join() + '){' + body + '})'
-
+		var getFs = function(generatedSource){
 			var f_ = Function('return ' + generatedSource)();
 			var f = function () {
 				return f_.apply(initv, arguments)
 			};
+
 			return {
 				wrappedF: f,
 				rawF: f_,
-				generatedBody: body,
-				generatedSource: generatedSource,
-				joinedParameters: pars.concat(temppars)
+				generatedSource: generatedSource
 			}
 		}
 

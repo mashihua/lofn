@@ -52,7 +52,6 @@
 		TASK = 40,		//reserved for coro
 		LAMBDA = 41,
 		PASS = 42,
-		YIELD = 43,
 		AWAIT = 44,
 		USING = 45,
 		BACKSLASH = 501;
@@ -142,8 +141,6 @@
 			'finally': FINALLY,
 			'TASK': TASK,
 			'pass': PASS,
-			'yield': YIELD,
-			'await': AWAIT,
 			'using': USING
 		};
 		var nameType = function (m) {
@@ -193,6 +190,7 @@
 			':': COLON,
 			'|': THEN,
 			'.': DOT,
+			'..': AWAIT,
 			';': SEMICOLON,
 			'@': MY,
 			'\\': BACKSLASH
@@ -247,6 +245,7 @@
 
 					case SHARP:
 					case MY:
+					case AWAIT:
 						make(t, s, n);
 						break;
 
@@ -273,7 +272,7 @@
 			}
 
 			var ou = input.replace(
-				(/(\/\/.*)|(?:^![ \t]*option[ \t]+(\w+)[ \t]*$)|([a-zA-Z_$][\w$]*\??)|(`[a-zA-Z_$][\w$]*\??)|('[^']*(?:''[^']*)*')|("[^\\"]*(?:\\.[^\\"]*)*")|((?:0[xX][a-fA-F0-9]+)|(?:\d+(?:\.\d+(?:[eE]-?\d+)?)?))|([+\-*\/<>=!:%~][<>=~]*|[()\[\]\{\}|@\\;,\.#])|(\n\s*)/mg),
+				(/(\/\/.*)|(?:^![ \t]*option[ \t]+(\w+)[ \t]*$)|([a-zA-Z_$][\w$]*\??)|(`[a-zA-Z_$][\w$]*\??)|('[^']*(?:''[^']*)*')|("[^\\"]*(?:\\.[^\\"]*)*")|((?:0[xX][a-fA-F0-9]+)|(?:\d+(?:\.\d+(?:[eE]-?\d+)?)?))|([+\-*\/<>=!:%~][<>=~]*|\.\.|[()\[\]\{\}|@\\;,\.#])|(\n\s*)/mg),
 				function (match, comment, optionname, nme, reflects, singles, doubles, number, symbol, newline, n, full) {
 					after_space = false;
 					if(optionname) {
@@ -334,7 +333,7 @@
 				'UNKNOWN',
 				// Primary
 				'VARIABLE', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT',
-				'ARGUMENTS', 'CALLEE', 'ARGN', 'GROUP', 'SHARP',
+				'ARGUMENTS', 'CALLEE', 'ARGN', 'GROUP', 'SHARP', 'AWAIT',
 				// Membering
 				'MEMBER', 'ITEM', 'MEMBERREFLECT', 
 				// Invocation
@@ -358,12 +357,10 @@
 				'=',
 				// Conditional
 				'CONDITIONAL',
-				// Coroutine
-				'AWAIT',
 				// Statements
 				'EXPRSTMT', 
 				'IF', 'FOR', 'FORIN', 'WHILE', 'REPEAT', 'CASE', 'PIECEWISE', 'VAR',
-				'BREAK', 'CONTINUE', 'LABEL', 'THROW', 'RETURN', 'TRY', 'YIELD', 
+				'BREAK', 'CONTINUE', 'LABEL', 'THROW', 'RETURN', 'TRY', 
 				// modular
 				'USING', 'IMPORT',
 				// Variable
@@ -394,7 +391,7 @@
 				this.grDepth = 0;
 				this.sharpNo = 0;
 				this.finNo = 0;
-				this.corout = false;
+				this.coroid = false;
 				this.initHooks = {};
 			};
 			ScopedScript.prototype.newVar = function (name, isarg) {
@@ -452,7 +449,7 @@
 			return arr;
 		}
 		ScopedScript.useTemp = function(scope, type, id, aspar){
-			scope.usedTemps[type + (id == null ? '' : id)] = aspar ? 2 : 1;
+			scope.usedTemps[type + (id == null ? '' : id)] = (aspar || 0) + 1;
 		}
 		
 		ScopedScript.registerVariable = function(scope, name, argQ, useQ) {
@@ -835,6 +832,15 @@
 								anames: [null]
 							}));
 							// or variable
+						} else if(nextIs(AWAIT)) {
+							if(workingScope.unCorable)
+								throw PE("Attempting to use AWAIT in a uncorable function");
+							workingScope.coroid = true;
+							var n = new Node(nt.AWAIT, {
+								pattern: name().name
+							});
+							advance();
+							return n;
 						} else return variable();
 					case NUMBER:
 					case STRING:
@@ -913,7 +919,7 @@
 							var s = workingScope;
 							while(s && s.rebindThis) s = scopes[s.upper - 1];
 							if(s.sharpNo++ >= s.parameters.names.length)
-								ScopedScript.useTemp(s, 'IARG', s.sharpNo, true);
+								ScopedScript.useTemp(s, 'IARG', s.sharpNo, 1);
 							return new Node(nt.SHARP, {
 								id :  s.sharpNo
 							});
@@ -922,17 +928,6 @@
 						// function literal started with "function"
 						advance(FUNCTION);
 						return functionLiteral();
-					case AWAIT:
-						if(workingScope.noCoroutine)
-							throw PE('Unable to use YIELD in a un-couroutine-able function');
-						workingScope.corout = true; // Special processing needed.
-						advance();
-						advance(STARTBRACE, RDSTART);
-						var n = new Node(nt.AWAIT, {
-							expression: expression()
-						});
-						advance(ENDBRACE, RDEND);
-						return n;
 					default:
 						throw PE('Unexpected token' + token);
 				};
@@ -1341,12 +1336,6 @@
 					case RETURN:
 						advance();
 						return ifaffix(new Node(nt.RETURN, { expression: expression() }));
-					case YIELD:
-						if(workingScope.noCoroutine)
-							throw PE('Unable to use YIELD in a un-couroutine-able function');
-						workingScope.corout = true; // Special processing needed.
-						advance();
-						return yieldstmt();
 					case THROW:
 						advance();
 						return new Node(nt.THROW, { expression: expression() });
@@ -1385,17 +1374,8 @@
 					case ENDBRACE:
 						if (token.value === CREND)
 							return;
-					case AWAIT:
-						if(nextIs(COLON)){
-							if(workingScope.noCoroutine)
-								throw PE('Unable to use YIELD in a un-couroutine-able function');
-							workingScope.corout = true; // Special processing needed.
-							advance();
-							advance();
-							return ifaffix(new Node(nt.AWAIT, {expression: expression(), bare: true}));
-						}
 					case OPERATOR:
-						if(tokenIs(OPERATOR)) if (token.value === '=') {
+						if (token.value === '=') {
 							advance();
 							return ifaffix(new Node(nt.RETURN, { expression: expression() }));
 						}
@@ -1453,19 +1433,6 @@
 				advance(OPERATOR, 'in');
 				n.names = a;
 				n.expression = expression();
-				return n;
-			}
-
-			var yieldstmt = function (){
-				if(tokenIs(PASS)){
-					advance();
-					return new Node(nt.YIELD, {
-						pass: true,
-						passExpr: expression()
-					});
-				}
-				var n = omissionCall(new Node(nt.YIELD));
-				n.type = nt.YIELD;
 				return n;
 			}
 
@@ -1724,7 +1691,7 @@
 				return script;
 			};
 			newScope();
-			workingScope.noCoroutine = true;
+			workingScope.unCorable = true;
 			workingScope.parameters = new Node(nt.PARAMETERS, {
 				names: [],
 				anames: []

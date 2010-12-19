@@ -1,6 +1,5 @@
 using async, Timer in library "async";
 using document, element in library "domport";
-using move in library "bi.animation.simple";
 
 var et = (x, y) :> x and y;
 
@@ -10,9 +9,9 @@ var particles = []
 
 
 // Place particles into stage element
-for var i in (0 |upto 99):
+for(var i = 0; i < 100; i += 1):
 	var particle = document.createElement "div";
-	stage.appendChild(particle);
+	stage.appendChild particle;
 	particle.className = 'particle';
 	particles[i] = {
 		particle: particle,
@@ -23,11 +22,12 @@ for var i in (0 |upto 99):
 end;
 
 var flow = async |:
-	var timer = Timer(20, 3000);
+	var timer = Timer 20, 3000;
 	while true:
 		// wait for emitting a time
-		var time = await(timer);
-		for var p in particles.each():
+		var time = wait.. timer;
+		for(var i = 0; i < particles.length; i += 1):
+			p = particles[i];
 			p.particle.style.top = p.rho * Math.sin(p.theta + p.speed * time) + 'px'
 			p.particle.style.left = p.rho * Math.cos(p.theta + p.speed * time) + 'px'
 		end

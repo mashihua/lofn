@@ -74,15 +74,13 @@ var LF_ITEMSET = function (p, s, v){
 var LF_RMETHOD = function (l, r, m){
 	return r[m](l)
 }
-var LF_YIELDVALUE = function (x){
-	this.value = x;
-	this.values = LF_SLICE(arguments, 0);
+var LF_OBSTRUCT = function(x){
+	return x;
 }
-var LF_YIELDVALUE_P = function (x){
-	this.value = x[0];
-	this.values = LF_SLICE(x, 0);
+var LF_YIELDVALUE = function (a){
+	this.value = a[0];
+	this.values = a;
 }
-LF_YIELDVALUE_P.prototype = new LF_YIELDVALUE();
 var LF_RETURNVALUE = function (x){
 	this.value = x
 }
