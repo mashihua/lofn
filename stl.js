@@ -14,7 +14,7 @@ lofn.stl = lofn.dev.lib.register(lofn.dev.lib.define('std', function(reg){
 			if(arguments[i] instanceof LF_Rule)
 				obj[arguments[i].left] = arguments[i].right;
 			else if (arguments[i] instanceof LF_NamedArguments)
-				arguments[i].each(function(val, prop){
+				NamedArguments.each(arguments[i], function(val, prop){
 					obj[prop] = val
 				});
 			else {
