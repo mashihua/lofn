@@ -1234,16 +1234,7 @@
 
 
 				var method, isOmission = false, curry = false, pipelike = false;
-				if(tokenIs(COLON)){
-					if(opt_notcolony)
-						throw new PE('Direct "colony" block syntax was disabled due to `!option notcolony`');
-
-					return new Node(nt.CALL, {
-						func: c,
-						args: [colonBody()],
-						names: [null]
-					});
-				} else if(tokenIs(OPERATOR)){
+				if(tokenIs(OPERATOR)){
 					c = operatorPiece(c, unary);
 					isOmission = false
 				} else {
