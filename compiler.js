@@ -183,7 +183,7 @@
 		var inits = [],
 			x = 0;
 		for (var i = 0; i < this.args.length; i++) {
-			if (this.names[i]) {
+			if (typeof this.names[i] === "string") {
 				inits.push(strize(this.names[i]) + ': ' + transform(this.args[i]));
 			} else {
 				inits.push(strize('' + x) + ': ' + transform(this.args[i]));
@@ -720,7 +720,7 @@
 				var inits = [],
 					x = 0;
 				for (var i = 0; i < this.args.length; i++) {
-					if (this.names[i]) {
+					if (typeof this.names[i] === 'string') {
 						inits.push(strize(this.names[i]) + ':' + oTransform(this.args[i]));
 					} else {
 						inits.push(strize('' + x) + ':' + oTransform(this.args[i]));
