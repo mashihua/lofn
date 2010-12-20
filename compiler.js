@@ -52,7 +52,7 @@
 	schemata(nt['='], function (n, env) {
 		switch (this.left.type) {
 		case nt.ITEM:
-			return '(LF_ITEMSET(' + transform(this.left.left) + ',[' + C_ARGS(this.left, env).args + '],' + transform(this.right) + '))';
+			return '(' + transform(this.left.left) + '.itemset(' + transform(this.left.member) + ',' + transform(this.right) + '))';
 		case nt.MEMBER:
 			return '((' + transform(this.left.left) + ')[' + strize(this.left.right.name) + ']=' + transform(this.right) + ')';
 		case nt.MEMBERREFLECT:
@@ -95,7 +95,7 @@
 		return C_NAME(env.parameters.names[this.id]);
 	});
 	schemata(nt.ITEM, function (node, env) {
-		return '(' + transform(this.left) + ').item(' + C_ARGS(this, env).args + ')';
+		return '(' + transform(this.left) + ').item(' + transform(this.member) + ')';
 	});
 	schemata(nt.VARIABLE, function (n, env) {
 		return GETV(n, env);
@@ -160,7 +160,7 @@
 		var comp, head;
 		switch (this.func.type) {
 			case nt.ITEM:
-				head = 'LF_IINVOKE(' + transform(this.func.left) + ',[' + C_ARGS(this.func, env).args + ']' + (this.args.length ? ',' : '');
+				head = 'LF_IINVOKE(' + transform(this.func.left) + ',' + transform(this.func.member) +  + (this.args.length ? ',' : '');
 				break;
 			case nt.DO:
 				if(this.args.length === 1) {
@@ -612,7 +612,7 @@
 			oSchemata(nt['='], function (n, env) {
 				switch (this.left.type) {
 					case nt.ITEM:
-						return '(LF_ITEMSET(' + oTransform(this.left.left) + ',[' + oC_ARGS(this.left, env).args + '],' + oTransform(this.right) + '))';
+						return '(' + oTransform(this.left.left) + '.itemset(' + oTransform(this.left.member) + ',' + oTransform(this.right) + '))';
 					case nt.MEMBER:
 						return '((' + oTransform(this.left.left) + ')[' + strize(this.left.right.name) + ']=' + oTransform(this.right) + ')';
 					case nt.MEMBERREFLECT:
@@ -663,7 +663,7 @@
 
 				switch (this.func.type) {
 					case nt.ITEM:
-						head = 'LF_IINVOKE(' + oTransform(this.func.left) + ',[' + oC_ARGS(this.func, env).args + ']' + (this.args.length ? ',' : '');
+						head = 'LF_IINVOKE(' + oTransform(this.func.left) + ',' + oTransform(this.left.member) + (this.args.length ? ',' : '');
 						break;
 					case nt.DO:
 						if(this.args.length === 1) {
@@ -752,7 +752,7 @@
 				return '(' + oTransform(this.left) + '[' + oTransform(this.right) + '])';
 			});
 			oSchemata(nt.ITEM, function (node, env) {
-				return '(' + oTransform(this.left) + ').item(' + oC_ARGS(this, env).args + ')';
+				return '(' + oTransform(this.left) + ').item(' + oTransform(this.member) + ')';
 			});
 
 			var binoper = function (operator, tfoper) {

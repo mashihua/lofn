@@ -100,8 +100,28 @@ lofn.stl = lofn.dev.lib.register(lofn.dev.lib.define('std', function(reg){
 			}
 		}
 		return function(M){
-			return M(enumeratorSchemata);
+			var G = M(enumeratorSchemata);
+			return function(){
+				var d = G.apply(this, arguments);
+				var i = function(f){
+					var v;
+					while((v = d()) instanceof LF_YIELDVALUE)
+						f.apply(null, v.values)			
+				}
+				var r = function(f){
+					if(f instanceof Function){
+						return (r = i)(f)
+					} else {
+						return (r = d)();
+					}
+				}
+				return function(f){return r(f)}
+			}
 		}
-	}())
+	}());
+
+	String.prototype.stripMargins = function(){
+		return this.replace(/^\s*\|/gm, '')
+	}
 
 }));

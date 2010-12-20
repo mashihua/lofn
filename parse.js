@@ -901,10 +901,9 @@
 								right : literal()
 							});
 						} else if (token.isName) {
-							return new Node(nt.ITEM, {
+							return new Node(nt.MEMBERREFLECT, {
 								left : new Node(nt.ARGN),
-								args : [new Node(nt.LITERAL, {value: name().name})],
-								names : [null]
+								right : new Node(nt.LITERAL, {value: name().name}),
 							});
 						} else if (tokenIs(SHARP)) {
 							advance();
@@ -936,7 +935,7 @@
 				var right;
 				if (tokenIs(STARTBRACE, SQSTART)) {  // .[ Expressuib ]  format
 					advance();
-					right = expression();
+					right = callItem();
 					advance(ENDBRACE, SQEND);
 					return new Node(nt.MEMBERREFLECT, { left: left, right: right });
 				} else if (tokenIs(STRING)) {
@@ -958,10 +957,9 @@
 						// ITEM
 						// x[e] === x.item(e)
 						m = new Node(nt.ITEM, {
-								left: m
+							left: m,
+					  		member: callItem()
 						});
-						if (tokenIs(ENDBRACE,SQEND)) { m.args = []; advance(); continue; };
-						arglist(m);
 						advance(ENDBRACE, SQEND);
 					}
 				};
@@ -984,10 +982,9 @@
 								// a[e] === a.item(e)
 								advance();
 								m = new Node(nt.ITEM, {
-									left: m
+									left: m,
+								  	member: callItem()
 								});
-								if (tokenIs(ENDBRACE,SQEND)) { m.args = []; advance(); continue; };
-								arglist(m);
 								advance(ENDBRACE, SQEND);
 							} else if (token.value === CRSTART && !token.spaced){
 								if(ISOBJLIT()){

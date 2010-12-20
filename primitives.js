@@ -68,9 +68,6 @@ var LF_MINVOKE = function (p, s) {
 var LF_IINVOKE = function (p, s) {
 	return p.item.apply(p, s).apply(p,LF_SLICE(arguments,2))
 }
-var LF_ITEMSET = function (p, s, v){
-	return p.itemset.apply(p, [v].concat(s));
-}
 var LF_RMETHOD = function (l, r, m){
 	return r[m](l)
 }
@@ -91,19 +88,15 @@ var NamedArguments = function(){
 };
 var LF_NamedArguments = NamedArguments;
 NamedArguments.prototype = {};
-NamedArguments.prototype.item = function(p){
-	if(LF_OWNS(this, p)) return this[p]
+NamedArguments.fetch = function(o, p){
+	if(LF_OWNS(o, p)) return o[p]
 }
-NamedArguments.prototype.itemset = function(){} // readonly
-NamedArguments.prototype.each = function(f){
-	var _ = this;
-	for(var each in _)
-		if(LF_OWNS(_, each))
-			f.call(_[each], _[each], each);
+NamedArguments.enumerate = function(o, f){	
+	for(var each in o)
+		if(LF_OWNS(o, each))
+			f.call(o[each], o[each], each);
 }
-NamedArguments.enumerate = function(o, f){
-	return NamedArguments.prototype.each.call(o, f)
-}
+NamedArguments.each = NamedArguments.enumerate;
 NamedArguments.prototype.contains = function(name){
 	return LF_OWNS(this, name);
 }
@@ -121,7 +114,7 @@ var LF_CNARG = function(a){
 Object.prototype.item = function (i) {
 	return this[i];
 };
-Object.prototype.itemset = function (v, i) {
+Object.prototype.itemset = function (i, v) {
 	return this[i] = v;
 };
 Object.prototype.compareTo = function (b) {
@@ -230,7 +223,7 @@ lofn.version = 'hoejuu';
 		};
 		var xport = function(name, val){
 			if(name instanceof LF_NamedArguments){
-				name.each(function(val, name){
+				NamedArguments.enumerate(name, function(val, name){
 					xport(name, val)
 				});
 			} else if (name instanceof LF_Rule){
