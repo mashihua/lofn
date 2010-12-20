@@ -1383,6 +1383,11 @@
 						return ifaffix(new Node(nt.EXPRSTMT, {expression: expression(), exprStmtQ : true}));
 				};
 			};
+			var blocky = function(node){
+				if(node.type !== nt.SCRIPT){
+					return new Node(nt.SCRIPT, { content: [node] });
+				} else return node;
+			}
 			var vardecls = function () {
 				if (nextIs(OPERATOR, '=')) { // assigned variable
 					var v = variable();
@@ -1449,7 +1454,7 @@
 					advance();
 					var s = statement_r();
 			//		while (token && token.type === SEMICOLON) advance();
-					return s;
+					return blocky(s);
 				} else throw PE('Flow control body not started with COMMA or COLON');
 			};
 
@@ -1464,7 +1469,7 @@
 					if(tokenIs(ELSE)){
 						advance(ELSE);
 						if(tokenIs(IF)){
-							n.elsePart = ifstmt();
+							n.elsePart = blocky(ifstmt());
 						} else {
 							n.elsePart = contBlock();
 						}
@@ -1477,15 +1482,15 @@
 					advance(COMMA);
 					if(opt_colononly)
 						throw PE('Only COLON bodies can be used due to `!option colononly`');
-					n.thenPart = statement_r();
+					n.thenPart = blocky(statement_r());
 					while(tokenIs(SEMICOLON)) advance();
 					if(tokenIs(ELSE) && (nextIs(IF) || nextIs(COMMA))){
 						advance(ELSE);
 						if(tokenIs(IF)){
-							n.elsePart = ifstmt();
+							n.elsePart = blocky(ifstmt());
 						} else {
 							advance(COMMA);
-							n.elsePart = statement_r();
+							n.elsePart = blocky(statement_r());
 						}
 					}
 				} else {
