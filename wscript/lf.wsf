@@ -9,10 +9,10 @@
 		return (_$$_tracel(___$IARG1 + ','));
 		
 		})));
-		}).call(lofn.squashLibs([
-			lofn.libmod.acquire('std'),
-			lofn.libmod.acquire('enum'),
-			lofn.dev.lib.fromObject({
+		}).call(eisa.squashLibs([
+			eisa.libmod.acquire('std'),
+			eisa.libmod.acquire('enum'),
+			eisa.dev.lib.fromObject({
 				tracel: function(s){WScript.Echo(s)}
 			})
 		]));

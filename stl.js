@@ -1,7 +1,7 @@
 ﻿//:module: lib:standard
 //	:author:		infinte (aka. be5invis)
 //	:info:			The standard library for Lofn.
-lofn.stl = lofn.dev.lib.register(lofn.dev.lib.define('std', function(reg){
+eisa.stl = eisa.dev.lib.register(eisa.dev.lib.define('std', function(reg){
 	// special hack
 	Date['new'] = function () { return new Date() };
 	Function['new'] = function (args, body) { return new Function(args, body) };
@@ -11,9 +11,9 @@ lofn.stl = lofn.dev.lib.register(lofn.dev.lib.define('std', function(reg){
 	reg('composing', function(obj_){
 		var obj = derive(obj_);
 		for(var i = 1; i < arguments.length; i++){
-			if(arguments[i] instanceof LF_Rule)
+			if(arguments[i] instanceof EISA_Rule)
 				obj[arguments[i].left] = arguments[i].right;
-			else if (arguments[i] instanceof LF_NamedArguments)
+			else if (arguments[i] instanceof EISA_NamedArguments)
 				NamedArguments.each(arguments[i], function(val, prop){
 					obj[prop] = val
 				});
@@ -85,18 +85,18 @@ lofn.stl = lofn.dev.lib.register(lofn.dev.lib.define('std', function(reg){
 	reg('type', { of : function(x){return typeof x} });
 	reg('present', { be : function(x){return x !== undefined && x !== null}});
 	reg('absent', { be : function(x){return x === undefined || x === null }});
-	reg('YieldValue', {be: function(x){return x instanceof LF_YIELDVALUE}});
-	reg('ReturnValue', {be: function(x){return x instanceof LF_RETURNVALUE}});
+	reg('YieldValue', {be: function(x){return x instanceof EISA_YIELDVALUE}});
+	reg('ReturnValue', {be: function(x){return x instanceof EISA_RETURNVALUE}});
 
 	reg('call', function(f){return f()});
 
 	reg('enumerator', function(){
 		var enumeratorSchemata = {
 			'yield': function(t, a, g, restart){
-				return new LF_YIELDVALUE(g);
+				return new EISA_YIELDVALUE(g);
 			},
 			'bypass': function(t, a, g, restart){
-				return new LF_YIELDVALUE(g[0])
+				return new EISA_YIELDVALUE(g[0])
 			}
 		}
 		return function(M){
@@ -105,7 +105,7 @@ lofn.stl = lofn.dev.lib.register(lofn.dev.lib.define('std', function(reg){
 				var d = G.apply(this, arguments);
 				var i = function(f){
 					var v;
-					while((v = d()) instanceof LF_YIELDVALUE)
+					while((v = d()) instanceof EISA_YIELDVALUE)
 						f.apply(null, v.values)			
 				}
 				var r = function(f){

@@ -2,13 +2,15 @@
 //	:author:		infinte (aka. be5invis)
 //	:info:			The code generator for Lofn
 
-0, function () {
+0, function (eisa) {
 	var TO_ENCCD = function (name) {
 		return name.replace(/[^a-zA-Z0-9_]/g, function (m) {
 			return '$' + m.charCodeAt(0).toString(36) + '$'
 		});
 	};
-	var nt = lofn.NodeType;
+
+	var nt = eisa.NodeType;
+	var ScopedScript = eisa.ScopedScript;
 
 	var config, vmSchemata = [],
 		schemata = function (tf, trans) {
@@ -39,12 +41,8 @@
 		return '"' + (s || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\x00-\x1f\x7f]/g, CTRLCHR).replace(/<\/(script)>/ig, '<\x2f$1\x3e') + '"';
 	};
 
-	var GETV = function (node, env) {
-		return C_NAME(node.name);
-	};
-	var SETV = function (node, val, env) {
-		return '(' + C_NAME(node.name) + '=' + val + ')';
-	};
+	var GETV = function (node, env) { return C_NAME(node.name) };
+	var SETV = function (node, val, env) { return '(' + C_NAME(node.name) + '=' + val + ')' };
 
 	var transform;
 
@@ -147,7 +145,7 @@
 		}
 		if (pipelineQ) env.grDepth -= 1;
 		if (pipelineQ) {
-			lofn.ScopedScript.useTemp(env, 'PIPE', env.grDepth);
+			ScopedScript.useTemp(env, 'PIPE', env.grDepth);
 			var arg0 = args[0];
 			args[0] = C_TEMP('PIPE'+env.grDepth);
 			cbef =  C_TEMP('PIPE'+env.grDepth) + '=' + arg0 + ',';
@@ -160,12 +158,12 @@
 		var comp, head;
 		switch (this.func.type) {
 			case nt.ITEM:
-				head = 'LF_IINVOKE(' + transform(this.func.left) + ',' + transform(this.func.member) +  + (this.args.length ? ',' : '');
+				head = 'EISA_IINVOKE(' + transform(this.func.left) + ',' + transform(this.func.member) +  + (this.args.length ? ',' : '');
 				break;
 			case nt.DO:
 				if(this.args.length === 1) {
 					var s = env; while(s.rebindThis) s = trees[s.upper - 1];
-					lofn.ScopedScript.useTemp(s, 'DOF1');
+					ScopedScript.useTemp(s, 'DOF1');
 					s.thisOccurs = true;
 					s.argsOccurs = true;
 					head = C_TEMP('DOF1') + '(';
@@ -258,7 +256,7 @@
 	});
 
 	schemata(nt['->'], function () {
-		return '(LF_CREATERULE(' + transform(this.left) + ',' + transform(this.right) + '))';
+		return '(EISA_CREATERULE(' + transform(this.left) + ',' + transform(this.right) + '))';
 	});
 	schemata(nt.NEGATIVE, function () {
 		return '(-(' + transform(this.operand) + '))';
@@ -270,7 +268,7 @@
 	schemata(nt.DO, function(nd, e, trees){
 		var s = e;
 		while(s.rebindThis) s = trees[s.upper - 1];
-		lofn.ScopedScript.useTemp(s, 'DOF');
+		ScopedScript.useTemp(s, 'DOF');
 		s.thisOccurs = true;
 		s.argsOccurs = true;
 		return C_TEMP('DOF');
@@ -357,12 +355,12 @@
 		return 'while(' + transform(this.condition) + '){' + transform(this.body) + '}';
 	});
 	schemata(nt.FORIN, function (nd, e) {
-		lofn.ScopedScript.useTemp(e, 'ENUMERATOR', this.no);
-		lofn.ScopedScript.useTemp(e, 'YV');
-		lofn.ScopedScript.useTemp(e, 'YVC');
+		ScopedScript.useTemp(e, 'ENUMERATOR', this.no);
+		ScopedScript.useTemp(e, 'YV');
+		ScopedScript.useTemp(e, 'YVC');
 		var s_enum = '';
 		s_enum += C_TEMP('YV') + '=(' + C_TEMP('ENUMERATOR' + this.no) + ')()'
-		s_enum += ',' + C_TEMP('YVC') + '=' + C_TEMP('YV') + ' instanceof LF_YIELDVALUE';
+		s_enum += ',' + C_TEMP('YVC') + '=' + C_TEMP('YV') + ' instanceof EISA_YIELDVALUE';
 		s_enum += ',' + C_TEMP('YVC') + '?(';
 		if(this.pass){
 			s_enum += C_NAME(this.passVar.name) + '=' + C_TEMP('YV') + '.values'
@@ -410,13 +408,13 @@
 		if(this.catchvar){
 			s += 'catch('+C_NAME(this.catchvar.name)+'){'+transform(this.catchstmts)+'};'
 		} else {
-			lofn.ScopedScript.useTemp(e, 'IGNOREDEXCEPTION');
+			ScopedScript.useTemp(e, 'IGNOREDEXCEPTION');
 			s += 'catch(' + C_TEMP('IGNOREDEXCEPTION') + '){}'
 		}
 		return s;
 	});
 	schemata(nt.USING, function(n, e){
-		lofn.ScopedScript.useTemp(e, 'USINGSCOPE');
+		ScopedScript.useTemp(e, 'USINGSCOPE');
 		var s = [];
 		s.push( C_TEMP('USINGSCOPE') + '=' + transform(this.expression));
 		for(var i = 0; i < this.names.length; i ++)
@@ -456,9 +454,9 @@
 			g_envs = scopes;
 			var s;
 			s = transform(tree.code);
-			var locals = LF_UNIQ(tree.locals),
+			var locals = EISA_UNIQ(tree.locals),
 				vars = [],
-				temps = lofn.ScopedScript.listTemp(tree);
+				temps = ScopedScript.listTemp(tree);
 
 			for (var i = 0; i < locals.length; i++)
 				if (!(tree.varIsArg[locals[i]])){
@@ -480,7 +478,7 @@
 					s.replace(/^    /gm, ''),
 					hook_exit || '']);
 
-			var pars = tree.parameters.names.slice(0), temppars = lofn.ScopedScript.listParTemp(tree);
+			var pars = tree.parameters.names.slice(0), temppars = ScopedScript.listParTemp(tree);
 			for (var i = 0; i < pars.length; i++)
 				pars[i] = C_NAME(pars[i])
 			for (var i = 0; i < temppars.length; i++)
@@ -595,7 +593,7 @@
 			};
 			var obstPartID = function(n){
 				return function(){
-					lofn.ScopedScript.useTemp(env, 'OBSTR', ++n);
+					ScopedScript.useTemp(env, 'OBSTR', ++n);
 					return C_TEMP('OBSTR' + n);
 				}
 			}(0);
@@ -663,12 +661,12 @@
 
 				switch (this.func.type) {
 					case nt.ITEM:
-						head = 'LF_IINVOKE(' + oTransform(this.func.left) + ',' + oTransform(this.left.member) + (this.args.length ? ',' : '');
+						head = 'EISA_IINVOKE(' + oTransform(this.func.left) + ',' + oTransform(this.left.member) + (this.args.length ? ',' : '');
 						break;
 					case nt.DO:
 						if(this.args.length === 1) {
 							var s = env; while(s.rebindThis) s = trees[s.upper - 1];
-							lofn.ScopedScript.useTemp(s, 'DOF1');
+							ScopedScript.useTemp(s, 'DOF1');
 							s.thisOccurs = true;
 							s.argsOccurs = true;
 							head = C_TEMP('DOF1') + '(';
@@ -696,7 +694,7 @@
 						+ '[' + callbody + ']' + ','
 						+ 'function(x){' + id + ' = x;' + C_TEMP('COROFUN') + '() }'
 					+ ')');
-				(LABEL(l));
+				LABEL(l);
 				return id;
 			};
 			oSchemata(nt.AWAIT, function (n, env) {
@@ -712,7 +710,7 @@
 						+ '[]' + ','
 						+ 'function(x){' + id + ' = x;' + C_TEMP('COROFUN') + '() }'
 					+ ')');
-				(LABEL(l));
+				LABEL(l);
 				return id;
 			});
 			oSchemata(nt.OBJECT, function () {
@@ -799,7 +797,7 @@
 			});
 
 			oSchemata(nt['->'], function () {
-				return '(LF_CREATERULE(' + oTransform(this.left) + ',' + oTransform(this.right) + '))';
+				return '(EISA_CREATERULE(' + oTransform(this.left) + ',' + oTransform(this.right) + '))';
 			});
 			oSchemata(nt.NEGATIVE, function () {
 				return '(-(' + oTransform(this.operand) + '))';
@@ -962,12 +960,12 @@
 				return '';
 			};
 			cSchemata[nt.FORIN] = function(node, env){
-				lofn.ScopedScript.useTemp(env, 'ENUMERATOR', this.no);
-				lofn.ScopedScript.useTemp(env, 'YV');
-				lofn.ScopedScript.useTemp(env, 'YVC');
+				ScopedScript.useTemp(env, 'ENUMERATOR', this.no);
+				ScopedScript.useTemp(env, 'YV');
+				ScopedScript.useTemp(env, 'YVC');
 				var s_enum = '';
 				s_enum += C_TEMP('YV') + '=(' + C_TEMP('ENUMERATOR' + this.no) + ')()'
-				s_enum += ',' + C_TEMP('YVC') + '=' + C_TEMP('YV') + ' instanceof LF_YIELDVALUE';
+				s_enum += ',' + C_TEMP('YVC') + '=' + C_TEMP('YV') + ' instanceof EISA_YIELDVALUE';
 				s_enum += ',' + C_TEMP('YVC') + '?(';
 				if(this.pass){
 					s_enum += C_NAME(this.passVar.name) + '=' + C_TEMP('YV') + '.values'
@@ -985,9 +983,9 @@
 				ps(s_enum);
 				(LABEL(lLoop));
 				ps('if(!(' + C_TEMP('YVC') + '))' + GOTO(lEnd));
-				pct(this.body)
-				ps(s_enum)
-				ps(GOTO(lLoop))
+				pct(this.body);
+				ps(s_enum);
+				ps(GOTO(lLoop));
 				(LABEL(lEnd))
 				lNearest = bk;
 				return '';
@@ -1008,7 +1006,7 @@
 
 			cSchemata[nt.RETURN] = function() {
 				ps(OVER());
-				ps('return new LF_RETURNVALUE(' + ct(this.expression) + ')');
+				ps('return new EISA_RETURNVALUE(' + ct(this.expression) + ')');
 				return '';
 			}
 
@@ -1026,7 +1024,7 @@
 				throw new Error('Unable to use TRY statement in a coroutine function.');
 			};
 			cSchemata[nt.USING] = function(n, e){
-				lofn.ScopedScript.useTemp(e, 'USINGSCOPE');
+				ScopedScript.useTemp(e, 'USINGSCOPE');
 				ps(C_TEMP('USINGSCOPE') + '=' + transform(this.expression));
 				for(var i = 0; i < this.names.length; i ++)
 					ps(C_NAME(this.names[i].name) + '=' + C_TEMP('USINGSCOPE') + '[' + strize(this.names[i].name) + ']')
@@ -1057,18 +1055,18 @@
 			var s = flowM.joint();
 				
 
-			lofn.ScopedScript.useTemp(tree, 'PROGRESS');
-			lofn.ScopedScript.useTemp(tree, 'SCHEMATA', '', 2);
-			lofn.ScopedScript.useTemp(tree, 'EOF');
-			lofn.ScopedScript.useTemp(tree, 'ISFUN');
-			lofn.ScopedScript.useTemp(tree, 'COROFUN');
-			lofn.ScopedScript.useTemp(tree, 'FUN', '', 2);
-			lofn.ScopedScript.useTemp(tree, 'COEXCEPTION', '', 2);
+			ScopedScript.useTemp(tree, 'PROGRESS');
+			ScopedScript.useTemp(tree, 'SCHEMATA', '', 2);
+			ScopedScript.useTemp(tree, 'EOF');
+			ScopedScript.useTemp(tree, 'ISFUN');
+			ScopedScript.useTemp(tree, 'COROFUN');
+			ScopedScript.useTemp(tree, 'FUN', '', 2);
+			ScopedScript.useTemp(tree, 'COEXCEPTION', '', 2);
 
 
-			var locals = LF_UNIQ(tree.locals),
+			var locals = EISA_UNIQ(tree.locals),
 				vars = [],
-				temps = lofn.ScopedScript.listTemp(tree);
+				temps = ScopedScript.listTemp(tree);
 			for (var i = 0; i < locals.length; i++)
 				if (!(tree.varIsArg[locals[i]])){
 					if(typeof tree.initHooks[locals[i]] === 'string')
@@ -1079,7 +1077,7 @@
 			for (var i = 0; i < temps.length; i++)
 				temps[i] = BIND_TEMP(tree, temps[i]);
 
-			var pars = tree.parameters.names.slice(0), temppars = lofn.ScopedScript.listParTemp(tree);
+			var pars = tree.parameters.names.slice(0), temppars = ScopedScript.listParTemp(tree);
 			for (var i = 0; i < pars.length; i++)
 				pars[i] = C_NAME(pars[i])
 			for (var i = 0; i < temppars.length; i++)
@@ -1129,7 +1127,7 @@
 		currentBlock = null;
 	};
 	// Default Lofn compilation config
-	lofn.standardTransform = function () {
+	eisa.standardTransform = function () {
 		var _indent = 0,
 			c;
 		return c = {
@@ -1152,17 +1150,17 @@
 				return '_$_ARGS'
 			},
 			thisBind: function (env) {
-				return (!env.thisOccurs || env.rebindThis) ? '' : 'var ' + c.thisName() + ' = (this === LF_M_TOP ? null : this)'
+				return (!env.thisOccurs || env.rebindThis) ? '' : 'var ' + c.thisName() + ' = (this === EISA_M_TOP ? null : this)'
 			},
 			argnBind: function (env) {
-				return (env.argnOccurs && !env.rebindThis) ? 'var ' + c.argnName() + ' = LF_CNARG(arguments[arguments.length - 1])' : ''
+				return (env.argnOccurs && !env.rebindThis) ? 'var ' + c.argnName() + ' = EISA_CNARG(arguments[arguments.length - 1])' : ''
 			},
 			argsBind: function (env) {
-				return (!env.argsOccurs || env.rebindThis) ? '' : 'var ' + c.argsName() + ' = LF_SLICE(arguments, 0)'
+				return (!env.argsOccurs || env.rebindThis) ? '' : 'var ' + c.argsName() + ' = EISA_SLICE(arguments, 0)'
 			},
 			bindTemp: function (env, tempName) {
 				if(tempName === 'DOF')
-					return c.tempName('DOF') + ' = (function(t, a){ return function(f){ if(arguments.length === 1) return f.apply(t, a);\nelse return f.apply(t, LF_SLICE(arguments, 1).concat(LF_SLICE(a, arguments.length - 1))) }})('
+					return c.tempName('DOF') + ' = (function(t, a){ return function(f){ if(arguments.length === 1) return f.apply(t, a);\nelse return f.apply(t, EISA_SLICE(arguments, 1).concat(EISA_SLICE(a, arguments.length - 1))) }})('
 							+ c.thisName(env) + ',' + c.argsName(env) + ')';
 				else if(tempName === 'DOF1')
 					return c.tempName('DOF1') + ' = (function(t, a){ return function(f){ return f.apply(t, a) }})('
@@ -1184,7 +1182,7 @@
 				itemly: function(env, initInterator, aSrc, initv, libsAcquired){
 					initInterator(function(v, n){
 						initv[n] = v;
-						lofn.ScopedScript.registerVariable(env, n, false);
+						ScopedScript.registerVariable(env, n, false);
 						aSrc[n] = '(' + c.thisName() + '[' + strize(n) + '])';
 					}, function(lib){
 						if(lib.identity)
@@ -1205,7 +1203,7 @@
 		}
 	}();
 	//============
-	lofn.Compiler = function (ast, initInterator, vmConfig) {
+	eisa.Compiler = function (ast, initInterator, vmConfig) {
 		bindConfig(vmConfig);
 		var inits = {},
 			initv = new Nai,
@@ -1215,14 +1213,14 @@
 			libsAcquired = [];
 		
 		enter.thisOccurs = true;
-		lofn.ScopedScript.registerVariable(enter, '__global__');
+		ScopedScript.registerVariable(enter, '__global__');
 		
 		vmConfig.initGVM.itemly(enter, initInterator, inits, initv, libsAcquired);
 		
 		inits.__global__ = vmConfig.thisName();
 		enter.initHooks = inits;
 
-		lofn.ScopedScript.generateVariableResolver(enter, trees, options.explicit);
+		ScopedScript.generateVariableResolver(enter, trees, options.explicit);
 		
 		var body = '';
 		var enterText //= vmConfig.initGVM.globally() + inits.join('\n') + '\n';
@@ -1247,7 +1245,7 @@
 				return getFs(body);
 			},
 			asyncCompile: function(onSuccess, onStep){
-				var queue = lofn.ScopedScript.generateQueue(enter, trees, []);
+				var queue = ScopedScript.generateQueue(enter, trees, []);
 				var onStep = onStep || function(){};
 				var i = 0, body;
 				var step = function(){
@@ -1265,16 +1263,16 @@
 		}
 	};
 
-	lofn.Script = function(source, config, libraries){
-		var tokens = lofn.lex(source);
-		var ast = lofn.parse(tokens, source);
+	eisa.Script = function(source, language, config, libraries){
+		var tokens = language.lex(source);
+		var ast = language.parse(tokens, source);
 
 		// ast = JSON.parse(JSON.stringify(ast));
 
-		config = config || lofn.standardTransform
+		config = config || eisa.standardTransform
 	
 		var vm;
-		var inita = lofn.forLibraries([lofn.stl].concat(libraries || []));
+		var inita = eisa.forLibraries([eisa.stl].concat(libraries || []));
 		var lfcr;
 	
 		tokens = null;
@@ -1282,11 +1280,11 @@
 		return {
 			compile: function(){
 				this.setGlobalVariable = null;
-				lfcr = lofn.Compiler(ast, inita, config).compile(); 
+				lfcr = eisa.Compiler(ast, inita, config).compile(); 
 				return lfcr;
 			},
 			asyncCompile: function(onSuccess, onStep){
-				lofn.Compiler(ast, inita, config).asyncCompile(
+				eisa.Compiler(ast, inita, config).asyncCompile(
 					function(cm){
 						lfcr = cm;
 						onSuccess.apply(this, arguments)
@@ -1299,5 +1297,4 @@
 			}
 		};
 	};	
-}();
-
+}(EISA_eisa);

@@ -19,7 +19,7 @@ var derive = Object.create ? Object.create : function(){
 		return new F;
 	}
 }();
-var LF_OWNS = function(){
+var EISA_OWNS = function(){
 	var hop = {}.hasOwnProperty;
 	return function(o,p){
 		return hop.call(o,p)
@@ -36,13 +36,13 @@ var COPYSTRING = function(s,n){
 
 var YES = {};
 var NUSED = {};
-var LF_SLICE = function () {
+var EISA_SLICE = function () {
 	var s = Array.prototype.slice;
 	return function (x, n) {
 		return s.call(x, n);
 	};
 } ();
-var LF_UNIQ = function (arr) {
+var EISA_UNIQ = function (arr) {
 	var b = arr.slice(0).sort();
 	if(b.length === 0) return [];
 	var t = [b[0]], tn = 1;
@@ -61,24 +61,24 @@ var NARG = function () {
 
 var noth = void 0;
 
-var LF_M_TOP = function(){return this}();
-var LF_MINVOKE = function (p, s) {
-	return p[s].apply(p,LF_SLICE(arguments,2))
+var EISA_M_TOP = function(){return this}();
+var EISA_MINVOKE = function (p, s) {
+	return p[s].apply(p,EISA_SLICE(arguments,2))
 }
-var LF_IINVOKE = function (p, s) {
-	return p.item.apply(p, s).apply(p,LF_SLICE(arguments,2))
+var EISA_IINVOKE = function (p, s) {
+	return p.item.apply(p, s).apply(p,EISA_SLICE(arguments,2))
 }
-var LF_RMETHOD = function (l, r, m){
+var EISA_RMETHOD = function (l, r, m){
 	return r[m](l)
 }
-var LF_OBSTRUCT = function(x){
+var EISA_OBSTRUCT = function(x){
 	return x;
 }
-var LF_YIELDVALUE = function (a){
+var EISA_YIELDVALUE = function (a){
 	this.value = a[0];
 	this.values = a;
 }
-var LF_RETURNVALUE = function (x){
+var EISA_RETURNVALUE = function (x){
 	this.value = x
 }
 
@@ -86,24 +86,24 @@ var NamedArguments = function(){
 	for(var i=arguments.length-2;i>=0;i-=2)
 		this[arguments[i]]=arguments[i+1];
 };
-var LF_NamedArguments = NamedArguments;
+var EISA_NamedArguments = NamedArguments;
 NamedArguments.prototype = {};
 NamedArguments.fetch = function(o, p){
-	if(LF_OWNS(o, p)) return o[p]
+	if(EISA_OWNS(o, p)) return o[p]
 }
 NamedArguments.enumerate = function(o, f){	
 	for(var each in o)
-		if(LF_OWNS(o, each))
+		if(EISA_OWNS(o, each))
 			f.call(o[each], o[each], each);
 }
 NamedArguments.each = NamedArguments.enumerate;
 NamedArguments.prototype.contains = function(name){
-	return LF_OWNS(this, name);
+	return EISA_OWNS(this, name);
 }
 NamedArguments.prototype.toString = function(){
 	return '[lfMRT NamedArguments]'
 }
-var LF_CNARG = function(a){
+var EISA_CNARG = function(a){
 	if(a instanceof NamedArguments)
 		return a
 	else
@@ -155,14 +155,14 @@ RegExp.convertFrom = function(s){
 }
 
 // Rule
-var LF_CREATERULE = function (l, r) {
+var EISA_CREATERULE = function (l, r) {
 	return new Rule(l, r);
 }
 var Rule = function (l, r) {
 	this.left = l,
 	this.right = r;
 }
-var LF_Rule = Rule;
+var EISA_Rule = Rule;
 Rule.prototype.reverse = function () {
 	return new Rule(this.right, this.left);
 }
@@ -184,8 +184,10 @@ Rule.prototype.each = function (f) {
 }
 
 
-var lofn = {};
-lofn.version = 'hoejuu';
+
+var eisa = {};
+var EISA_eisa = eisa;
+eisa.version = 'hoejuu';
 
 
 // lofn/dijbris library system.
@@ -195,7 +197,7 @@ lofn.version = 'hoejuu';
 	var libraries = new Nai,
 		obtained = new Nai;
 
-	var lib_m = lofn.libary_m = {
+	var lib_m = eisa.libary_m = {
 		enumerate: function(f){}
 	}
 
@@ -222,11 +224,11 @@ lofn.version = 'hoejuu';
 				f(vals[traits[i]], traits[i]);
 		};
 		var xport = function(name, val){
-			if(name instanceof LF_NamedArguments){
+			if(name instanceof EISA_NamedArguments){
 				NamedArguments.enumerate(name, function(val, name){
 					xport(name, val)
 				});
-			} else if (name instanceof LF_Rule){
+			} else if (name instanceof EISA_Rule){
 				xport(name.left, name.right)
 			} else {
 				traits.push(name);
@@ -242,16 +244,16 @@ lofn.version = 'hoejuu';
 		return obtained[name] === YES ? libraries[name] : null;
 	};
 
-	lofn.libmod = {
+	eisa.libmod = {
 		acquire: acquire,
 		library: function(){
 			var a = [];
 			for(var i = 0; i < arguments.length; i += 1)
 				a[i] = acquire(arguments[i]);
-			return lofn.squashLibs(a)
+			return eisa.squashLibs(a)
 		}
 	}
-	lofn.dev = {
+	eisa.dev = {
 		lib: {
 			define: define,
 			register: register,
@@ -259,7 +261,7 @@ lofn.version = 'hoejuu';
 				var lib = derive(lib_m);
 				var traits = [], vals = {};
 				for(var each in obj)
-					if(LF_OWNS(obj, each)){
+					if(EISA_OWNS(obj, each)){
 						traits.push(each);
 						vals[each] = obj[each]
 					};
@@ -272,11 +274,11 @@ lofn.version = 'hoejuu';
 		},
 		compileTime: false
 	}
-	register(lofn.dev.lib.fromObject(lofn.libmod), 'mod');
-	register(lofn.dev.lib.fromObject(lofn.dev), 'dev');
+	register(eisa.dev.lib.fromObject(eisa.libmod), 'mod');
+	register(eisa.dev.lib.fromObject(eisa.dev), 'dev');
 }();
 
-lofn.forLibraries = function(libs){
+eisa.forLibraries = function(libs){
 	return function(r, fl, compileTime){
 		fl = fl || function(){};
 		for(var i = 0; i<libs.length;i++){
@@ -285,8 +287,8 @@ lofn.forLibraries = function(libs){
 		}
 	}
 };
-lofn.squashLibs = function(libs){
+eisa.squashLibs = function(libs){
 	var squashed = {};
-	lofn.forLibraries(libs)(function(v, n){ squashed[n] = v });
+	eisa.forLibraries(libs)(function(v, n){ squashed[n] = v });
 	return squashed;
 }
