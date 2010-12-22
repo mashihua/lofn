@@ -1,6 +1,6 @@
 ﻿//:module: compiler
 //	:author:		infinte (aka. be5invis)
-//	:info:			The code generator for Lofn
+//	:info:			The code generator for Eisa Runtime
 
 0, function (eisa) {
 	var TO_ENCCD = function (name) {

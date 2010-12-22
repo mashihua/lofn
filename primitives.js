@@ -241,6 +241,8 @@ eisa.version = 'hoejuu';
 	}
 
 	var acquire = function(name){
+		if(obtained[name] !== YES)
+			throw new Error("Eisa: Unable To Acquire Library \"" + name + '"');
 		return obtained[name] === YES ? libraries[name] : null;
 	};
 
