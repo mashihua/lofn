@@ -21,6 +21,6 @@
 		];
 		var script = new eisa.Script(getText(WScript.Arguments.Unnamed(0)), eisa.languages.lofn, null, libs);
 		var r = script.compile();
-		WScript.Echo(r.generatedSource + ".call(eisa.squashLibs([eisa.libmod.acquire('std'),eisa.libmod.acquire('mod'),eisa.libmod.acquire('dev'),eisa.libmod.acquire('enum')]))");
+		WScript.Echo(r.generatedSource + ".call(EISA_eisa.squashLibs([EISA_eisa.libmod.acquire('std'),EISA_eisa.libmod.acquire('mod'),EISA_eisa.libmod.acquire('dev'),EISA_eisa.libmod.acquire('enum')]))");
 	</script>
 </job>

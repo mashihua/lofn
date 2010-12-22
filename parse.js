@@ -38,7 +38,7 @@ eisa.languages.lofn = lofn;
 		RETURN = 22,
 		THROW = 23,
 		BREAK = 24,
-		CONTINUE = 25,
+		// CONTINUE = 25,
 		LABEL = 26,
 		STEP = 27,
 		END = 28,
@@ -121,7 +121,7 @@ eisa.languages.lofn = lofn;
 			'return': RETURN,
 			'throw': THROW,
 			'break': BREAK,
-			'continue': CONTINUE,
+			// 'continue': CONTINUE,
 			'label': LABEL,
 			'end': END,
 			'else': ELSE,
@@ -199,23 +199,14 @@ eisa.languages.lofn = lofn;
 			'@': MY,
 			'\\': BACKSLASH
 		};
-		var symbolType = function (m) {
+		var symbolType = function (m, p, input) {
 			if (symbolTypes[m] > -65536)
 				return symbolTypes[m]
 			else
-				throw new Error('Unspecified symbol '+m)
+				throw token_err('Unspecified symbol ' + m, p, input)
 		};
 
-		var token_err = function(message, pos, source){
-			var lineno = ('\n' + source.slice(0, pos)).match(/\n/g).length;
-			var lineno_l = lineno.toString().length;
-			message = '[LFC] ' + message + '\nat line: ' + lineno;
-			message += '\n ' + lineno + ' : ' + (source.split('\n')[lineno - 1]);
-			message += '\n-' + (lineno + '').replace(/./g, '-') + '---' + (source.slice(0, pos).split('\n')[lineno - 1].replace(/./g, '-').replace(/$/, '^'));
-
-			var e = new Error(message);
-			return e;
-		};
+		var token_err = eisa.CompileErrorMeta("LFC");
 
 		return function (input) {
 			var tokens = [], tokl = 0, line = 0, options = {};
@@ -234,7 +225,7 @@ eisa.languages.lofn = lofn;
 				while (tokens[tokl - 1] && tokens[tokl - 1].type === SEMICOLON) tokl--;
 			}
 			var p_symbol = function (s, n) {
-				var t = symbolType(s);
+				var t = symbolType(s, n, input);
 				switch (t) {
 					case OPERATOR:
 					case LAMBDA:
@@ -274,10 +265,34 @@ eisa.languages.lofn = lofn;
 						break;
 				}
 			}
+			var stringliteral = function(match, n){
+				var char0 = match.charAt(0);
+				if(char0 === "`")
+					return make(STRING, match.slice(1), n);
+				if(char0 === "'")
+					return make(STRING, match.slice(1, -1).replace(/''/g, "'"), n);
+				if(char0 === '"') {
+					if(match.charAt(1) === '"')
+						return make(STRING, match.slice(3, -3), n)
+					else
+						return make(STRING, lfUnescape(match.slice(1, -1)), n);
+				}
+			};
+
+			// This long and terrible regular expression matches every token.
+			// Parts are:
+			//  * comment
+			//  * ! option derivatives
+			//  * identifiers
+			//  * strings
+			//  * unmatched quotes (causes an error)
+			//  * numbers
+			//  * symbols
+			//  * linebreaks
 
 			var ou = input.replace(
-				(/(\/\/.*)|(?:^![ \t]*option[ \t]+(\w+)[ \t]*$)|([a-zA-Z_$][\w$]*\??)|(`[a-zA-Z_$][\w$]*\??)|('[^']*(?:''[^']*)*')|("[^\\"]*(?:\\.[^\\"]*)*")|((?:0[xX][a-fA-F0-9]+)|(?:\d+(?:\.\d+(?:[eE]-?\d+)?)?))|([+\-*\/<>=!:%~][<>=~]*|\.\.|[()\[\]\{\}|@\\;,\.#])|(\n\s*)/mg),
-				function (match, comment, optionname, nme, reflects, singles, doubles, number, symbol, newline, n, full) {
+				(/(\/\/.*)|(?:^![ \t]*option[ \t]+(\w+)[ \t]*$)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$]*|'[^'\n]*(?:''[^'\n]*)*'|"""[\s\S]*?"""|"[^\\"\n]*(?:\\.[^\\"\n]*)*")|(["'])|(0[xX][a-fA-F0-9]+|\d+(?:\.\d+(?:[eE]-?\d+)?)?)|([+\-*\/<>=!:%~][<>=~]*|\.\.|[()\[\]\{\}|@\\;,\.#])|(\n\s*)/mg),
+				function (match, comment, optionname, nme, strlit, strunfin, number, symbol, newline, n, full) {
 					after_space = false;
 					if(optionname) {
 						option(optionname);
@@ -288,12 +303,10 @@ eisa.languages.lofn = lofn;
 						make(nty, match, n, false, true)
 						if(nty === OPERATOR)
 							contt = true;
-					} else if (reflects) {
-						make(STRING, match.slice(1), n);
-					} else if (singles) {
-						make(STRING, match.slice(1, -1).replace(/''/g, "'"), n);
-					} else if (doubles) {
-						make(STRING, lfUnescape(match.slice(1, -1)), n);
+					} else if (strlit) {
+						stringliteral(match, n);
+					} else if (strunfin) {
+						throw token_err("Unfinished string literal", n, input);
 					} else if (number) {
 						make(NUMBER, (match.replace(/^0+([1-9])/, '$1') - 0), n);
 					} else if (symbol) {
@@ -302,14 +315,8 @@ eisa.languages.lofn = lofn;
 						if (!contt) make(SEMICOLON, 0, n);
 						contt = false;
 					}
-					return REPSTR(match.length);
+					return '';
 				});
-			var ep;
-			if((ep = ou.indexOf('\'')) >= 0) {
-				throw token_err('Unmatched quotations encountered' , ep, input)
-			} else if ((ep = ou.indexOf('"')) >= 0) {
-				throw token_err('Unmatched quotations encountered', ep, input)
-			}
 
 			return {
 				tokens : tokens,
@@ -328,8 +335,8 @@ eisa.languages.lofn = lofn;
 					return true;
 		}
 
-		var NodeType = eisa.NodeType;
-		var ScopedScript = eisa.ScopedScript;
+		var NodeType = eisa.ast.NodeType;
+		var ScopedScript = eisa.ast.ScopedScript;
 
 		return function (input, source) {
 			var PE = function(message, p){
@@ -1191,10 +1198,6 @@ eisa.languages.lofn = lofn;
 						return forstmt();
 					case LABEL:
 						return labelstmt();
-					case CONTINUE:
-						advance();
-						ensure(stover(), 'CONTINUE statement must be isolated');
-						return new Node(nt.CONTINUE);
 					case BREAK:
 						return brkstmt();
 					case END:
@@ -1540,6 +1543,7 @@ eisa.languages.lofn = lofn;
 				anames: []
 			});
 			workingScope.code = statements();
+			ensure(!token, "Unexpected script ending");
 			return {scopes: scopes, options: input.options};
 		}
 

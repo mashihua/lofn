@@ -1,8 +1,14 @@
+//:module: compiler runtime -- compilerrt
+//	:author:		infinte (aka. be5invis)
+//	:info:			The essential environment for Eisa Compiler
+
 (function(eisa){
 
 	eisa.languages = {};
+	eisa.ast = {};
+	var warn = function(s){eisa.log(s)};
 	
-	var NodeType = eisa.NodeType = function () {
+	var NodeType = eisa.ast.NodeType = function () {
 		var types = [
 			// Unknown type
 			'UNKNOWN',
@@ -35,7 +41,7 @@
 			// Statements
 			'EXPRSTMT', 
 			'IF', 'FOR', 'FORIN', 'WHILE', 'REPEAT', 'CASE', 'PIECEWISE', 'VAR',
-			'BREAK', 'CONTINUE', 'LABEL', 'THROW', 'RETURN', 'TRY', 
+			'BREAK', 'LABEL', 'THROW', 'RETURN', 'TRY', 
 			// modular
 			'USING', 'IMPORT',
 			// Variable
@@ -49,8 +55,24 @@
 		return T;
 	} ();
 
+	var CompileErrorMeta = eisa.CompileErrorMeta = function(prefix){
+		return function(message, pos, source){
+			var lineno = ('\n' + source.slice(0, pos)).match(/\n/g).length;
+			var lineno_l = lineno.toString().length;
+			message = '[' + prefix + '] ' + message + '\nat line: ' + lineno;
+			message += '\n ' + lineno + ' : ' + (source.split('\n')[lineno - 1]);
+			message += '\n-' + (lineno + '').replace(/./g, '-') + '---' + (source.slice(0, pos).split('\n')[lineno - 1].replace(/./g, '-').replace(/$/, '^'));
+	
+			var e = new Error(message);
+			return e;
+		};
+	};
 
-	var ScopedScript = eisa.ScopedScript = function (id, env) {
+	var CompileError = eisa.CompileError = CompileErrorMeta("EISA");
+
+	eisa.compileEnv = {}
+
+	var ScopedScript = eisa.ast.ScopedScript = function (id, env) {
 			this.code = {type: NodeType.SCRIPT};
 			this.variables = env ? derive(env.variables) : new Nai;
 			this.varIsArg = new Nai;
@@ -137,22 +159,28 @@
 		}
 		return scope.variables[name] = scope.id;
 	}
-	ScopedScript.generateVariableResolver = function(scope, trees, explicitQ) {
+	ScopedScript.generateVariableResolver = function(scope, trees, explicitQ, aux) {
 		for (var each in scope.usedVariables) {
 			if (scope.usedVariables[each] === true) {
 				if(!(scope.variables[each] > 0)){
 					if(!explicitQ) {
+						warn('Undeclared variable "' + each + '" when using `!option explicit`. At: ' +
+							(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0);
 						ScopedScript.registerVariable(scope, each);
 						trees[scope.variables[each] - 1].locals.push(each);
-					} else
-						throw new Error('Undeclared variable "' + each + '" when using `!option explicit`. At:',
-							(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0 )
+					} else {
+						throw new CompileError(
+							'Undeclared variable "' + each + '" when using `!option explicit`.',
+							(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0,
+							aux.source || ''
+						)
+					}
 				} else {
 					trees[scope.variables[each] - 1].locals.push(each);
 				}
 			}
 		};
 		for (var i = 0; i < scope.nest.length; i++)
-			ScopedScript.generateVariableResolver(trees[scope.nest[i]], trees, explicitQ);
+			ScopedScript.generateVariableResolver(trees[scope.nest[i]], trees, explicitQ, aux);
 	}
 })(EISA_eisa)

@@ -27,6 +27,7 @@
 	<title>LFC dev.</title>
 </head>
 <body>
+<p>Eisa(via lofn) dev-and-test page. Please &lt;F12&gt; it.</p>
 	<textarea id="input"></textarea>
 	<button id="go">Start script</button>
 	<pre id="output"></pre>
@@ -71,6 +72,9 @@
 		document.getElementById('go').onclick = function () {
 			clrscr();
 			var tracel = G_TRACE('info').tracel;
+			EISA_eisa.log = function(message){
+				tracel("[ESA] " + message);
+			}
 			var script = new eisa.Script(document.getElementById('input').value, eisa.languages.lofn, null, [
 					eisa.dev.lib.fromObject(output),
 					eisa.libmod.acquire('dev'),

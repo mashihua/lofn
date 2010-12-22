@@ -187,11 +187,13 @@ Rule.prototype.each = function (f) {
 
 var eisa = {};
 var EISA_eisa = eisa;
-eisa.version = 'hoejuu';
+EISA_eisa.version = 'hoejuu';
+
+EISA_eisa.log = function(message){}
 
 
 // lofn/dijbris library system.
-0, function(){
+0, function(eisa){
 	var libl = new Nai;
 	var YES = {};
 	var libraries = new Nai,
@@ -278,19 +280,20 @@ eisa.version = 'hoejuu';
 	}
 	register(eisa.dev.lib.fromObject(eisa.libmod), 'mod');
 	register(eisa.dev.lib.fromObject(eisa.dev), 'dev');
-}();
 
-eisa.forLibraries = function(libs){
-	return function(r, fl, compileTime){
-		fl = fl || function(){};
-		for(var i = 0; i<libs.length;i++){
-			fl(libs[i]);
-			libs[i].enumerate(r, compileTime);
+	eisa.forLibraries = function(libs){
+		return function(r, fl, compileTime){
+			fl = fl || function(){};
+			for(var i = 0; i<libs.length;i++){
+				fl(libs[i]);
+				libs[i].enumerate(r, compileTime);
+			}
 		}
-	}
-};
-eisa.squashLibs = function(libs){
-	var squashed = {};
-	eisa.forLibraries(libs)(function(v, n){ squashed[n] = v });
-	return squashed;
-}
+	};
+	eisa.squashLibs = function(libs){
+		var squashed = {};
+		eisa.forLibraries(libs)(function(v, n){ squashed[n] = v });
+		return squashed;
+	};
+
+}(EISA_eisa);
