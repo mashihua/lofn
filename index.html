@@ -77,6 +77,7 @@
 			}
 			var script = new eisa.Script(document.getElementById('input').value, eisa.languages.lofn, null, [
 					eisa.dev.lib.fromObject(output),
+					eisa.libmod.acquire('mod'),
 					eisa.libmod.acquire('dev'),
 					eisa.libmod.acquire('enum')
 				]);

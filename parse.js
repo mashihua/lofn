@@ -49,7 +49,7 @@ eisa.languages.lofn = lofn;
 		THEN = 31,
 		VAR = 32,
 		SHARP = 33,
-		FALLTHROUGH = 34,
+		// FALLTHROUGH = 34,
 		OBJECT = 35,
 		DO = 36,
 		TRY = 37,
@@ -136,7 +136,6 @@ eisa.languages.lofn = lofn;
 		'false': CONSTANT,
 		'null': CONSTANT,
 		'undefined': CONSTANT,
-		'fallthrough': FALLTHROUGH,
 		'arguments': ARGUMENTS,
 		'callee': CALLEE,
 		'object': OBJECT,
@@ -346,15 +345,69 @@ eisa.languages.lofn = lofn;
 			message += '\n-' + (lineno + '').replace(/./g, '-') + '---' + (source.slice(0, pos).split('\n')[lineno - 1].replace(/./g, '-').replace(/$/, '^'));
 			var e = new Error(message);
 			return e;
-		}
+		};
+
 		var ensure = function(c, m, p){
 			if(!c) throw PE(m, p);
 			return c;
-		}
+		};
+
 		var Node = function (type, props) {
 			var p = props || {};
 			p.type = type , p.bp = p.bp || 0, p.line = curline;
 			return p
+		};
+
+		var implicitReturn = function(node){
+			if(!node || !node.content || node.type !== nt.SCRIPT) return node;
+			var last = node.content.length - 1;
+			while(last >= 0 && node.content[last].type === nt.BREAK) last--;
+			var laststmt = node.content[last];
+			if(!laststmt) return;
+			var lasttype = laststmt.type;
+			if(lasttype === nt.EXPRSTMT){
+				node.content[last] = new Node(nt.RETURN, {
+					expression: laststmt.expression
+				})
+			} else if(lasttype === nt.SCRIPT){
+				implicitReturn(laststmt);
+			} else if(lasttype === nt.LABEL){
+				implicitReturn(laststmt.body);
+			} else if(lasttype === nt.IF){
+				implicitReturn(laststmt.thenPart);
+				if(laststmt.elsePart)
+					implicitReturn(laststmt.elsePart);
+			} else if(lasttype === nt.PIECEWISE || lasttype === nt.CASE){
+				for(var i = 0; i < laststmt.bodies.length; i++){
+					implicitReturn(laststmt.bodies[i])
+				};
+				if(laststmt.otherwise){
+					implicitReturn(laststmt.otherwise)
+				}
+			};
+			return node;
+		};
+
+		var checkBreakPosition = function (node, okayQ) {
+			if(node.type === nt.WHILE || node.type === nt.FOR || node.type === nt.REPEAT || node.type === nt.CASE)
+				return;
+			if(node.type === nt.EXPRSTMT) return;
+			if(node.type === nt.BREAK)
+				throw PE("Break outside a loop statement or CASE statement");
+			return eisa.walkNode(node, checkBreakPosition);
+		};
+
+		var generateObstructiveness = function (node) {
+			if(!node || !node.type) return false;
+			var obs = false;
+			if(node.type === nt.AWAIT || node.type === nt.BREAK || node.type === nt.RETURN){
+				node.obstructive = true;
+				obs = true
+			};
+			eisa.walkNode(node, function(n){ if(generateObstructiveness(n)) obs = true });
+			if(obs)
+				node.obstructive = true;
+			return obs;
 		};
 
 
@@ -531,17 +584,14 @@ eisa.languages.lofn = lofn;
 				advance(THEN);
 				workingScope.parameters.names = parlist();
 				advance(THEN);
-			}
+			};
 			workingScope.code = code = statements();
-			if(code.content.length === 1 && code.content[0] && code.content[0].exprStmtQ){
-				if(code.content[0].type === nt.EXPRSTMT){
-					// SEF processing.
-					code.content[0] = new Node(nt.RETURN, {expression: code.content[0]});
-				} else if (code.content[0].type === nt.IF){
-					code.content[0].thenPart = new Node(nt.RETURN, {expression: code.content[0].thenPart});
-				}
-			}
 			endScope();
+			checkBreakPosition(code);
+			if(s.coroid)
+				generateObstructiveness(code);
+			else
+				implicitReturn(code);
 			advance(ENDBRACE, 125);
 			return new Node(nt.FUNCTION, { tree: s.id });
 		};
@@ -554,8 +604,11 @@ eisa.languages.lofn = lofn;
 			var n = newScope(), s = workingScope;
 			workingScope.parameters = p || new Node(nt.PARAMETERS, { names: [], anames: [] });
 			workingScope.ready();
-			workingScope.code = statements(END);
+			var code = workingScope.code = statements(END);
 			endScope();
+			checkBreakPosition(code);
+			if(s.coroid)
+				generateObstructiveness(code);
 			advance(END);
 			return new Node(nt.FUNCTION, { tree: s.id });
 		};
@@ -566,6 +619,7 @@ eisa.languages.lofn = lofn;
 		var expressionalBody = function(p){
 			advance(COMMA);
 			var n = newScope(true), s = workingScope;
+			s.unCorable = true;
 			s.parameters = p || new Node(nt.PARAMETERS, { names: [], anames: [] });
 			s.ready();
 			s.code = new Node(nt.RETURN, {expression: expression()});
@@ -653,27 +707,28 @@ eisa.languages.lofn = lofn;
 					throw PE('Object literal denied due to !option forfunction');
 				return true
 			}
-		}
+		};
 
 		// Lambda Expression content
 		var lambdaCont = function (p) {
 			advance(LAMBDA);
 			var r = newScope(true);
 			var s = workingScope;
-			workingScope.parameters = p;
-			workingScope.ready();
-			workingScope.code = new Node(nt.RETURN, { expression: expression() });
+			s.parameters = p;
+			s.unCorable = true;
+			s.ready();
+			s.code = new Node(nt.RETURN, { expression: expression() });
 			endScope();
 			return new Node(nt.FUNCTION, {
 				tree: s.id
 			});
-		}
+		};
 		var isLambdaPar = function () {
 			return (
 				nextIs(ENDBRACE, RDEND) && shiftIs(2, LAMBDA) ||
 				nextIs(ID) && (shiftIs(2, ENDBRACE, RDEND) && shiftIs(3, LAMBDA) || shiftIs(2, COMMA))
 			)
-		}
+		};
 		var primary = function () {
 			ensure(token, 'Unable to get operand: missing token');
 			switch (token.type) {
@@ -1347,6 +1402,7 @@ eisa.languages.lofn = lofn;
 				});
 			} else return given;
 		};
+
 		var whilestmt = function () {
 			advance(WHILE);
 			var n = new Node(nt.WHILE, {
@@ -1363,48 +1419,6 @@ eisa.languages.lofn = lofn;
 			});
 			advance(UNTIL);
 			n.condition = callItem();
-			return n;
-		};
-		var stripSemicolons = function () {
-			while (tokenIs(SEMICOLON)) advance();
-		};
-		var piecewise = function (t) {
-			var n = new Node(t ? nt.CASE : nt.PIECEWISE);
-			n.conditions = [], n.bodies = [];
-			advance();
-			if (t && tokenIs(FALLTHROUGH)) { // is it fallthrough?
-				n.fallThrough = true;
-				advance();
-			};
-			if (t) {
-				n.expression = callItem();
-			};
-			advance(COLON);
-			stripSemicolons();
-			ensure(token, 'Unterminated piecewise/case block');
-			while (tokenIs(WHEN) || tokenIs(OTHERWISE)) {
-				if (tokenIs(WHEN)) {
-					advance(WHEN);
-					var condition = callItem();
-					advance(COLON);
-					stripSemicolons();
-					if (token.type === WHEN) {
-						n.conditions.push(condition);
-						n.bodies.push(null);
-						continue;
-					} else {
-						n.conditions.push(condition);
-						n.bodies.push(statements(WHEN, OTHERWISE));
-					}
-				} else {
-					advance(OTHERWISE);
-					advance(COLON);
-					n.otherwise = statements(END);
-					break;
-				}
-			};
-			advance(END);
-
 			return n;
 		};
 		var forstmt = function () {
@@ -1463,6 +1477,44 @@ eisa.languages.lofn = lofn;
 			}
 			node.body = contBlock();
 			return node;
+		};
+		var stripSemicolons = function () {
+			while (tokenIs(SEMICOLON)) advance();
+		};
+		var piecewise = function (t) {
+			var n = new Node(t ? nt.CASE : nt.PIECEWISE);
+			n.conditions = [], n.bodies = [];
+			advance();
+			if (t) {
+				n.expression = callItem();
+			};
+			advance(COLON);
+			stripSemicolons();
+			ensure(token, 'Unterminated piecewise/case block');
+			while (tokenIs(WHEN) || tokenIs(OTHERWISE)) {
+				if (tokenIs(WHEN)) {
+					advance(WHEN);
+					var condition = callItem();
+					advance(COLON);
+					stripSemicolons();
+					if (token.type === WHEN) {
+						n.conditions.push(condition);
+						n.bodies.push(null);
+						continue;
+					} else {
+						n.conditions.push(condition);
+						n.bodies.push(statements(WHEN, OTHERWISE));
+					}
+				} else {
+					advance(OTHERWISE);
+					advance(COLON);
+					n.otherwise = statements(END);
+					break;
+				}
+			};
+			advance(END);
+
+			return n;
 		};
 		var labelstmt = function () {
 			advance(LABEL);

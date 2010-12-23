@@ -182,5 +182,20 @@
 		};
 		for (var i = 0; i < scope.nest.length; i++)
 			ScopedScript.generateVariableResolver(trees[scope.nest[i]], trees, explicitQ, aux);
+	};
+
+	eisa.walkNode = function(node, f, aux){
+		if(!node) return;
+		if(!node.type) return;
+		for(var each in node) if(node[each]){
+			var prop = node[each];
+			if(prop.length){
+				for(var i = 0; i < prop.length; i++)
+					if(prop[i] && prop[i].type)
+						f(prop[i], aux)
+			} else if (prop.type) {
+				f(prop, aux)
+			}
+		}
 	}
 })(EISA_eisa)

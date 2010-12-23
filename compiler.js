@@ -46,24 +46,6 @@
 
 	var GETV = function (node, env) { return C_NAME(node.name) };
 	var SETV = function (node, val, env) { return '(' + C_NAME(node.name) + '=' + val + ')' };
-
-	var transform;
-
-	// Standard Schemata
-	schemata(nt['='], function (n, env) {
-		switch (this.left.type) {
-		case nt.ITEM:
-			return '(' + transform(this.left.left) + '.itemset(' + transform(this.left.member) + ',' + transform(this.right) + '))';
-		case nt.MEMBER:
-			return '((' + transform(this.left.left) + ')[' + strize(this.left.right.name) + ']=' + transform(this.right) + ')';
-		case nt.MEMBERREFLECT:
-			return '((' + transform(this.left.left) + ')[' + transform(this.left.right) + ']=' + transform(this.right) + ')';
-		case nt.VARIABLE:
-			return SETV(this.left, transform(this.right), env);
-		default:
-			throw new Error('Invalid assignment left value: only VARIABLE, MEMBER, MEMBERREFLECT or ITEM avaliable');
-		}
-	});
 	var SPECIALNAMES = {
 		"break":1,"continue":1,"do":1,"for":1,"import":1,
 		"new":1,"this":1,"void":1,"case":1,
@@ -81,10 +63,35 @@
 		"class":1,"extends":1,"try":1,"const":1,
 		"finally":1,"debugger":1,"super":1
 	};
+	var IDENTIFIER = /^[a-zA-Z$][\w$]*$/;
+	var PART = function(left, right){
+		if (!IDENTIFIER.test(right) || SPECIALNAMES[right] === 1)
+			return left + '[' + strize(right) + ']';
+		else 
+			return left + '.' + right;
+	};
+
+
+	var transform;
+	
+	// Standard Schemata
+	schemata(nt['='], function (n, env) {
+		switch (this.left.type) {
+		case nt.ITEM:
+			return '(' + transform(this.left.left) + '.itemset(' + transform(this.left.member) + ',' + transform(this.right) + '))';
+		case nt.MEMBER:
+			return '(' + PART(transform(this.left.left), this.left.right.name) + '=' + transform(this.right) + ')';
+		case nt.MEMBERREFLECT:
+			return '((' + transform(this.left.left) + ')[' + transform(this.left.right) + ']=' + transform(this.right) + ')';
+		case nt.VARIABLE:
+			return SETV(this.left, transform(this.right), env);
+		default:
+			throw new Error('Invalid assignment left value: only VARIABLE, MEMBER, MEMBERREFLECT or ITEM avaliable');
+		}
+	});
+
 	schemata(nt.MEMBER, function () {
-		var memberName = this.right.name;
-		if (/[^\w$]/.test(memberName) || SPECIALNAMES[memberName] === 1) return '(' + transform(this.left) + ')["' + memberName + '"]';
-		return '(' + transform(this.left) + '.' + memberName + ')';
+		return '(' + PART(transform(this.left), this.right.name) + ')';
 	});
 	schemata(nt.MEMBERREFLECT, function () {
 		return '(' + transform(this.left) + '[' + transform(this.right) + '])';
@@ -150,7 +157,7 @@
 		return {args: args.join(', ')};
 	};
 
-	schemata(nt.CALL, function (node, env) {
+	schemata(nt.CALL, function (node, env, trees) {
 		var comp, head;
 		var skip = 0, skips = [], pipe;
 
@@ -349,7 +356,7 @@
 			stmts.push('  case ' + transform(this.conditions[i]) + ' :')
 			if (this.bodies[i]) {
 				stmts.push(transform(this.bodies[i]));
-				if (!this.fallThrough) stmts.push('    break;');
+				stmts.push('    break;');
 			}
 		}
 
@@ -430,7 +437,7 @@
 		var s = [];
 		s.push( C_TEMP('USINGSCOPE') + '=' + transform(this.expression));
 		for(var i = 0; i < this.names.length; i ++)
-			s.push( C_NAME(this.names[i].name) + '=' + C_TEMP('USINGSCOPE') + '[' + strize(this.names[i].name) + ']' )
+			s.push( C_NAME(this.names[i].name) + '=' + PART(C_TEMP('USINGSCOPE'), this.names[i].name))
 		return JOIN_STMTS(s);
 	});
 	schemata(nt.IMPORT, function(n, e){
@@ -570,32 +577,6 @@
 			lInital = label();
 
 
-			// get obstructiveness information
-			(function(){
-				var process = function(node){
-					if(!node || !node.type) return false;
-					var obs = false;
-					if(node.type === nt.AWAIT || node.type === nt.BREAK || node.type === nt.RETURN){
-						node.obstructive = true;
-						obs = true
-					};
-					out: for(var each in node) if(node[each]){
-						if(node[each].length){
-							for(var i = 0; i < node[each].length; i++)
-								if(node[each][i] && node[each][i].type && process(node[each][i])){
-									obs = node.obstructive = true;
-								}
-						} else {
-							if(node[each].type && process(node[each])){
-								obs = node.obstructive = true;
-							}
-						}
-					}
-					return obs;
-				}
-				return process
-			})()(tree.code);
-
 			var oSchemata = function(type, func){
 				cSchemata[type] = func;
 			};
@@ -609,7 +590,7 @@
 				var id = obstPartID();
 				ps(id + ' = (' + ct(node) + ')');
 				return id;
-			}
+			};
 
 
 
@@ -620,7 +601,7 @@
 					case nt.ITEM:
 						return '(' + expPart(this.left.left) + '.itemset(' + expPart(this.left.member) + ',' + expPart(this.right) + '))';
 					case nt.MEMBER:
-						return '((' + expPart(this.left.left) + ')[' + strize(this.left.right.name) + ']=' + expPart(this.right) + ')';
+						return '(' + PART(expPart(this.left.left), this.left.right.name) + '=' + expPart(this.right) + ')';
 					case nt.MEMBERREFLECT:
 						return '((' + expPart(this.left.left) + ')[' + expPart(this.left.right) + ']=' + expPart(this.right) + ')';
 					case nt.VARIABLE:
@@ -655,7 +636,7 @@
 				return {args: args.join(', ')};
 			};
 
-			oSchemata(nt.CALL, function (node, env) {
+			oSchemata(nt.CALL, function (node, env, trees) {
 				if(this.func && this.func.type === nt.AWAIT)
 					return awaitCall.apply(this, arguments);
 				var comp, head;
@@ -670,7 +651,7 @@
 				if(pipelineQ){
 					skip = 1;
 					skips = [expPart(this.args[0])];
-				}
+				};
 
 				switch (this.func.type) {
 					case nt.ITEM:
@@ -696,7 +677,7 @@
 			var awaitCall = function(node, env){
 				env.argsOccurs = true;
 				env.thisOccurs = true;
-				var head = C_TEMP('SCHEMATA') + '[' + strize(this.func.pattern) + ']';
+				var head = PART(C_TEMP('SCHEMATA'), this.func.pattern);
 				var callbody = oC_ARGS(this, env).args;
 				var id = obstPartID();
 				var l = label();
@@ -713,7 +694,7 @@
 			oSchemata(nt.AWAIT, function (n, env) {
 				env.argsOccurs = true;
 				env.thisOccurs = true;
-				var head = C_TEMP('SCHEMATA') + '[' + strize(this.pattern) + ']';
+				var head = PART(C_TEMP('SCHEMATA'), this.pattern);
 				var id = obstPartID();
 				var l = label();
 				ps(STOP(l));
@@ -753,11 +734,7 @@
 				return comp;
 			});
 			oSchemata(nt.MEMBER, function () {
-				var memberName = this.right.name;
-				if (/[^\w$]/.test(memberName) || SPECIALNAMES[memberName] === 1)
-					return '(' + expPart(this.left) + ')["' + memberName + '"]';
-				else
-					return '(' + expPart(this.left) + '.' + memberName + ')';
+				return '(' + PART(expPart(this.left), this.right.name) + ')';
 			});
 			oSchemata(nt.MEMBERREFLECT, function () {
 				return '(' + expPart(this.left) + '[' + expPart(this.right) + '])';
@@ -933,7 +910,7 @@
 				for(var i = 0; i < b.length; i += 1) if(b[i]) {
 					(LABEL(l[i]))
 					pct(b[i])
-					if(!this.fallThrough) ps(GOTO(lEnd))
+					ps(GOTO(lEnd))
 				}
 
 				if (this.otherwise) {
@@ -1021,7 +998,13 @@
 				ps(OVER());
 				ps('return new EISA_RETURNVALUE(' + ct(this.expression) + ')');
 				return '';
-			}
+			};
+
+			cSchemata[nt.THROW] = function () {
+				ps(OVER());
+				ps('throw ' + ct(this.expression));
+				return '';
+			};
 
 			cSchemata[nt.LABEL] = function () {
 				var l = scopeLabels[this.name] = label();
@@ -1040,7 +1023,7 @@
 				ScopedScript.useTemp(e, 'USINGSCOPE');
 				ps(C_TEMP('USINGSCOPE') + '=' + expPart(this.expression));
 				for(var i = 0; i < this.names.length; i ++)
-					ps(C_NAME(this.names[i].name) + '=' + C_TEMP('USINGSCOPE') + '[' + strize(this.names[i].name) + ']')
+					ps(C_NAME(this.names[i].name) + '=' + PART(C_TEMP('USINGSCOPE') , this.names[i].name))
 				return '';
 			};
 			cSchemata[nt.IMPORT] = function(n, e){
@@ -1196,7 +1179,7 @@
 					initInterator(function(v, n){
 						initv[n] = v;
 						ScopedScript.registerVariable(env, n, false);
-						aSrc[n] = '(' + c.thisName() + '[' + strize(n) + '])';
+						aSrc[n] = PART(c.thisName(), n);
 					}, function(lib){
 						if(lib.identity)
 							libsAcquired.push(lib.identity)	
@@ -1206,7 +1189,7 @@
 			dumpGVM: function(initFunction){
 				var aSrc = [];
 				initFunction(function(v, n){
-					aSrc.push(c.thisName() + '[' + strize(n) + '] = ' + c.varName(n)+';');
+					aSrc.push(PART(c.thisName() ,n) + ' = ' + c.varName(n)+';');
 				});	
 				return aSrc;
 			},

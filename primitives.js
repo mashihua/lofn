@@ -81,6 +81,13 @@ var EISA_YIELDVALUE = function (a){
 var EISA_RETURNVALUE = function (x){
 	this.value = x
 }
+var EISA_WHILE = function(c, f){
+	var r;
+	while(c()){
+		r = f()
+	};
+	return r;
+}
 
 var NamedArguments = function(){
 	for(var i=arguments.length-2;i>=0;i-=2)
