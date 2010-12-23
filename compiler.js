@@ -32,6 +32,9 @@
 	var BIND_TEMP
 	var INDENT
 	var currentBlock
+	var SEQ = function(a, b){
+		return '(' + a + ',' + b + ')';
+	}
 
 	var CTRLCHR = function (c) {
 		var n = c.charCodeAt(0);
@@ -129,36 +132,44 @@
 		throw new Error('Unexpected parameter group');
 	});
 
-	var C_ARGS = function(node, env){
+	var C_ARGS = function(node, env, skip, skips){
 		var args = [],
-			names = [],
-			comp = '',
-			cbef = '';
-		// this requires special pipeline processing:
-		var pipelineQ = node.pipeline && node.func // pipe line invocation...
-			&& !(node.func.type === nt.VARIABLE || node.func.type === nt.THIS || node.func.type === nt.DO) // and side-effective.
-		if (pipelineQ) env.grDepth += 1;
-		for (var i = 0; i < node.args.length; i++) {
+			names = [];
+		
+		for (var i = (skip || 0); i < node.args.length; i++) {
 			if (node.names[i]) {
 				names.push(strize(node.names[i]), transform(node.args[i]));
 			} else args.push(transform(node.args[i]));
-		}
-		if (pipelineQ) env.grDepth -= 1;
-		if (pipelineQ) {
-			ScopedScript.useTemp(env, 'PIPE', env.grDepth);
-			var arg0 = args[0];
-			args[0] = C_TEMP('PIPE'+env.grDepth);
-			cbef =  C_TEMP('PIPE'+env.grDepth) + '=' + arg0 + ',';
 		};
-		comp += args.join(',');
-		if (node.nameused) comp += (args.length ? ',' : '') + '(new NamedArguments(' + names.join(',') + '))';
-		return {before: cbef, args: comp};
+
+		if(skip)
+			args = skips.concat(args);
+		if(names.length)
+			args.push('(new NamedArguments(' + names.join(',') + '))');
+
+		return {args: args.join(', ')};
 	};
-	schemata(nt.CALL, function (n, env) {
+
+	schemata(nt.CALL, function (node, env) {
 		var comp, head;
+		var skip = 0, skips = [], pipe;
+
+		// this requires special pipeline processing:
+		var pipelineQ = node.pipeline && node.func // pipe line invocation...
+			&& !(node.func.type === nt.VARIABLE || node.func.type === nt.THIS || node.func.type === nt.DO) // and side-effective.
+
+		if (pipelineQ) {
+			// processing pipelined invocations
+			env.grDepth += 1;
+			skip = 1;
+			ScopedScript.useTemp(env, 'PIPE', env.grDepth);
+			pipe = C_TEMP('PIPE' + env.grDepth) + '=' + transform(this.args[0])
+			skips = [C_TEMP('PIPE' + env.grDepth)];
+		}
+
 		switch (this.func.type) {
 			case nt.ITEM:
-				head = 'EISA_IINVOKE(' + transform(this.func.left) + ',' + transform(this.func.member) +  + (this.args.length ? ',' : '');
+				head = 'EISA_IINVOKE(' + transform(this.func.left) + ',' + transform(this.func.member) + (this.args.length ? ',' : '');
 				break;
 			case nt.DO:
 				if(this.args.length === 1) {
@@ -172,9 +183,10 @@
 			default:
 				head = transform(this.func) + '(';
 		};
-		var ca = C_ARGS(this, env)
-		comp = ca.args + ')'
-		return '(' + ca.before + head + comp + ')';
+		if(pipelineQ) env.grDepth -= 1;
+		var ca = C_ARGS(this, env, skip, skips);
+		comp = ca.args + ')';
+		return '(' + (pipe ? (pipe + ', ') : '') + head + comp + ')';
 	});
 	schemata(nt.OBJECT, function () {
 		var comp = '{';
@@ -630,14 +642,17 @@
 					} else args.push(node.args[i]);
 				}
 
-				for(var i = (skip || 0); i < args.length; i++)
+				for(var i = 0; i < args.length; i++)
 					args[i] = expPart(args[i]);
 				for(var i = 1; i < names.length; i += 2)
 					names[i] = expPart(names[i]);
 
-				comp += (skip ? skips.concat(args) : args).join(',');
-				if (node.nameused) comp += (args.length ? ',' : '') + '(new NamedArguments(' + names.join(',') + '))';
-				return {args: comp};
+				if(skip)
+					args = skips.concat(args);
+				if(names.length)
+					args.push('(new NamedArguments(' + names.join(',') + '))')
+				
+				return {args: args.join(', ')};
 			};
 
 			oSchemata(nt.CALL, function (node, env) {
@@ -650,6 +665,8 @@
 				var skip = 0;
 				var skips = [];
 				var obstructive;
+				debugger;
+
 				if(pipelineQ){
 					skip = 1;
 					skips = [expPart(this.args[0])];
@@ -657,7 +674,7 @@
 
 				switch (this.func.type) {
 					case nt.ITEM:
-						head = 'EISA_IINVOKE(' + expPart(this.func.left) + ',' + expPart(this.left.member) + (this.args.length ? ',' : '');
+						head = 'EISA_IINVOKE(' + expPart(this.func.left) + ',' + expPart(this.func.member) + (this.args.length ? ',' : '');
 						break;
 					case nt.DO:
 						if(this.args.length === 1) {
@@ -671,7 +688,7 @@
 					default:
 						head = expPart(this.func) + '(';
 				};
-				var ca = oC_ARGS(this, env, skip, skips)
+				var ca = oC_ARGS(this, env, skip, skips);
 				comp = ca.args + ')'
 				return '(' + head + comp + ')';
 			});

@@ -18,7 +18,7 @@
 			// Membering
 			'MEMBER', 'ITEM', 'MEMBERREFLECT', 
 			// Invocation
-			'DO', 'CALL', 'NEW',
+			'DO', 'CALL', 'NEW', 'FUNCOID',
 			// Operators
 			'NEGATIVE', 'NOT',
 

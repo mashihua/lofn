@@ -66,7 +66,7 @@ var EISA_MINVOKE = function (p, s) {
 	return p[s].apply(p,EISA_SLICE(arguments,2))
 }
 var EISA_IINVOKE = function (p, s) {
-	return p.item.apply(p, s).apply(p,EISA_SLICE(arguments,2))
+	return p.item(s).apply(p, EISA_SLICE(arguments,2))
 }
 var EISA_RMETHOD = function (l, r, m){
 	return r[m](l)
