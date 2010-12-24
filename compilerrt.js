@@ -73,71 +73,71 @@
 	eisa.compileEnv = {}
 
 	var ScopedScript = eisa.ast.ScopedScript = function (id, env) {
-			this.code = {type: NodeType.SCRIPT};
-			this.variables = env ? derive(env.variables) : new Nai;
-			this.varIsArg = new Nai;
-			this.labels = {};
-			this.upper = null;
-			this.type = NodeType.SCOPE;
-			this.nest = [];
-			this.locals = [];
-			this.id = id;
-			this.parent = env;
-			this.usedVariables = new Nai;
-			this.usedVariablesOcc = new Nai;
-			this.usedTemps = {};
-			this.grDepth = 0;
-			this.sharpNo = 0;
-			this.finNo = 0;
-			this.coroid = false;
-			this.initHooks = {};
-		};
-		ScopedScript.prototype.newVar = function (name, isarg) {
-			return ScopedScript.registerVariable(this, name, isarg);
-		};
-		ScopedScript.prototype.resolveVar = function (name) {
-			if (this.variables[name] >= 0)
-				return this.variables[name];
-			else
-				return this.newVar(name)
-		};
-		ScopedScript.prototype.useVar = function (name, position) {
-			this.usedVariables[name] = true;
-			if(this.usedVariablesOcc[name] === undefined)
-				this.usedVariablesOcc[name] = position;
-		}
-		ScopedScript.listTemp = function(scope){
-			var l = []
-			for(var each in scope.usedTemps)
-				if(scope.usedTemps[each] === 1)
-					l.push(each);
-			return l;
-		}
-		ScopedScript.listParTemp = function(scope){
-			var l = []
-			for(var each in scope.usedTemps)
-				if(scope.usedTemps[each] === 2)
-					l.push(each);
-			return l;
-		}
-		ScopedScript.prototype.generateQueue = function(arr){
-			if(!arr) arr = [];
-			for(var i = 0; i < this.nest.length; i++)
-				this.nest[i].generateQueue(arr);
-			arr.push(this);
-			return arr;
-		};
-		ScopedScript.prototype.ready = function () {
-			if (this.parameters) {
-				for (var i = 0; i < this.parameters.names.length; i++) {
-					this.newVar(this.parameters.names[i], true)
-				}
+		this.code = {type: NodeType.SCRIPT};
+		this.variables = env ? derive(env.variables) : new Nai;
+		this.varIsArg = new Nai;
+		this.labels = {};
+		this.upper = null;
+		this.type = NodeType.SCOPE;
+		this.nest = [];
+		this.locals = [];
+		this.id = id;
+		this.parent = env;
+		this.usedVariables = new Nai;
+		this.usedVariablesOcc = new Nai;
+		this.usedTemps = {};
+		this.grDepth = 0;
+		this.sharpNo = 0;
+		this.finNo = 0;
+		this.coroid = false;
+		this.initHooks = {};
+	};
+	ScopedScript.prototype.newVar = function (name, isarg) {
+		return ScopedScript.registerVariable(this, name, isarg);
+	};
+	ScopedScript.prototype.resolveVar = function (name) {
+		if (this.variables[name] >= 0)
+			return this.variables[name];
+		else
+			return this.newVar(name)
+	};
+	ScopedScript.prototype.useVar = function (name, position) {
+		this.usedVariables[name] = true;
+		if(this.usedVariablesOcc[name] === undefined)
+			this.usedVariablesOcc[name] = position;
+	}
+	ScopedScript.listTemp = function(scope){
+		var l = []
+		for(var each in scope.usedTemps)
+			if(scope.usedTemps[each] === 1)
+				l.push(each);
+		return l;
+	}
+	ScopedScript.listParTemp = function(scope){
+		var l = []
+		for(var each in scope.usedTemps)
+			if(scope.usedTemps[each] === 2)
+				l.push(each);
+		return l;
+	}
+	ScopedScript.prototype.generateQueue = function(arr){
+		if(!arr) arr = [];
+		for(var i = 0; i < this.nest.length; i++)
+			this.nest[i].generateQueue(arr);
+		arr.push(this);
+		return arr;
+	};
+	ScopedScript.prototype.ready = function () {
+		if (this.parameters) {
+			for (var i = 0; i < this.parameters.names.length; i++) {
+				this.newVar(this.parameters.names[i], true)
 			}
-		};
-		ScopedScript.prototype.cleanup = function(){
-			delete this.sharpNo;
-			delete this.labels;
 		}
+	};
+	ScopedScript.prototype.cleanup = function(){
+		delete this.sharpNo;
+		delete this.labels;
+	}
 	
 	ScopedScript.generateQueue = function(scope, trees, arr){
 		if(!arr) arr = [];

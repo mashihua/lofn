@@ -335,7 +335,32 @@ eisa.languages.lofn = lofn;
 	var NodeType = eisa.ast.NodeType;
 	var ScopedScript = eisa.ast.ScopedScript;
 
-	lofn.parse = function (input, source) {
+	var resolveVariables = function(scope, trees, explicitQ, aux) {
+		for (var each in scope.usedVariables) {
+			if (scope.usedVariables[each] === true) {
+				if(!(scope.variables[each] > 0)){
+					if(!explicitQ) {
+						warn('Undeclared variable "' + each + '" when using `!option explicit`. At: ' +
+							(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0);
+						ScopedScript.registerVariable(scope, each);
+						trees[scope.variables[each] - 1].locals.push(each);
+					} else {
+						throw new CompileError(
+							'Undeclared variable "' + each + '" when using `!option explicit`.',
+							(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0,
+							aux.source || ''
+						)
+					}
+				} else {
+					trees[scope.variables[each] - 1].locals.push(each);
+				}
+			}
+		};
+		for (var i = 0; i < scope.nest.length; i++)
+			resolveVariables(trees[scope.nest[i]], trees, explicitQ, aux);
+	}
+
+	lofn.parse = function (input, source, initInterator) {
 		var PE = function(message, p){
 			var pos = p == undefined ? (token ? token.position : source.length) : p;
 			var lineno = ('\n' + source.slice(0, pos)).match(/\n/g).length;
@@ -1593,13 +1618,28 @@ eisa.languages.lofn = lofn;
 		
 		
 		newScope();
-		workingScope.unCorable = true;
-		workingScope.parameters = new Node(nt.PARAMETERS, {
+		var ws = workingScope;
+		ws.unCorable = true;
+		ws.parameters = new Node(nt.PARAMETERS, {
 			names: [],
 			anames: []
 		});
-		workingScope.code = statements();
+		ws.code = statements();
 		ensure(!token, "Unexpected script ending");
+
+		ws.thisOccurs = true;
+		
+		initInterator(function(v, n){
+			ScopedScript.registerVariable(ws, n);
+			// varname = this[varname]
+			ws.initHooks[n] = new Node(nt.MEMBER, {
+				left: new Node(nt.THIS),
+				right: new Node(nt.VARIABLE, {name: n})
+			})
+		});
+
+	 	resolveVariables(ws, scopes, opt_explicit, {source: source, language: "lofn"});
+
 		return {scopes: scopes, options: input.options};
 	};
 

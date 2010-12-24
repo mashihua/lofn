@@ -479,8 +479,8 @@
 
 			for (var i = 0; i < locals.length; i++)
 				if (!(tree.varIsArg[locals[i]])){
-					if(typeof tree.initHooks[locals[i]] === 'string')
-						vars.push(C_NAME(locals[i]) + '=' + tree.initHooks[locals[i]])
+					if(tree.initHooks[locals[i]] && tree.initHooks[locals[i]].type)
+						vars.push(C_NAME(locals[i]) + '=' + transform(tree.initHooks[locals[i]]))
 					else
 					vars.push(C_NAME(locals[i]));
 				}
@@ -1065,8 +1065,8 @@
 				temps = ScopedScript.listTemp(tree);
 			for (var i = 0; i < locals.length; i++)
 				if (!(tree.varIsArg[locals[i]])){
-					if(typeof tree.initHooks[locals[i]] === 'string')
-						vars.push(C_NAME(locals[i]) + '=' + tree.initHooks[locals[i]])
+					if(tree.initHooks[locals[i]] && tree.initHooks[locals[i]].type)
+						vars.push(C_NAME(locals[i]) + '=' + transform(tree.initHooks[locals[i]]))
 					else
 					vars.push(C_NAME(locals[i]));
 				}
@@ -1199,40 +1199,23 @@
 		}
 	}();
 	//============
-	eisa.Compiler = function (ast, initInterator, vmConfig, aux) {
+	eisa.Compiler = function (ast, vmConfig) {
 
 		bindConfig(vmConfig);
+		
+		var trees = ast.scopes;
+		var enter = trees[0];
 
-		var inits = {},
-			initv = new Nai,
-			trees = ast.scopes,
-			options = ast.options,
-			enter = trees[0],
-			libsAcquired = [];
-		
-		enter.thisOccurs = true;
-		ScopedScript.registerVariable(enter, '__global__');
-		
-		vmConfig.initGVM.itemly(enter, initInterator, inits, initv, libsAcquired);
-		
-		inits.__global__ = vmConfig.thisName();
-		enter.initHooks = inits;
-
-		ScopedScript.generateVariableResolver(enter, trees, options.explicit, aux);
-		
 		var body = '';
-		var enterText //= vmConfig.initGVM.globally() + inits.join('\n') + '\n';
-		var exitText //= vmConfig.dumpGVM(initInterator).join('\n');
+		var enterText; //= vmConfig.initGVM.globally() + inits.join('\n') + '\n';
+		var exitText; //= vmConfig.dumpGVM(initInterator).join('\n');
 
 		var getFs = function(generatedSource){
-			var f_ = Function('return ' + generatedSource)();
-			var f = function () {
-				return f_.apply(initv, arguments)
-			};
+			var f = Function('return ' + generatedSource)();
 
 			return {
 				wrappedF: f,
-				rawF: f_,
+				rawF: f,
 				generatedSource: generatedSource
 			}
 		}
@@ -1263,41 +1246,41 @@
 
 	eisa.Script = function(source, language, config, libraries){
 
-		var aux = {
-			source : source,
-			language : language
-		}
+		var libs = [eisa.stl].concat(libraries || [])
 
+		var inita = eisa.forLibraries(libs);
 		var tokens = language.lex(source);
-		var ast = language.parse(tokens, source);
+		var ast = language.parse(tokens, source, inita);
 
 		// ast = JSON.parse(JSON.stringify(ast));
 
 		config = config || eisa.standardTransform
 	
 		var vm;
-		var inita = eisa.forLibraries([eisa.stl].concat(libraries || []));
 		var lfcr;
+
+		var initvs;
 	
 		tokens = null;	
 
 		return {
 			compile: function(){
 				this.setGlobalVariable = null;
-				lfcr = eisa.Compiler(ast, inita, config, aux).compile(); 
+				lfcr = eisa.Compiler(ast, config).compile(); 
 				return lfcr;
 			},
 			asyncCompile: function(onSuccess, onStep){
-				eisa.Compiler(ast, inita, config, aux).asyncCompile(
+				eisa.Compiler(ast, config).asyncCompile(
 					function(cm){
 						lfcr = cm;
 						onSuccess.apply(this, arguments)
-					}, onStep
-				);
+					}, onStep);
 			},
 			start: function(){
 				if(!lfcr) this.compile();
-				lfcr.wrappedF.apply(null, arguments);
+				if(!initvs)
+					initvs = eisa.squashLibs(libs)
+				lfcr.wrappedF.apply(initvs, arguments);
 			}
 		};
 	};	
