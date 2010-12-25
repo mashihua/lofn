@@ -85,6 +85,8 @@
 			return '((' + transform(this.left.left) + ')[' + transform(this.left.right) + ']=' + transform(this.right) + ')';
 		case nt.VARIABLE:
 			return SETV(this.left, transform(this.right), env);
+		case nt.TEMPVAR:
+			return '(' + C_TEMP(this.left.name) + '=' + transform(this.right) + ')';
 		default:
 			throw new Error('Invalid assignment left value: only VARIABLE, MEMBER, MEMBERREFLECT or ITEM avaliable');
 		}
@@ -108,6 +110,9 @@
 	schemata(nt.VARIABLE, function (n, env) {
 		return GETV(n, env);
 	});
+	schemata(nt.TEMPVAR, function(){
+		return C_TEMP(this.name);
+	})
 	schemata(nt.GROUP, function(n, env){
 		env.grDepth += 1;
 		var r = '('+transform(this.operand)+')';
@@ -606,6 +611,8 @@
 						return '((' + expPart(this.left.left) + ')[' + expPart(this.left.right) + ']=' + expPart(this.right) + ')';
 					case nt.VARIABLE:
 						return SETV(this.left, expPart(this.right), env);
+					case nt.TEMPVAR:
+						return '(' + C_TEMP(this.left.name) + '=' + expPart(this.right) + ')';
 					default:
 						throw new Error('Invalid assignment left value: only VARIABLE, MEMBER, MEMBERREFLECT or ITEM avaliable');
 				}

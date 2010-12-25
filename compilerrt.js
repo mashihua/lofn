@@ -13,7 +13,7 @@
 			// Unknown type
 			'UNKNOWN',
 			// Primary
-			'VARIABLE', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT',
+			'VARIABLE', 'TEMPVAR', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT',
 			'ARGUMENTS', 'CALLEE', 'ARGN', 'GROUP', 'SHARP', 'AWAIT',
 			// Membering
 			'MEMBER', 'ITEM', 'MEMBERREFLECT', 

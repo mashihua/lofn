@@ -335,6 +335,7 @@ eisa.languages.lofn = lofn;
 	var NodeType = eisa.ast.NodeType;
 	var ScopedScript = eisa.ast.ScopedScript;
 
+	var warn = function(s){eisa.log(s)};
 	var resolveVariables = function(scope, trees, explicitQ, aux) {
 		for (var each in scope.usedVariables) {
 			if (scope.usedVariables[each] === true) {
@@ -383,7 +384,7 @@ eisa.languages.lofn = lofn;
 			return p
 		};
 
-		var implicitReturn = function(node){
+		var implicitReturn = function(node, scope){
 			if(!node || !node.content || node.type !== nt.SCRIPT) return node;
 			var last = node.content.length - 1;
 			while(last >= 0 && node.content[last].type === nt.BREAK) last--;
@@ -394,23 +395,64 @@ eisa.languages.lofn = lofn;
 				node.content[last] = new Node(nt.RETURN, {
 					expression: laststmt.expression
 				})
-			} else if(lasttype === nt.SCRIPT){
-				implicitReturn(laststmt);
-			} else if(lasttype === nt.LABEL){
-				implicitReturn(laststmt.body);
-			} else if(lasttype === nt.IF){
-				implicitReturn(laststmt.thenPart);
-				if(laststmt.elsePart)
-					implicitReturn(laststmt.elsePart);
-			} else if(lasttype === nt.PIECEWISE || lasttype === nt.CASE){
-				for(var i = 0; i < laststmt.bodies.length; i++){
-					implicitReturn(laststmt.bodies[i])
-				};
-				if(laststmt.otherwise){
-					implicitReturn(laststmt.otherwise)
+			} else {
+				var c = implicitReturnCpst(laststmt, false, scope);
+				if(c){
+					node.content.push(new Node(nt.RETURN, {
+						expression: new Node(nt.TEMPVAR, {name: 'IMPLICIT'})
+					}))
 				}
-			};
+			}
 			return node;
+		};
+
+		var implicitReturnCpst = function(node, caseQ, scope){
+			var ir = caseQ ? implicitReturnCase : implicitReturn;
+			var lasttype = node.type;
+			if(lasttype === nt.SCRIPT){
+				ir(node, scope);
+			} else if(lasttype === nt.LABEL){
+				ir(node.body, scope);
+			} else if(lasttype === nt.IF){
+				ir(node.thenPart, scope);
+				if(node.elsePart){
+					ir(laststmt.elsePart, scope);
+				}
+			} else if(lasttype === nt.PIECEWISE){
+				for(var i = 0; i < node.bodies.length; i++){
+					ir(node.bodies[i], scope);
+				};
+				if(node.otherwise){
+					ir(node.otherwise, scope);
+				};
+			} else if(lasttype === nt.CASE){
+				for(var i = 0; i < node.bodies.length; i++){
+					implicitReturnCase(node.bodies[i], scope);
+				};
+				if(node.otherwise){
+					implicitReturnCase(node.otherwise, scope);
+				};
+				return true;
+			};
+		};
+
+
+		var implicitReturnCase = function(node, s){
+			var contents = node.content;
+			for(var i = 0; i < contents.length; i++)
+				if(contents[i].type === nt.EXPRSTMT ) {
+					if(contents[i + 1] && contents[i + 1].type !== nt.EXPRSTMT) {
+						ScopedScript.useTemp(s, 'IMPLICIT');
+						contents[i] = new Node(nt.EXPRSTMT, {
+							expression: new Node(nt['='], {
+								left:  new Node(nt.TEMPVAR, {name: 'IMPLICIT'}),
+								right: contents[i].expression
+							})
+						});
+					};
+				} else {
+					implicitReturnCpst(contents[i], true, s);
+				}
 		};
 
 		var checkBreakPosition = function (node, okayQ) {
@@ -616,7 +658,7 @@ eisa.languages.lofn = lofn;
 			if(s.coroid)
 				generateObstructiveness(code);
 			else
-				implicitReturn(code);
+				implicitReturn(code, s);
 			advance(ENDBRACE, 125);
 			return new Node(nt.FUNCTION, { tree: s.id });
 		};
