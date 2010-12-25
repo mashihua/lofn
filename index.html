@@ -73,7 +73,7 @@
 			clrscr();
 			var tracel = G_TRACE('info').tracel;
 			EISA_eisa.log = function(message){
-				tracel("[ESA] " + message);
+				tracel(message);
 			}
 			var script = new eisa.Script(document.getElementById('input').value, eisa.languages.lofn, null, [
 					eisa.dev.lib.fromObject(output),

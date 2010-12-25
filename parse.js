@@ -335,43 +335,42 @@ eisa.languages.lofn = lofn;
 	var NodeType = eisa.ast.NodeType;
 	var ScopedScript = eisa.ast.ScopedScript;
 
-	var warn = function(s){eisa.log(s)};
-	var resolveVariables = function(scope, trees, explicitQ, aux) {
-		for (var each in scope.usedVariables) {
-			if (scope.usedVariables[each] === true) {
-				if(!(scope.variables[each] > 0)){
-					if(!explicitQ) {
-						warn('Undeclared variable "' + each + '" when using `!option explicit`. At: ' +
-							(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0);
-						ScopedScript.registerVariable(scope, each);
-						trees[scope.variables[each] - 1].locals.push(each);
-					} else {
-						throw new CompileError(
-							'Undeclared variable "' + each + '" when using `!option explicit`.',
-							(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0,
-							aux.source || ''
-						)
-					}
-				} else {
-					trees[scope.variables[each] - 1].locals.push(each);
-				}
-			}
-		};
-		for (var i = 0; i < scope.nest.length; i++)
-			resolveVariables(trees[scope.nest[i]], trees, explicitQ, aux);
-	}
-
 	lofn.parse = function (input, source, initInterator) {
-		var PE = function(message, p){
+		var PW = function(message, p){
 			var pos = p == undefined ? (token ? token.position : source.length) : p;
 			var lineno = ('\n' + source.slice(0, pos)).match(/\n/g).length;
 			var lineno_l = lineno.toString().length;
-			message = '[LFC] ' + message + '\nat line: ' + lineno;
-			message += '\n ' + lineno + ' : ' + (source.split('\n')[lineno - 1]);
-			message += '\n-' + (lineno + '').replace(/./g, '-') + '---' + (source.slice(0, pos).split('\n')[lineno - 1].replace(/./g, '-').replace(/$/, '^'));
-			var e = new Error(message);
-			return e;
+			message = '[LFC] ' + message + '\nat line ' + lineno + ' : ' + (source.split('\n')[lineno - 1]);
+			message += '\n--------' + (lineno + '').replace(/./g, '-') + '---' + (source.slice(0, pos).split('\n')[lineno - 1].replace(/./g, '-').replace(/$/, '^'));
+			return message;
+		}
+		var PE = function(message, p){
+			return PW(message, p);
 		};
+		
+		var resolveVariables = function(scope, trees, explicitQ, aux) {
+			for (var each in scope.usedVariables) {
+				if (scope.usedVariables[each] === true) {
+					if(!(scope.variables[each] > 0)){
+						if(!explicitQ) {
+							eisa.log(PW('Undeclared variable "' + each + '"' ,
+								(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0));
+							ScopedScript.registerVariable(scope, each);
+							trees[scope.variables[each] - 1].locals.push(each);
+						} else {
+							throw PE(
+								'Undeclared variable "' + each + '" when using `!option explicit`.',
+								(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0
+							)
+						}
+					} else {
+						trees[scope.variables[each] - 1].locals.push(each);
+					}
+				}
+			};
+			for (var i = 0; i < scope.nest.length; i++)
+				resolveVariables(trees[scope.nest[i]], trees, explicitQ, aux);
+		}
 
 		var ensure = function(c, m, p){
 			if(!c) throw PE(m, p);
@@ -411,8 +410,6 @@ eisa.languages.lofn = lofn;
 			var lasttype = node.type;
 			if(lasttype === nt.SCRIPT){
 				ir(node, scope);
-			} else if(lasttype === nt.LABEL){
-				ir(node.body, scope);
 			} else if(lasttype === nt.IF){
 				ir(node.thenPart, scope);
 				if(node.elsePart){
@@ -1592,7 +1589,11 @@ eisa.languages.lofn = lofn;
 				name: label
 			});
 			workingScope.labels[label] = node;
-			node.body = contBlock();
+			advance(COMMA);
+			ensure(tokenIs(WHILE) || tokenIs(FOR) || tokenIs(REPEAT), "You can only label a loop statement");
+			node.body = new Node(nt.SCRIPT, {
+				content: [ statement() ]
+			});
 			workingScope.labels[label] = 0;
 			return node;
 		};
