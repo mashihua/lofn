@@ -1086,7 +1086,7 @@
 			for (var i = 0; i < temppars.length; i++)
 				temppars[i] = C_TEMP(temppars[i])
 
-			s = '(function(' + C_TEMP('SCHEMATA') + '){ return function(' + pars.concat(temppars).join(', ') + '){' + JOIN_STMTS([
+			s = '(EISA_OBSTRUCTIVE(function(' + C_TEMP('SCHEMATA') + '){ return function(' + pars.concat(temppars).join(', ') + '){' + JOIN_STMTS([
 					THIS_BIND(tree),
 					ARGS_BIND(tree),
 					ARGN_BIND(tree),
@@ -1105,7 +1105,7 @@
 					hook_exit  || ''
 				]) 
  
-				+ '}})'
+				+ '}}))'
 
 			tree.transformed = s;
 			env = backupenv;

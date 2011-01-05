@@ -19,6 +19,7 @@ var derive = Object.create ? Object.create : function(){
 		return new F;
 	}
 }();
+
 var EISA_OWNS = function(){
 	var hop = {}.hasOwnProperty;
 	return function(o,p){
@@ -32,7 +33,7 @@ var COPYSTRING = function(s,n){
 	t = t + t;
 	if(n % 2) t += s;
 	return t;
-}
+};
 
 var YES = {};
 var NUSED = {};
@@ -87,6 +88,11 @@ var EISA_WHILE = function(c, f){
 		r = f()
 	};
 	return r;
+}
+var EISA_OBSTRUCTIVE = function(f){
+	return {
+		build: f
+	}
 }
 
 var NamedArguments = function(){

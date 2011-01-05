@@ -413,7 +413,7 @@ eisa.languages.lofn = lofn;
 			} else if(lasttype === nt.IF){
 				ir(node.thenPart, scope);
 				if(node.elsePart){
-					ir(laststmt.elsePart, scope);
+					ir(node.elsePart, scope);
 				}
 			} else if(lasttype === nt.PIECEWISE){
 				for(var i = 0; i < node.bodies.length; i++){
@@ -641,7 +641,6 @@ eisa.languages.lofn = lofn;
 			advance(STARTBRACE, 123);
 			var n = newScope(), s = workingScope, code;
 			workingScope.parameters = p || new Node(nt.PARAMETERS, { names: [], anames: [] });
-			workingScope.ready();
 			if(tokenIs(THEN)) { // {|args| } form
 				if(p)
 					throw PE('Attempting to add parameters to a parameter-given function');
@@ -649,6 +648,7 @@ eisa.languages.lofn = lofn;
 				workingScope.parameters.names = parlist();
 				advance(THEN);
 			};
+			workingScope.ready();
 			workingScope.code = code = statements();
 			endScope();
 			checkBreakPosition(code);

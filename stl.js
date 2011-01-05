@@ -2,6 +2,7 @@
 //	:author:		infinte (aka. be5invis)
 //	:info:			The standard library for Lofn.
 eisa.stl = eisa.dev.lib.register(eisa.dev.lib.define('std', function(reg){
+
 	// special hack
 	Date['new'] = function () { return new Date() };
 	Function['new'] = function (args, body) { return new Function(args, body) };
@@ -100,7 +101,7 @@ eisa.stl = eisa.dev.lib.register(eisa.dev.lib.define('std', function(reg){
 			}
 		}
 		return function(M){
-			var G = M(enumeratorSchemata);
+			var G = M.build(enumeratorSchemata);
 			return function(){
 				var d = G.apply(this, arguments);
 				var i = function(f){
@@ -119,6 +120,15 @@ eisa.stl = eisa.dev.lib.register(eisa.dev.lib.define('std', function(reg){
 			}
 		}
 	}());
+
+	reg('debugger', function(){debugger});
+
+	reg('spawn', function(f){
+		var o = {}
+		var r = f.call(o);
+		return r || o;
+	});
+
 
 	String.prototype.stripMargins = function(){
 		return this.replace(/^\s*\|/gm, '')

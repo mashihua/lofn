@@ -105,21 +105,21 @@
 		this.usedVariables[name] = true;
 		if(this.usedVariablesOcc[name] === undefined)
 			this.usedVariablesOcc[name] = position;
-	}
+	};
 	ScopedScript.listTemp = function(scope){
 		var l = []
 		for(var each in scope.usedTemps)
 			if(scope.usedTemps[each] === 1)
 				l.push(each);
 		return l;
-	}
+	};
 	ScopedScript.listParTemp = function(scope){
 		var l = []
 		for(var each in scope.usedTemps)
 			if(scope.usedTemps[each] === 2)
 				l.push(each);
 		return l;
-	}
+	};
 	ScopedScript.prototype.generateQueue = function(arr){
 		if(!arr) arr = [];
 		for(var i = 0; i < this.nest.length; i++)
@@ -137,7 +137,7 @@
 	ScopedScript.prototype.cleanup = function(){
 		delete this.sharpNo;
 		delete this.labels;
-	}
+	};
 	
 	ScopedScript.generateQueue = function(scope, trees, arr){
 		if(!arr) arr = [];
@@ -145,10 +145,10 @@
 			ScopedScript.generateQueue(trees[scope.nest[i]], trees, (arr));
 		arr.push(scope);
 		return arr;
-	}
+	};
 	ScopedScript.useTemp = function(scope, type, id, aspar){
 		scope.usedTemps[type + (id == null ? '' : id)] = (aspar || 0) + 1;
-	}
+	};
 	
 	ScopedScript.registerVariable = function(scope, name, argQ, useQ) {
 		if (scope.variables[name] === scope.id) return;
@@ -158,7 +158,7 @@
 			scope.usedVariables[name] = true;
 		}
 		return scope.variables[name] = scope.id;
-	}
+	};
 	ScopedScript.generateVariableResolver = function(scope, trees, explicitQ, aux) {
 		for (var each in scope.usedVariables) {
 			if (scope.usedVariables[each] === true) {
@@ -198,4 +198,4 @@
 			}
 		}
 	}
-})(EISA_eisa)
+})(EISA_eisa);
