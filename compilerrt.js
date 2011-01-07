@@ -1,4 +1,4 @@
-//:module: compiler runtime -- compilerrt
+﻿//:module: compiler runtime -- compilerrt
 //	:author:		infinte (aka. be5invis)
 //	:info:			The essential environment for Eisa Compiler
 

@@ -1220,6 +1220,7 @@ eisa.languages.lofn = lofn;
 			while(tokenIs(THEN)){
 				advance();
 				isOmission = false;
+
 				if (tokenIs(COLON)) {
 					return new Node(nt.CALL, {
 						func: c,
@@ -1634,7 +1635,6 @@ eisa.languages.lofn = lofn;
 		var statements = function (fin, fin2) {
 			var script = new Node(nt.SCRIPT);
 			var _t = endS, s;
-		//	debugger;
 			stripSemicolons();
 			s = statement();
 			var a = s ? [s] : [];

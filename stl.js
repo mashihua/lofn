@@ -132,6 +132,13 @@ eisa.stl = eisa.dev.lib.register(eisa.dev.lib.define('std', function(reg){
 
 	String.prototype.stripMargins = function(){
 		return this.replace(/^\s*\|/gm, '')
+	};
+
+	Function.prototype.shiftIn = function(g){
+		var f = this;
+		return function(){
+			return f(g.apply(this, arguments))
+		}
 	}
 
 }));
