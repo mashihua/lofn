@@ -98,6 +98,9 @@ eisa.stl = eisa.dev.lib.register(eisa.dev.lib.define('std', function(reg){
 			},
 			'bypass': function(t, a, g, restart){
 				return new EISA_YIELDVALUE(g[0])
+			},
+			'return': function(t, a, v){
+				return new EISA_RETURNVALUE(v)
 			}
 		}
 		return function(M){

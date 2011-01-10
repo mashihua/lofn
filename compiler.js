@@ -533,7 +533,7 @@
 				return block.push('  case ' + label + ':')
 			}
 			var OVER = function(){
-				return '{ ' + C_TEMP('PROGRESS') + '= 0; ' + C_TEMP('COROFUN') + '.stopped = true }'
+				return '{ ' + C_TEMP('PROGRESS') + '= 0;' + C_TEMP('COROFUN') + '.stopped = true };'
 			}
 			var pushStatement = function(s){
 				if(s) block.push(INDENT(s) + ';')
@@ -1003,7 +1003,10 @@
 
 			cSchemata[nt.RETURN] = function() {
 				ps(OVER());
-				ps('return new EISA_RETURNVALUE(' + ct(this.expression) + ')');
+				ps('return ' + C_TEMP('SCHEMATA') + '["return"]' + '(' 
+					+ T_THIS() + ',' 
+					+ T_ARGS() + ',' 
+					+ ct(this.expression) + ')');
 				return '';
 			};
 
@@ -1053,7 +1056,9 @@
 			LABEL(lInital);
 			ct(tree.code);
 			ps(OVER());
-			ps('return');
+			ps('return ' + C_TEMP('SCHEMATA') + '["return"]' + '(' 
+				+ T_THIS() + ',' 
+				+ T_ARGS() + ')');
 
 			var s = flowM.joint();
 				

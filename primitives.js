@@ -84,6 +84,11 @@ var EISA_OBSTRUCTIVE = function(f){
 		build: f
 	}
 }
+var EISA_OBSTRUCTIVE_SCHEMATA_M = {
+	'return': function(t, a, v){
+		return v;
+	}
+}
 
 var NamedArguments = function(){
 	for(var i=arguments.length-2;i>=0;i-=2)
