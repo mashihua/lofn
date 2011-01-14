@@ -10,10 +10,10 @@ var gettags = do {
 		var obj = derive this;
 		var props = '';
 		obj.result = '';
-		arguments.each {|item|
+		arguments.forEach {|item|
 			if item is String, obj.result += entify(item)
 			else if item is Function, item.call obj
-			else if item is NamedArguments, item.each {|value, prop|
+			else if item is NamedArguments, NamedArguments.enumerate item, {|value, prop|
 				props += ' ' + prop + '="' + entify(value) + '"'
 			}
 		}

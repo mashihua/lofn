@@ -80,7 +80,7 @@
 		case nt.ITEM:
 			return '(' + transform(this.left.left) + '.itemset(' + transform(this.left.member) + ',' + transform(this.right) + '))';
 		case nt.MEMBER:
-			return '(' + PART(transform(this.left.left), this.left.right.name) + '=' + transform(this.right) + ')';
+			return '(' + PART(transform(this.left.left), this.left.right) + '=' + transform(this.right) + ')';
 		case nt.MEMBERREFLECT:
 			return '((' + transform(this.left.left) + ')[' + transform(this.left.right) + ']=' + transform(this.right) + ')';
 		case nt.VARIABLE:
@@ -93,7 +93,7 @@
 	});
 
 	schemata(nt.MEMBER, function () {
-		return '(' + PART(transform(this.left), this.right.name) + ')';
+		return '(' + PART(transform(this.left), this.right) + ')';
 	});
 	schemata(nt.MEMBERREFLECT, function () {
 		return '(' + transform(this.left) + '[' + transform(this.right) + '])';
@@ -606,7 +606,7 @@
 					case nt.ITEM:
 						return '(' + expPart(this.left.left) + '.itemset(' + expPart(this.left.member) + ',' + expPart(this.right) + '))';
 					case nt.MEMBER:
-						return '(' + PART(expPart(this.left.left), this.left.right.name) + '=' + expPart(this.right) + ')';
+						return '(' + PART(expPart(this.left.left), this.left.right) + '=' + expPart(this.right) + ')';
 					case nt.MEMBERREFLECT:
 						return '((' + expPart(this.left.left) + ')[' + expPart(this.left.right) + ']=' + expPart(this.right) + ')';
 					case nt.VARIABLE:
@@ -741,7 +741,7 @@
 				return comp;
 			});
 			oSchemata(nt.MEMBER, function () {
-				return '(' + PART(expPart(this.left), this.right.name) + ')';
+				return '(' + PART(expPart(this.left), this.right) + ')';
 			});
 			oSchemata(nt.MEMBERREFLECT, function () {
 				return '(' + expPart(this.left) + '[' + expPart(this.right) + '])';

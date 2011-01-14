@@ -563,14 +563,14 @@ eisa.languages.lofn = lofn;
 		};
 		var lname = function () {
 			var t = advance(ID);
-			return new Node(NodeType.VARIABLE, { name: t.value });
+			return t.value;
 		};
 		var name = function () {
 			if(token.isName) 
 				var t = advance();	
 			else 
 				throw PE("A name is needed!");
-			return new Node(NodeType.VARIABLE, { name: t.value });
+			return t.value;
 		};
 
 		// literals: number, string
@@ -733,10 +733,10 @@ eisa.languages.lofn = lofn;
 		// Only parameters explicitly defined names can be a named parameter
 		var parlist = function(){
 			var arr = [];
-			arr[0] = name().name;
+			arr[0] = name();
 			while (tokenIs(COMMA)) {
 				advance(COMMA);
-				arr[arr.length] = name().name;
+				arr[arr.length] = name();
 			};
 			return arr;
 		}
@@ -802,7 +802,7 @@ eisa.languages.lofn = lofn;
 					if (nextIs(LAMBDA)) {
 						var v = name();
 						return lambdaCont(new Node(nt.PARAMETERS, {
-							names: [v.name],
+							names: [v],
 							anames: [null]
 						}));
 						// or variable
@@ -811,7 +811,7 @@ eisa.languages.lofn = lofn;
 							throw PE("Attempting to use AWAIT in a uncorable function");
 						workingScope.coroid = true;
 						var n = new Node(nt.AWAIT, {
-							pattern: name().name
+							pattern: name()
 						});
 						advance();
 						return n;
@@ -877,7 +877,7 @@ eisa.languages.lofn = lofn;
 					} else if (token.isName) {
 						return new Node(nt.MEMBERREFLECT, {
 							left : new Node(nt.ARGN),
-							right : new Node(nt.LITERAL, {value: name().name})
+							right : new Node(nt.LITERAL, {value: name()})
 						});
 					} else if (tokenIs(SHARP)) {
 						advance();
@@ -1584,7 +1584,7 @@ eisa.languages.lofn = lofn;
 		var labelstmt = function () {
 			advance(LABEL);
 			ensure(tokenIs(ID));
-			var label = lname().name;
+			var label = lname();
 			ensure(!workingScope.labels[label] && workingScope.labels[label] !== 0, 'Unable to re-label a statement');
 			var node = new Node(nt.LABEL, {
 				name: label
@@ -1677,7 +1677,7 @@ eisa.languages.lofn = lofn;
 			// varname = this[varname]
 			ws.initHooks[n] = new Node(nt.MEMBER, {
 				left: new Node(nt.THIS),
-				right: new Node(nt.VARIABLE, {name: n})
+				right: n
 			})
 		});
 
