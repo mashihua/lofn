@@ -1,32 +1,4 @@
-Lofn
-===============
-Amor ex Dessis.
-(From dess, with love.)
-
-Lofn is a new language on JavaScript. It's aimed to create the new experience of web programming.
-
-Build
----------------
-Nowdays, to build my first example in examples/ongi, use this powershell command:
-
-	ls .\examples\ongi\*.lf |%{ .\lfc "$_" |tee "$_.js" }
-
-If there is any syntax error, the .lf.js won't be written.
-
-Naming of versions
----------------
-Names of the versions are character names from Toho series. And the developing version is named 'hoejuu'.
-
-Checkout the [release] branch for released versions (with tags).
-
-Convention
----------------
-* Primitival functions: UPPERCASED
-* Types:                PascalCase
-* Prototypes:           camelCase_m
-
-Questions?
----------------
-Concat me via [infinte.cdda@hotmail.com]
-My blog:      [coro.in]
-Typeof.net:   [typeof.net]
+!!!
+THIS PROJECT HAS MOVED TO infinte/eisa
+AND PLEASE WATCH THE NEW eisa AND MY infinte/dess
+!!!
